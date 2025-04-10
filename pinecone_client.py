@@ -25,10 +25,12 @@ try:
         logging.info(f"Creating new Pinecone index: {PINECONE_INDEX_NAME}")
         # Create the index with a dimension of 1536 (OpenAI ada embedding dimension)
         # Pinecone free tier only supports 'gcp-starter' environment in one fixed region
+        # For Pinecone free tier (gcp-starter)
         pc.create_index(
             name=PINECONE_INDEX_NAME,
             dimension=1536,
-            metric="cosine"
+            metric="cosine",
+            spec=ServerlessSpec(cloud="aws", region="us-east-1")
         )
     logging.info(f"Connected to existing Pinecone index: {PINECONE_INDEX_NAME}")
     index = pc.Index(PINECONE_INDEX_NAME)
