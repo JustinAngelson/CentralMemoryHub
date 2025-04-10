@@ -20,6 +20,10 @@ def require_api_key(f):
     """Decorator to require API key for API endpoints"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
+        # Handle preflight OPTIONS requests by returning early
+        if request.method == 'OPTIONS':
+            return '', 200
+            
         # Check if the API key is provided in the header
         provided_key = request.headers.get("X-API-KEY")
         if not provided_key or provided_key != API_KEY:
