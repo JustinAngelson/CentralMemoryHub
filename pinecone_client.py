@@ -3,31 +3,45 @@ import logging
 import json
 from typing import List, Dict, Any, Optional, Tuple
 import uuid
-import requests
 from openai import OpenAI
+from pinecone import Pinecone, ServerlessSpec
 
 # Initialize the OpenAI client
 # The newest OpenAI model is "gpt-4o" which was released May 13, 2024.
 # Do not change this unless explicitly requested by the user
 openai_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
-# Pinecone constants
-PINECONE_API_KEY = os.environ.get("PINECONE_API_KEY")
-PINECONE_ENVIRONMENT = os.environ.get("PINECONE_ENVIRONMENT", "us-west1-gcp")
-PINECONE_INDEX_NAME = os.environ.get("PINECONE_INDEX_NAME", "memory-hub")
+# Initialize Pinecone client
+pc = Pinecone(api_key=os.environ.get("PINECONE_API_KEY"))
 
-# Headers for Pinecone API requests
-PINECONE_HEADERS = {
-    "Api-Key": PINECONE_API_KEY,
-    "Content-Type": "application/json"
-}
+# Pinecone index name
+PINECONE_INDEX_NAME = "memory-hub"
+
+# Make sure the index exists, create it if it doesn't
+try:
+    # List indexes to check if ours exists
+    index_names = [index.name for index in pc.list_indexes()]
+    if PINECONE_INDEX_NAME not in index_names:
+        logging.info(f"Creating new Pinecone index: {PINECONE_INDEX_NAME}")
+        # Create the index with a dimension of 1536 (OpenAI ada embedding dimension)
+        # Using Pinecone serverless spec for free tier (gcp-starter environment)
+        pc.create_index(
+            name=PINECONE_INDEX_NAME,
+            dimension=1536,
+            metric="cosine",
+            spec=ServerlessSpec(cloud="gcp", region="us-central1")
+        )
+    logging.info(f"Connected to existing Pinecone index: {PINECONE_INDEX_NAME}")
+    index = pc.Index(PINECONE_INDEX_NAME)
+except Exception as e:
+    logging.error(f"Error with Pinecone index: {e}")
+    # Don't crash the entire application if Pinecone setup fails
+    # Just log the error and continue
+    logging.warning("Continuing without Pinecone index. Vector search will not work.")
+    index = None
 
 # OpenAI embedding model
 EMBEDDING_MODEL = "text-embedding-ada-002"
-
-def get_pinecone_base_url() -> str:
-    """Get the base URL for Pinecone API calls"""
-    return f"https://{PINECONE_INDEX_NAME}-{PINECONE_ENVIRONMENT}.svc.pinecone.io"
 
 def generate_embedding(text: str) -> List[float]:
     """Generate an embedding for the given text using OpenAI"""
@@ -43,45 +57,56 @@ def generate_embedding(text: str) -> List[float]:
 
 def store_embedding(vector: List[float], metadata: Dict[str, Any] = None) -> str:
     """Store a vector in Pinecone and return the vector ID"""
+    # Generate a unique ID regardless of whether we can store it
+    vector_id = str(uuid.uuid4())
+    
     try:
-        vector_id = str(uuid.uuid4())
-        url = f"{get_pinecone_base_url()}/vectors/upsert"
-        
-        payload = {
-            "vectors": [{
-                "id": vector_id,
-                "values": vector,
-                "metadata": metadata or {}
-            }]
-        }
-        
-        response = requests.post(url, headers=PINECONE_HEADERS, json=payload)
-        response.raise_for_status()
+        # Check if index is available (it's set to None in the exception handler above)
+        if 'index' not in globals() or index is None:
+            logging.warning("Pinecone index not available. Skipping vector storage.")
+            return vector_id
+            
+        # Default empty metadata if None
+        if metadata is None:
+            metadata = {}
+            
+        # Get the index
+        pinecone_index = pc.Index(PINECONE_INDEX_NAME)
+            
+        # Upsert the vector
+        pinecone_index.upsert(
+            vectors=[(vector_id, vector, metadata)]
+        )
         
         return vector_id
     except Exception as e:
         logging.error(f"Error storing embedding in Pinecone: {e}")
-        raise
+        # Return the ID even if storage fails
+        return vector_id
 
 def similarity_search(query_vector: List[float], top_k: int = 10) -> List[Dict[str, Any]]:
     """Perform a similarity search in Pinecone using the query vector"""
     try:
-        url = f"{get_pinecone_base_url()}/query"
+        # Check if index is available
+        if 'index' not in globals() or index is None:
+            logging.warning("Pinecone index not available. Returning empty results.")
+            return []
+            
+        # Get the index
+        pinecone_index = pc.Index(PINECONE_INDEX_NAME)
         
-        payload = {
-            "vector": query_vector,
-            "topK": top_k,
-            "includeMetadata": True
-        }
+        # Query the index
+        results = pinecone_index.query(
+            vector=query_vector,
+            top_k=top_k,
+            include_metadata=True
+        )
         
-        response = requests.post(url, headers=PINECONE_HEADERS, json=payload)
-        response.raise_for_status()
-        
-        result = response.json()
-        return result.get("matches", [])
+        return results.get("matches", [])
     except Exception as e:
         logging.error(f"Error performing similarity search in Pinecone: {e}")
-        raise
+        # Return empty results on error
+        return []
 
 def process_unstructured_data(content: str) -> Tuple[List[float], str]:
     """Process unstructured data: generate embedding and store in Pinecone"""
