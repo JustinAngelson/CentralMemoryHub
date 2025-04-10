@@ -1,0 +1,87 @@
+/* Custom styles for the Memory Hub application */
+
+/* Card styling */
+.card {
+    border-radius: 0.5rem;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    margin-bottom: 1.5rem;
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+/* Form styling */
+.form-control {
+    border-radius: 0.25rem;
+}
+
+.form-control:focus {
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+/* Button styling */
+.btn {
+    border-radius: 0.25rem;
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+}
+
+/* Icon styling */
+[data-feather] {
+    width: 1.25rem;
+    height: 1.25rem;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    fill: none;
+}
+
+/* Result list styling */
+.list-group-item {
+    border-left: 0;
+    border-right: 0;
+    padding: 1rem;
+}
+
+.similarity-score {
+    font-size: 0.875rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 1rem;
+}
+
+/* API Key input styling */
+#apiKeyInput {
+    font-family: monospace;
+}
+
+/* Toast styling */
+.toast {
+    min-width: 350px;
+}
+
+/* Code styling */
+pre, code {
+    background-color: var(--bs-dark);
+    border-radius: 0.25rem;
+    font-family: monospace;
+    padding: 0.25rem;
+}
+
+pre {
+    padding: 1rem;
+}
+
+/* Loading spinner */
+.spinner-border {
+    width: 1.5rem;
+    height: 1.5rem;
+}
+
+/* Card header icons */
+.card-header i {
+    margin-right: 0.5rem;
+}

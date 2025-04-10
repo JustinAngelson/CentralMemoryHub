@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Central Memory Hub</title>
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <!-- Feather Icons -->
+    <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i data-feather="database"></i>
+                Central Memory Hub
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/">Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#apiDocsModal">API Docs</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- API Documentation Modal -->
+    <div class="modal fade" id="apiDocsModal" tabindex="-1" aria-labelledby="apiDocsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="apiDocsModalLabel">API Documentation</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <h6>Authentication</h6>
+                    <p>All API endpoints require the <code>X-API-KEY</code> header with your API key.</p>
+                    
+                    <h6>Structured Memory</h6>
+                    <ul>
+                        <li><strong>POST /memory/structured</strong> - Add a new structured memory entry</li>
+                        <li><strong>GET /memory/structured/{id}</strong> - Retrieve a structured memory entry by ID</li>
+                    </ul>
+                    
+                    <h6>Unstructured Memory</h6>
+                    <ul>
+                        <li><strong>POST /memory/unstructured</strong> - Add a new unstructured memory entry</li>
+                        <li><strong>GET /memory/unstructured/{id}</strong> - Retrieve an unstructured memory entry by ID</li>
+                    </ul>
+                    
+                    <h6>Search</h6>
+                    <ul>
+                        <li><strong>POST /search</strong> - Search for similar unstructured data</li>
+                    </ul>
+                    
+                    <h6>Shared Contexts</h6>
+                    <ul>
+                        <li><strong>POST /context</strong> - Add a new shared context</li>
+                        <li><strong>GET /context</strong> - Retrieve all shared contexts</li>
+                    </ul>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS and dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Custom JS -->
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    <script>
+        // Initialize Feather icons
+        feather.replace();
+    </script>
+</body>
+</html>
