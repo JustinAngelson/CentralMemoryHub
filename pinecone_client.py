@@ -24,12 +24,11 @@ try:
     if PINECONE_INDEX_NAME not in index_names:
         logging.info(f"Creating new Pinecone index: {PINECONE_INDEX_NAME}")
         # Create the index with a dimension of 1536 (OpenAI ada embedding dimension)
-        # Using Pinecone serverless spec for free tier (gcp-starter environment)
+        # Pinecone free tier only supports 'gcp-starter' environment in one fixed region
         pc.create_index(
             name=PINECONE_INDEX_NAME,
             dimension=1536,
-            metric="cosine",
-            spec=ServerlessSpec(cloud="gcp", region="us-central1")
+            metric="cosine"
         )
     logging.info(f"Connected to existing Pinecone index: {PINECONE_INDEX_NAME}")
     index = pc.Index(PINECONE_INDEX_NAME)
