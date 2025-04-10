@@ -626,7 +626,7 @@ The Memory Hub provides a RESTful API that can be accessed using the OpenAPI sch
 To use this API with a Custom GPT:
 
 1. Deploy your Memory Hub application to Replit
-2. The schema is configured to use the URL: `https://workspace.angelson.repl.co` - make sure this is the correct URL for your deployment
+2. The schema is configured to use the URL: `https://a4bcd18d-c239-4cf3-b41c-6f743ef6fa20-00-32na6d6s4kheq.kirk.replit.dev` - make sure this is the correct URL for your deployment
 3. Configure your Custom GPT to use this OpenAPI schema
 4. Make sure to provide your API key in the X-API-KEY header for all requests
 
