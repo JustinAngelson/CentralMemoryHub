@@ -487,6 +487,105 @@
     }
   },
   "components": {
+    "schemas": {
+      "UnstructuredMemory": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for the memory"
+          },
+          "content": {
+            "type": "string",
+            "description": "Content of the memory"
+          },
+          "pinecone_id": {
+            "type": "string",
+            "description": "ID of the vector in Pinecone"
+          }
+        }
+      },
+      "StructuredMemory": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for the memory"
+          },
+          "gpt_role": {
+            "type": "string",
+            "description": "Role of the GPT creating this memory"
+          },
+          "decision_text": {
+            "type": "string",
+            "description": "Content of the decision"
+          },
+          "context_embedding": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "format": "float"
+            },
+            "description": "Vector embedding of the context"
+          },
+          "related_documents": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of related document IDs"
+          },
+          "timestamp": {
+            "type": "string",
+            "description": "Timestamp when the memory was created"
+          }
+        }
+      },
+      "SharedContext": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for the context"
+          },
+          "sender": {
+            "type": "string",
+            "description": "Sender of the context"
+          },
+          "recipients": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of recipients"
+          },
+          "context_tag": {
+            "type": "string",
+            "description": "Tag describing the context"
+          },
+          "memory_refs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "References to memory IDs"
+          },
+          "timestamp": {
+            "type": "string",
+            "description": "Timestamp when the context was created"
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "Error message"
+          }
+        }
+      }
+    },
     "securitySchemes": {
       "ApiKeyAuth": {
         "type": "apiKey",
