@@ -1,0 +1,152 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 offset-md-2 text-center mb-5">
+        <h1 class="display-4 mb-3">Central Memory Hub</h1>
+        <p class="lead">A powerful system for storing, managing, and retrieving structured and unstructured data using vector embeddings.</p>
+    </div>
+</div>
+
+<div class="row mb-5">
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header d-flex align-items-center">
+                <i data-feather="file-text" class="me-2"></i>
+                <h5 class="mb-0">Unstructured Data</h5>
+            </div>
+            <div class="card-body">
+                <form id="unstructuredForm">
+                    <div class="mb-3">
+                        <label for="content" class="form-label">Content</label>
+                        <textarea class="form-control" id="content" rows="6" placeholder="Enter unstructured text data to be embedded..."></textarea>
+                    </div>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">Store Data</button>
+                    </div>
+                </form>
+                <div id="unstructuredResult" class="mt-3 d-none">
+                    <div class="alert alert-success" role="alert">
+                        <h5 class="alert-heading">Data Stored Successfully!</h5>
+                        <p class="mb-0">ID: <span id="unstructuredId"></span></p>
+                        <p class="mb-0">Pinecone ID: <span id="pineconeId"></span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header d-flex align-items-center">
+                <i data-feather="search" class="me-2"></i>
+                <h5 class="mb-0">Search Memory</h5>
+            </div>
+            <div class="card-body">
+                <form id="searchForm">
+                    <div class="mb-3">
+                        <label for="searchQuery" class="form-label">Search Query</label>
+                        <input type="text" class="form-control" id="searchQuery" placeholder="Enter search query...">
+                    </div>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">Search</button>
+                    </div>
+                </form>
+                <div id="searchResults" class="mt-3 d-none">
+                    <h5>Search Results</h5>
+                    <div class="list-group" id="resultsList">
+                        <!-- Results will be displayed here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-5">
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header d-flex align-items-center">
+                <i data-feather="clipboard" class="me-2"></i>
+                <h5 class="mb-0">Project Decisions</h5>
+            </div>
+            <div class="card-body">
+                <form id="structuredForm">
+                    <div class="mb-3">
+                        <label for="gptRole" class="form-label">GPT Role</label>
+                        <input type="text" class="form-control" id="gptRole" placeholder="Enter GPT role...">
+                    </div>
+                    <div class="mb-3">
+                        <label for="decisionText" class="form-label">Decision Text</label>
+                        <textarea class="form-control" id="decisionText" rows="3" placeholder="Enter decision text..."></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="relatedDocuments" class="form-label">Related Documents (comma-separated IDs)</label>
+                        <input type="text" class="form-control" id="relatedDocuments" placeholder="doc1, doc2, doc3...">
+                    </div>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">Store Decision</button>
+                    </div>
+                </form>
+                <div id="structuredResult" class="mt-3 d-none">
+                    <div class="alert alert-success" role="alert">
+                        <h5 class="alert-heading">Decision Stored Successfully!</h5>
+                        <p class="mb-0">ID: <span id="structuredId"></span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header d-flex align-items-center">
+                <i data-feather="share-2" class="me-2"></i>
+                <h5 class="mb-0">Shared Contexts</h5>
+            </div>
+            <div class="card-body">
+                <form id="contextForm">
+                    <div class="mb-3">
+                        <label for="sender" class="form-label">Sender</label>
+                        <input type="text" class="form-control" id="sender" placeholder="Enter sender name...">
+                    </div>
+                    <div class="mb-3">
+                        <label for="recipients" class="form-label">Recipients (comma-separated)</label>
+                        <input type="text" class="form-control" id="recipients" placeholder="user1, user2, user3...">
+                    </div>
+                    <div class="mb-3">
+                        <label for="contextTag" class="form-label">Context Tag</label>
+                        <input type="text" class="form-control" id="contextTag" placeholder="Enter context tag...">
+                    </div>
+                    <div class="mb-3">
+                        <label for="memoryRefs" class="form-label">Memory References (comma-separated IDs)</label>
+                        <input type="text" class="form-control" id="memoryRefs" placeholder="mem1, mem2, mem3...">
+                    </div>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">Share Context</button>
+                    </div>
+                </form>
+                <div id="contextResult" class="mt-3 d-none">
+                    <div class="alert alert-success" role="alert">
+                        <h5 class="alert-heading">Context Shared Successfully!</h5>
+                        <p class="mb-0">ID: <span id="contextId"></span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Error Toast -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
+    <div id="errorToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="toast-header bg-danger text-white">
+            <strong class="me-auto">Error</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+        <div class="toast-body" id="errorToastBody">
+            <!-- Error message will be displayed here -->
+        </div>
+    </div>
+</div>
+{% endblock %}
