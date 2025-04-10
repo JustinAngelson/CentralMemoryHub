@@ -1,0 +1,75 @@
+Create a Central Memory Hub in Replit using Python, integrating Pinecone to manage embeddings for unstructured data. Follow these steps to build the application:
+
+Database Setup
+Set up an SQLite database named memory_hub.db with the following tables:
+
+project_decisions
+id (TEXT PRIMARY KEY)
+gpt_role (TEXT)
+decision_text (TEXT)
+context_embedding (TEXT) <!-- JSON-serialized vector -->
+related_documents (TEXT) <!-- JSON-serialized list -->
+timestamp (TEXT)
+unstructured_data
+id (TEXT PRIMARY KEY)
+content (TEXT)
+pinecone_id (TEXT) <!-- Stores the Pinecone vector ID -->
+shared_contexts
+id (TEXT PRIMARY KEY)
+sender (TEXT)
+recipients (TEXT) <!-- JSON-serialized list -->
+context_tag (TEXT)
+memory_refs (TEXT) <!-- JSON-serialized list -->
+timestamp (TEXT)
+Implementation Notes:
+
+Write functions to insert and retrieve data for each table.
+Serialize lists and vectors to JSON strings when storing in the database, and deserialize them when retrieving.
+Pinecone Integration
+Use Pinecone's API to:
+Generate embeddings for unstructured data using a specified model (e.g., OpenAI’s text-embedding-ada-002 or another supported model).
+Store the generated embeddings in a Pinecone index.
+Retrieve the Pinecone vector ID for storage in the unstructured_data table.
+For search operations:
+Generate an embedding for the query using Pinecone's API.
+Perform a similarity search in the Pinecone index to find the most relevant items.
+Flask API Implementation
+Create a Flask API with the following endpoints:
+
+POST /memory/structured
+Purpose: Add a new structured memory entry to the project_decisions table.
+Request Body: JSON with fields like id, gpt_role, decision_text, context_embedding, related_documents, etc.
+Note: context_embedding should be a JSON-serialized list of floats.
+GET /memory/structured/<id>
+Purpose: Retrieve a structured memory entry by its id.
+Response: JSON with the entry’s details, including deserialized context_embedding and related_documents.
+POST /memory/unstructured
+Purpose: Add a new unstructured memory entry.
+Behavior:
+Generate an embedding for the content using Pinecone's API.
+Store the embedding in Pinecone and retrieve the Pinecone vector ID.
+Save the id, content, and pinecone_id in the unstructured_data table.
+Request Body: JSON with content (the text to embed).
+GET /memory/unstructured/<id>
+Purpose: Retrieve an unstructured memory entry by its id.
+Response: JSON with the entry’s details, including the pinecone_id.
+POST /search
+Purpose: Search unstructured data using Pinecone's similarity search.
+Behavior:
+Generate an embedding for the query content using Pinecone's API.
+Perform a similarity search in Pinecone to retrieve the top 10 most similar items.
+Return the matching unstructured_data entries based on the Pinecone results.
+Request Body: JSON with query (the text to search for).
+POST /context
+Purpose: Add a new shared context entry to the shared_contexts table.
+Request Body: JSON with id, sender, recipients, context_tag, memory_refs, etc.
+GET /context
+Purpose: Retrieve all shared context entries.
+Response: JSON array of all entries, with deserialized lists.
+Security
+API Authentication:
+Require an X-API-KEY header in all requests.
+Store the API key in a .env file and verify it matches the header value before processing requests.
+Pinecone Security:
+Store the Pinecone API key securely in the Replit environment (e.g., in the .env file).
+Use the Pinecone API key for all interactions with Pinecone's API.
