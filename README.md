@@ -29,6 +29,11 @@ The Memory Hub provides a RESTful API that can be accessed using the OpenAPI sch
       "url": "https://workspace.angelson.repl.co"
     }
   ],
+  "security": [
+    {
+      "ApiKeyAuth": []
+    }
+  ],
   "paths": {
     "/memory/unstructured": {
       "post": {
