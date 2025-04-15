@@ -1689,6 +1689,7 @@ dependencies = [
     { name = "python-dotenv" },
     { name = "requests" },
     { name = "routes" },
+    { name = "sqlalchemy" },
 ]
 
 [package.metadata]
@@ -1705,6 +1706,7 @@ requires-dist = [
     { name = "python-dotenv", specifier = ">=1.1.0" },
     { name = "requests", specifier = ">=2.31.0" },
     { name = "routes", specifier = ">=2.5.1" },
+    { name = "sqlalchemy", specifier = ">=2.0.40" },
 ]
 
 [[package]]
