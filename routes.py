@@ -8,8 +8,7 @@ from functools import wraps
 import uuid
 
 from flask import request, jsonify, render_template, Blueprint, current_app
-from app import app
-import database as db
+from app import app, db
 import pinecone_client as pc
 from models import ProjectDecision, UnstructuredData, SharedContext
 
@@ -51,29 +50,25 @@ def add_structured_memory():
             if field not in data:
                 return jsonify({"error": f"Missing required field: {field}"}), 400
         
-        # Create a new project decision
-        decision = ProjectDecision.create(
+        # Create a new project decision using SQLAlchemy model
+        decision = ProjectDecision(
+            id=str(uuid.uuid4()),
             gpt_role=data['gpt_role'],
             decision_text=data['decision_text'],
             context_embedding=data['context_embedding'],
             related_documents=data['related_documents']
         )
         
-        # Save to database
-        success = db.add_project_decision(
-            decision.id,
-            decision.gpt_role,
-            decision.decision_text,
-            decision.context_embedding,
-            decision.related_documents,
-            decision.timestamp
-        )
+        # Save to database using SQLAlchemy
+        db.session.add(decision)
+        db.session.commit()
         
-        if success:
-            return jsonify({"id": decision.id, "message": "Structured memory added successfully"}), 201
-        else:
-            return jsonify({"error": "Failed to add structured memory"}), 500
+        return jsonify({
+            "id": decision.id, 
+            "message": "Structured memory added successfully"
+        }), 201
     except Exception as e:
+        db.session.rollback()
         logging.error(f"Error adding structured memory: {e}")
         return jsonify({"error": str(e)}), 500
 
@@ -82,10 +77,10 @@ def add_structured_memory():
 def get_structured_memory(id):
     """Get a structured memory entry by ID"""
     try:
-        decision = db.get_project_decision(id)
+        decision = ProjectDecision.query.get(id)
         
         if decision:
-            return jsonify(decision), 200
+            return jsonify(decision.to_dict()), 200
         else:
             return jsonify({"error": "Structured memory not found"}), 404
     except Exception as e:
@@ -107,28 +102,24 @@ def add_unstructured_memory():
         # Process the content with Pinecone
         embedding, pinecone_id = pc.process_unstructured_data(data['content'])
         
-        # Create a new unstructured data entry
-        unstructured_data = UnstructuredData.create(
+        # Create a new unstructured data entry using SQLAlchemy model
+        unstructured_data = UnstructuredData(
+            id=str(uuid.uuid4()),
             content=data['content'],
             pinecone_id=pinecone_id
         )
         
-        # Save to database
-        success = db.add_unstructured_data(
-            unstructured_data.id,
-            unstructured_data.content,
-            unstructured_data.pinecone_id
-        )
+        # Save to database using SQLAlchemy
+        db.session.add(unstructured_data)
+        db.session.commit()
         
-        if success:
-            return jsonify({
-                "id": unstructured_data.id,
-                "pinecone_id": pinecone_id,
-                "message": "Unstructured memory added successfully"
-            }), 201
-        else:
-            return jsonify({"error": "Failed to add unstructured memory"}), 500
+        return jsonify({
+            "id": unstructured_data.id,
+            "pinecone_id": pinecone_id,
+            "message": "Unstructured memory added successfully"
+        }), 201
     except Exception as e:
+        db.session.rollback()
         logging.error(f"Error adding unstructured memory: {e}")
         return jsonify({"error": str(e)}), 500
 
@@ -137,10 +128,10 @@ def add_unstructured_memory():
 def get_unstructured_memory(id):
     """Get an unstructured memory entry by ID"""
     try:
-        data = db.get_unstructured_data(id)
+        data = UnstructuredData.query.get(id)
         
         if data:
-            return jsonify(data), 200
+            return jsonify(data.to_dict()), 200
         else:
             return jsonify({"error": "Unstructured memory not found"}), 404
     except Exception as e:
@@ -165,22 +156,28 @@ def search_memory():
         # Get the matching Pinecone IDs
         pinecone_ids = [match['id'] for match in pinecone_results]
         
-        # Get the corresponding unstructured data entries
-        memory_entries = db.get_unstructured_data_by_pinecone_ids(pinecone_ids)
+        # Get the corresponding unstructured data entries using SQLAlchemy
+        memory_entries = UnstructuredData.query.filter(
+            UnstructuredData.pinecone_id.in_(pinecone_ids)
+        ).all()
         
-        # Add the similarity scores from Pinecone results
+        # Convert to dictionaries and add similarity scores
+        results = []
         for entry in memory_entries:
+            entry_dict = entry.to_dict()
+            # Add similarity score from Pinecone results
             for match in pinecone_results:
-                if entry['pinecone_id'] == match['id']:
-                    entry['similarity_score'] = match['score']
+                if entry.pinecone_id == match['id']:
+                    entry_dict['similarity_score'] = match['score']
                     break
+            results.append(entry_dict)
         
         # Sort by similarity score (highest first)
-        memory_entries.sort(key=lambda x: x.get('similarity_score', 0), reverse=True)
+        results.sort(key=lambda x: x.get('similarity_score', 0), reverse=True)
         
         return jsonify({
             "query": data['query'],
-            "results": memory_entries
+            "results": results
         }), 200
     except Exception as e:
         logging.error(f"Error performing search: {e}")
@@ -200,32 +197,25 @@ def add_shared_context():
             if field not in data:
                 return jsonify({"error": f"Missing required field: {field}"}), 400
         
-        # Create a new shared context
-        context = SharedContext.create(
+        # Create a new shared context using SQLAlchemy model
+        context = SharedContext(
+            id=str(uuid.uuid4()),
             sender=data['sender'],
             recipients=data['recipients'],
             context_tag=data['context_tag'],
             memory_refs=data['memory_refs']
         )
         
-        # Save to database
-        success = db.add_shared_context(
-            context.id,
-            context.sender,
-            context.recipients,
-            context.context_tag,
-            context.memory_refs,
-            context.timestamp
-        )
+        # Save to database using SQLAlchemy
+        db.session.add(context)
+        db.session.commit()
         
-        if success:
-            return jsonify({
-                "id": context.id,
-                "message": "Shared context added successfully"
-            }), 201
-        else:
-            return jsonify({"error": "Failed to add shared context"}), 500
+        return jsonify({
+            "id": context.id,
+            "message": "Shared context added successfully"
+        }), 201
     except Exception as e:
+        db.session.rollback()
         logging.error(f"Error adding shared context: {e}")
         return jsonify({"error": str(e)}), 500
 
@@ -234,8 +224,8 @@ def add_shared_context():
 def get_all_contexts():
     """Get all shared context entries"""
     try:
-        contexts = db.get_all_shared_contexts()
-        return jsonify(contexts), 200
+        contexts = SharedContext.query.all()
+        return jsonify([context.to_dict() for context in contexts]), 200
     except Exception as e:
         logging.error(f"Error retrieving shared contexts: {e}")
         return jsonify({"error": str(e)}), 500
