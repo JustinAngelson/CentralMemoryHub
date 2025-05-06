@@ -33,6 +33,63 @@
             font-size: 0.8rem;
             color: var(--bs-secondary-color);
         }
+        
+        /* Org Chart styles */
+        #agentDirectoryHierarchy {
+            padding: 20px;
+        }
+        
+        .org-tree {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .org-node {
+            width: 280px;
+            margin-bottom: 20px;
+            border: none;
+            box-shadow: 0 4px 6px rgba(0,0,0,.15);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .org-node:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 10px rgba(0,0,0,.2);
+        }
+        
+        .subordinates {
+            position: relative;
+            display: flex;
+            flex-direction: row;
+            flex-wrap: wrap;
+            justify-content: center;
+            padding-top: 20px;
+        }
+        
+        .subordinates::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 50%;
+            border-left: 2px solid var(--bs-border-color);
+            height: 20px;
+            transform: translateX(-50%);
+        }
+        
+        .subordinates > .org-node {
+            position: relative;
+        }
+        
+        .subordinates > .org-node::before {
+            content: "";
+            position: absolute;
+            top: -20px;
+            left: 50%;
+            border-left: 2px solid var(--bs-border-color);
+            height: 20px;
+            transform: translateX(-50%);
+        }
     </style>
 </head>
 <body>
@@ -67,6 +124,54 @@
         <div class="row">
             <div class="col-12">
                 <h1 class="mb-4">Multi-Agent Communication Hub</h1>
+                
+                <div class="card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">AI Organization Chart</h5>
+                        <button class="btn btn-primary btn-sm" id="refreshDirectoryButton">Refresh</button>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="d-grid">
+                                    <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#newAgentModal">Add New Agent</button>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="viewHierarchySwitch">
+                                    <label class="form-check-label" for="viewHierarchySwitch">View as Hierarchy</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Agent Directory List View -->
+                        <div id="agentDirectoryList">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Role</th>
+                                        <th>Status</th>
+                                        <th>Seniority</th>
+                                        <th>Reports To</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="agentTableBody">
+                                    <!-- Agents will be populated here dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Agent Directory Hierarchy View -->
+                        <div id="agentDirectoryHierarchy" class="d-none">
+                            <div class="org-tree" id="orgTreeContainer">
+                                <!-- Hierarchy will be populated here dynamically -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 
                 <div class="card mb-4">
                     <div class="card-header d-flex justify-content-between align-items-center">
@@ -202,13 +307,422 @@
             </div>
         </div>
     </div>
+    
+    <!-- New Agent Modal -->
+    <div class="modal fade" id="newAgentModal" tabindex="-1" aria-labelledby="newAgentModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="newAgentModalLabel">Add New Agent</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="newAgentForm">
+                        <div class="mb-3">
+                            <label for="agentName" class="form-label">Agent Name</label>
+                            <input type="text" class="form-control" id="agentName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="agentRole" class="form-label">Role</label>
+                            <input type="text" class="form-control" id="agentRole" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="agentDescription" class="form-label">Description</label>
+                            <textarea class="form-control" id="agentDescription" rows="3"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="agentCapabilities" class="form-label">Capabilities (comma-separated)</label>
+                            <input type="text" class="form-control" id="agentCapabilities" placeholder="code_generation, task_planning, summarization">
+                        </div>
+                        <div class="mb-3">
+                            <label for="agentReportsTo" class="form-label">Reports To</label>
+                            <select class="form-select" id="agentReportsTo">
+                                <option value="">None (Top Level)</option>
+                                <!-- Options will be populated dynamically -->
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="agentSeniority" class="form-label">Seniority Level (1-5)</label>
+                            <input type="number" class="form-control" id="agentSeniority" min="1" max="5" value="1">
+                        </div>
+                        <div class="mb-3">
+                            <label for="agentStatus" class="form-label">Status</label>
+                            <select class="form-select" id="agentStatus">
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                                <option value="in_training">In Training</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="saveAgentButton">Save Agent</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Edit Agent Modal -->
+    <div class="modal fade" id="editAgentModal" tabindex="-1" aria-labelledby="editAgentModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editAgentModalLabel">Edit Agent</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editAgentForm">
+                        <input type="hidden" id="editAgentId">
+                        <div class="mb-3">
+                            <label for="editAgentName" class="form-label">Agent Name</label>
+                            <input type="text" class="form-control" id="editAgentName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editAgentRole" class="form-label">Role</label>
+                            <input type="text" class="form-control" id="editAgentRole" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editAgentDescription" class="form-label">Description</label>
+                            <textarea class="form-control" id="editAgentDescription" rows="3"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editAgentCapabilities" class="form-label">Capabilities (comma-separated)</label>
+                            <input type="text" class="form-control" id="editAgentCapabilities">
+                        </div>
+                        <div class="mb-3">
+                            <label for="editAgentReportsTo" class="form-label">Reports To</label>
+                            <select class="form-select" id="editAgentReportsTo">
+                                <option value="">None (Top Level)</option>
+                                <!-- Options will be populated dynamically -->
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editAgentSeniority" class="form-label">Seniority Level (1-5)</label>
+                            <input type="number" class="form-control" id="editAgentSeniority" min="1" max="5" value="1">
+                        </div>
+                        <div class="mb-3">
+                            <label for="editAgentStatus" class="form-label">Status</label>
+                            <select class="form-select" id="editAgentStatus">
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                                <option value="in_training">In Training</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="updateAgentButton">Update Agent</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // This would be implemented with actual API calls in a real implementation
-        document.getElementById('refreshButton').addEventListener('click', function() {
-            alert('In a real implementation, this would refresh the agent session data from the API');
+        // Global variables
+        let allAgents = [];
+        
+        // Fetch agents data when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            fetchAgentDirectory();
+            fetchAgentSessions();
         });
+        
+        // Agent Directory functions
+        function fetchAgentDirectory() {
+            fetch('/api/directory')
+                .then(response => response.json())
+                .then(data => {
+                    allAgents = data;
+                    renderAgentTable(data);
+                    populateAgentDropdowns(data);
+                })
+                .catch(error => {
+                    console.error('Error fetching agent directory:', error);
+                    alert('Failed to load agent directory. Please try again later.');
+                });
+        }
+        
+        function renderAgentTable(agents) {
+            const tableBody = document.getElementById('agentTableBody');
+            tableBody.innerHTML = '';
+            
+            if (agents.length === 0) {
+                // Show empty state
+                const emptyRow = document.createElement('tr');
+                emptyRow.innerHTML = '<td colspan="6" class="text-center">No agents found. Add your first agent to get started.</td>';
+                tableBody.appendChild(emptyRow);
+                return;
+            }
+            
+            // Create a map for agent names
+            const agentNameMap = {};
+            agents.forEach(agent => {
+                agentNameMap[agent.agent_id] = agent.name;
+            });
+            
+            agents.forEach(agent => {
+                const row = document.createElement('tr');
+                
+                // Status badge color
+                let statusBadgeClass = 'bg-secondary';
+                if (agent.status === 'active') statusBadgeClass = 'bg-success';
+                if (agent.status === 'inactive') statusBadgeClass = 'bg-danger';
+                if (agent.status === 'in_training') statusBadgeClass = 'bg-warning text-dark';
+                
+                row.innerHTML = `
+                    <td>${agent.name}</td>
+                    <td>${agent.role}</td>
+                    <td><span class="badge ${statusBadgeClass}">${agent.status}</span></td>
+                    <td>${agent.seniority_level}</td>
+                    <td>${agent.reports_to ? agentNameMap[agent.reports_to] || 'Unknown' : 'None'}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary edit-agent" data-agent-id="${agent.agent_id}">Edit</button>
+                        <button class="btn btn-sm btn-outline-danger delete-agent" data-agent-id="${agent.agent_id}">Delete</button>
+                    </td>
+                `;
+                tableBody.appendChild(row);
+            });
+            
+            // Add event listeners for edit and delete buttons
+            document.querySelectorAll('.edit-agent').forEach(button => {
+                button.addEventListener('click', function() {
+                    const agentId = this.getAttribute('data-agent-id');
+                    openEditAgentModal(agentId);
+                });
+            });
+            
+            document.querySelectorAll('.delete-agent').forEach(button => {
+                button.addEventListener('click', function() {
+                    const agentId = this.getAttribute('data-agent-id');
+                    if (confirm('Are you sure you want to delete this agent?')) {
+                        deleteAgent(agentId);
+                    }
+                });
+            });
+        }
+        
+        function fetchAgentHierarchy() {
+            fetch('/api/directory/hierarchy')
+                .then(response => response.json())
+                .then(data => {
+                    renderAgentHierarchy(data);
+                })
+                .catch(error => {
+                    console.error('Error fetching agent hierarchy:', error);
+                    alert('Failed to load agent hierarchy. Please try again later.');
+                });
+        }
+        
+        function renderAgentHierarchy(hierarchy) {
+            const container = document.getElementById('orgTreeContainer');
+            container.innerHTML = '';
+            
+            if (hierarchy.length === 0) {
+                container.innerHTML = '<div class="alert alert-info">No agents found. Add your first agent to get started.</div>';
+                return;
+            }
+            
+            hierarchy.forEach(rootAgent => {
+                const rootNode = createHierarchyNode(rootAgent);
+                container.appendChild(rootNode);
+            });
+        }
+        
+        function createHierarchyNode(agent) {
+            const node = document.createElement('div');
+            node.className = 'org-node card mb-3';
+            
+            let statusBadgeClass = 'bg-secondary';
+            if (agent.status === 'active') statusBadgeClass = 'bg-success';
+            if (agent.status === 'inactive') statusBadgeClass = 'bg-danger';
+            if (agent.status === 'in_training') statusBadgeClass = 'bg-warning text-dark';
+            
+            node.innerHTML = `
+                <div class="card-body">
+                    <h5 class="card-title">${agent.name}</h5>
+                    <h6 class="card-subtitle mb-2 text-muted">${agent.role}</h6>
+                    <span class="badge ${statusBadgeClass}">${agent.status}</span>
+                    <p class="card-text mt-2">${agent.description || ''}</p>
+                </div>
+            `;
+            
+            if (agent.subordinates && agent.subordinates.length > 0) {
+                const subordinatesContainer = document.createElement('div');
+                subordinatesContainer.className = 'subordinates ms-4 mt-2';
+                
+                agent.subordinates.forEach(subordinate => {
+                    const subNode = createHierarchyNode(subordinate);
+                    subordinatesContainer.appendChild(subNode);
+                });
+                
+                node.appendChild(subordinatesContainer);
+            }
+            
+            return node;
+        }
+        
+        function populateAgentDropdowns(agents) {
+            const newAgentReportsTo = document.getElementById('agentReportsTo');
+            const editAgentReportsTo = document.getElementById('editAgentReportsTo');
+            
+            // Clear existing options except the first one
+            while (newAgentReportsTo.options.length > 1) {
+                newAgentReportsTo.remove(1);
+            }
+            
+            while (editAgentReportsTo.options.length > 1) {
+                editAgentReportsTo.remove(1);
+            }
+            
+            // Add agents as options
+            agents.forEach(agent => {
+                const newOption = new Option(agent.name, agent.agent_id);
+                const editOption = new Option(agent.name, agent.agent_id);
+                
+                newAgentReportsTo.add(newOption);
+                editAgentReportsTo.add(editOption);
+            });
+        }
+        
+        function openEditAgentModal(agentId) {
+            const agent = allAgents.find(a => a.agent_id === agentId);
+            if (!agent) return;
+            
+            document.getElementById('editAgentId').value = agent.agent_id;
+            document.getElementById('editAgentName').value = agent.name;
+            document.getElementById('editAgentRole').value = agent.role;
+            document.getElementById('editAgentDescription').value = agent.description || '';
+            document.getElementById('editAgentCapabilities').value = agent.capabilities ? agent.capabilities.join(', ') : '';
+            document.getElementById('editAgentReportsTo').value = agent.reports_to || '';
+            document.getElementById('editAgentSeniority').value = agent.seniority_level || 1;
+            document.getElementById('editAgentStatus').value = agent.status || 'active';
+            
+            // Show the modal
+            const modal = new bootstrap.Modal(document.getElementById('editAgentModal'));
+            modal.show();
+        }
+        
+        function createNewAgent() {
+            const name = document.getElementById('agentName').value;
+            const role = document.getElementById('agentRole').value;
+            const description = document.getElementById('agentDescription').value;
+            const capabilities = document.getElementById('agentCapabilities').value
+                .split(',')
+                .map(cap => cap.trim())
+                .filter(cap => cap.length > 0);
+            const reportsTo = document.getElementById('agentReportsTo').value;
+            const seniority = parseInt(document.getElementById('agentSeniority').value);
+            const status = document.getElementById('agentStatus').value;
+            
+            // API call would go here in a real implementation
+            alert(`In a real implementation, this would create a new agent: ${name} with role ${role}`);
+            
+            // Simulate adding a new agent for demo purposes
+            const newAgent = {
+                agent_id: 'demo-' + Date.now(),
+                name,
+                role,
+                description,
+                capabilities,
+                reports_to: reportsTo || null,
+                seniority_level: seniority,
+                status
+            };
+            
+            allAgents.push(newAgent);
+            renderAgentTable(allAgents);
+            populateAgentDropdowns(allAgents);
+            
+            // Close the modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('newAgentModal'));
+            modal.hide();
+            
+            // Reset the form
+            document.getElementById('newAgentForm').reset();
+        }
+        
+        function updateAgent() {
+            const agentId = document.getElementById('editAgentId').value;
+            const name = document.getElementById('editAgentName').value;
+            const role = document.getElementById('editAgentRole').value;
+            const description = document.getElementById('editAgentDescription').value;
+            const capabilities = document.getElementById('editAgentCapabilities').value
+                .split(',')
+                .map(cap => cap.trim())
+                .filter(cap => cap.length > 0);
+            const reportsTo = document.getElementById('editAgentReportsTo').value;
+            const seniority = parseInt(document.getElementById('editAgentSeniority').value);
+            const status = document.getElementById('editAgentStatus').value;
+            
+            // API call would go here in a real implementation
+            alert(`In a real implementation, this would update agent: ${name} with role ${role}`);
+            
+            // Simulate updating the agent for demo purposes
+            const index = allAgents.findIndex(a => a.agent_id === agentId);
+            if (index >= 0) {
+                allAgents[index] = {
+                    ...allAgents[index],
+                    name,
+                    role,
+                    description,
+                    capabilities,
+                    reports_to: reportsTo || null,
+                    seniority_level: seniority,
+                    status
+                };
+                
+                renderAgentTable(allAgents);
+                populateAgentDropdowns(allAgents);
+            }
+            
+            // Close the modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('editAgentModal'));
+            modal.hide();
+        }
+        
+        function deleteAgent(agentId) {
+            // API call would go here in a real implementation
+            alert(`In a real implementation, this would delete agent with ID: ${agentId}`);
+            
+            // Simulate deleting the agent for demo purposes
+            allAgents = allAgents.filter(a => a.agent_id !== agentId);
+            renderAgentTable(allAgents);
+            populateAgentDropdowns(allAgents);
+        }
+        
+        // Toggle between list and hierarchy views
+        document.getElementById('viewHierarchySwitch').addEventListener('change', function() {
+            const listView = document.getElementById('agentDirectoryList');
+            const hierarchyView = document.getElementById('agentDirectoryHierarchy');
+            
+            if (this.checked) {
+                listView.classList.add('d-none');
+                hierarchyView.classList.remove('d-none');
+                fetchAgentHierarchy();
+            } else {
+                hierarchyView.classList.add('d-none');
+                listView.classList.remove('d-none');
+            }
+        });
+        
+        // Button event listeners
+        document.getElementById('refreshDirectoryButton').addEventListener('click', fetchAgentDirectory);
+        document.getElementById('saveAgentButton').addEventListener('click', createNewAgent);
+        document.getElementById('updateAgentButton').addEventListener('click', updateAgent);
+        
+        // Agent Sessions functions
+        document.getElementById('refreshButton').addEventListener('click', function() {
+            fetchAgentSessions();
+        });
+        
+        function fetchAgentSessions() {
+            // In a real implementation, this would fetch from the API
+            // For now, we'll just log to console
+            console.log("Fetching agent sessions...");
+        }
         
         document.querySelectorAll('.view-messages').forEach(button => {
             button.addEventListener('click', function() {

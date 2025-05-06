@@ -14,7 +14,7 @@ from models import (
     # Existing models
     ProjectDecision, UnstructuredData, SharedContext,
     # New models
-    AgentSession, GPTMessage, OrgState, AgentTask, DecisionLog,
+    AgentDirectory, AgentSession, GPTMessage, OrgState, AgentTask, DecisionLog,
     KnowledgeIndex, MemoryLink, Experiment, UserInsight
 )
 
@@ -269,6 +269,193 @@ def get_all_contexts():
         return jsonify({"error": str(e)}), 500
 
 # New API endpoints for multi-agent support
+
+# Agent Directory (AI Org Chart) endpoints
+@app.route('/api/directory', methods=['GET'])
+def get_agent_directory_for_ui():
+    """Get agent directory for UI (without API key for demo purposes)"""
+    try:
+        agents = AgentDirectory.query.all()
+        return jsonify([agent.to_dict() for agent in agents])
+    except Exception as e:
+        logging.error(f"Error getting agent directory: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/directory/hierarchy', methods=['GET'])
+def get_agent_hierarchy_for_ui():
+    """Get agent hierarchy for UI (without API key for demo purposes)"""
+    try:
+        # Get all agents
+        agents = AgentDirectory.query.all()
+        
+        # Build hierarchy map
+        agent_map = {agent.agent_id: agent for agent in agents}
+        hierarchy = []
+        
+        # Find root agents (those with no reports_to)
+        for agent in agents:
+            if agent.reports_to is None:
+                # Create hierarchy starting with this root
+                hierarchy.append(build_hierarchy_tree(agent, agent_map))
+        
+        return jsonify(hierarchy)
+    except Exception as e:
+        logging.error(f"Error getting agent hierarchy: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/agent/directory', methods=['POST'])
+@require_api_key
+def create_agent():
+    """Create a new agent in the directory"""
+    try:
+        data = request.json
+        
+        # Validate required fields
+        required_fields = ['name', 'role']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({"error": f"Missing required field: {field}"}), 400
+        
+        # Check if agent name is unique
+        existing_agent = AgentDirectory.query.filter_by(name=data['name']).first()
+        if existing_agent:
+            return jsonify({"error": f"Agent with name '{data['name']}' already exists"}), 400
+        
+        # Create a new agent
+        agent = AgentDirectory(
+            agent_id=str(uuid.uuid4()),
+            name=data['name'],
+            role=data['role'],
+            description=data.get('description'),
+            capabilities=data.get('capabilities', []),
+            reports_to=data.get('reports_to'),
+            seniority_level=data.get('seniority_level', 1),
+            status=data.get('status', 'active')
+        )
+        
+        # Save to database
+        db.session.add(agent)
+        db.session.commit()
+        
+        return jsonify({
+            "agent_id": agent.agent_id,
+            "message": "Agent created successfully"
+        }), 201
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error creating agent: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/agent/directory/<agent_id>', methods=['GET'])
+@require_api_key
+def get_agent(agent_id):
+    """Get an agent by ID"""
+    try:
+        agent = AgentDirectory.query.get(agent_id)
+        
+        if agent:
+            return jsonify(agent.to_dict()), 200
+        else:
+            return jsonify({"error": "Agent not found"}), 404
+    except Exception as e:
+        logging.error(f"Error retrieving agent: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/agent/directory/<agent_id>', methods=['PUT'])
+@require_api_key
+def update_agent(agent_id):
+    """Update an existing agent"""
+    try:
+        agent = AgentDirectory.query.get(agent_id)
+        
+        if not agent:
+            return jsonify({"error": "Agent not found"}), 404
+        
+        data = request.json
+        
+        # Update fields if provided
+        if 'name' in data:
+            # Check if name already exists for a different agent
+            existing = AgentDirectory.query.filter_by(name=data['name']).first()
+            if existing and existing.agent_id != agent_id:
+                return jsonify({"error": f"Agent with name '{data['name']}' already exists"}), 400
+            agent.name = data['name']
+        
+        if 'role' in data:
+            agent.role = data['role']
+        if 'description' in data:
+            agent.description = data['description']
+        if 'capabilities' in data:
+            agent.capabilities = data['capabilities']
+        if 'reports_to' in data:
+            agent.reports_to = data['reports_to']
+        if 'seniority_level' in data:
+            agent.seniority_level = data['seniority_level']
+        if 'status' in data:
+            agent.status = data['status']
+        
+        # Save changes
+        db.session.commit()
+        
+        return jsonify({
+            "message": "Agent updated successfully",
+            "agent": agent.to_dict()
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error updating agent: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/agent/directory/<agent_id>', methods=['DELETE'])
+@require_api_key
+def delete_agent(agent_id):
+    """Delete an agent"""
+    try:
+        agent = AgentDirectory.query.get(agent_id)
+        
+        if not agent:
+            return jsonify({"error": "Agent not found"}), 404
+        
+        # Check if agent has subordinates
+        if agent.subordinates and len(agent.subordinates) > 0:
+            return jsonify({"error": "Cannot delete agent with subordinates. Reassign subordinates first."}), 400
+        
+        # Check if agent has active sessions
+        active_sessions = AgentSession.query.filter_by(
+            agent_id=agent_id, 
+            ended_at=None
+        ).count()
+        
+        if active_sessions > 0:
+            return jsonify({"error": "Cannot delete agent with active sessions"}), 400
+        
+        # Delete the agent
+        db.session.delete(agent)
+        db.session.commit()
+        
+        return jsonify({
+            "message": "Agent deleted successfully"
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error deleting agent: {e}")
+        return jsonify({"error": str(e)}), 500
+
+# Helper function to build agent hierarchy tree
+def build_hierarchy_tree(agent, agent_map):
+    """Build a hierarchical tree for an agent and its subordinates"""
+    agent_dict = agent.to_dict()
+    subordinates = []
+    
+    # Get direct subordinates
+    for sub_id, sub_agent in agent_map.items():
+        if sub_agent.reports_to == agent.agent_id:
+            subordinates.append(build_hierarchy_tree(sub_agent, agent_map))
+    
+    if subordinates:
+        agent_dict['subordinates'] = subordinates
+    
+    return agent_dict
 
 # Agent Sessions endpoints
 @app.route('/agent/sessions', methods=['POST'])
