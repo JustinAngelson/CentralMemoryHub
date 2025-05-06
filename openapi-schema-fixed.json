@@ -1,0 +1,1405 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Central Memory Hub API",
+    "description": "API for managing structured and unstructured data with vector embeddings in a Central Memory Hub",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://central-memory-hub.replit.app"
+    }
+  ],
+  "security": [
+    {
+      "ApiKeyAuth": []
+    }
+  ],
+  "paths": {
+    "/memory/unstructured": {
+      "post": {
+        "description": "Add unstructured memory to the Central Memory Hub",
+        "operationId": "addUnstructuredMemory",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "requestBody": {
+          "description": "Content to add to unstructured memory",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "content": {
+                    "type": "string",
+                    "description": "The content to store in memory"
+                  }
+                },
+                "required": ["content"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Unstructured memory added successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "description": "The unique identifier for the memory"
+                    },
+                    "pinecone_id": {
+                      "type": "string",
+                      "description": "The ID of the vector in Pinecone"
+                    },
+                    "message": {
+                      "type": "string",
+                      "description": "Status message"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request - Missing required fields"
+          },
+          "401": {
+            "description": "Unauthorized - Invalid or missing API key"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/memory/unstructured/{id}": {
+      "get": {
+        "description": "Retrieve unstructured memory by ID",
+        "operationId": "getUnstructuredMemory",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID of the memory to retrieve"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved memory",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnstructuredData"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - Invalid or missing API key"
+          },
+          "404": {
+            "description": "Memory not found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/search": {
+      "post": {
+        "description": "Search unstructured data using semantic similarity",
+        "operationId": "searchMemory",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "requestBody": {
+          "description": "Search query",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "query": {
+                    "type": "string",
+                    "description": "The search query"
+                  }
+                },
+                "required": ["query"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Search results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "query": {
+                      "type": "string",
+                      "description": "The original query"
+                    },
+                    "results": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/SearchResult"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request - Missing query"
+          },
+          "401": {
+            "description": "Unauthorized - Invalid or missing API key"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/memory/structured": {
+      "post": {
+        "description": "Add structured memory to the Central Memory Hub",
+        "operationId": "addStructuredMemory",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "requestBody": {
+          "description": "Structured memory data",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectDecisionInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Structured memory added successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request - Missing required fields"
+          },
+          "401": {
+            "description": "Unauthorized - Invalid or missing API key"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/memory/structured/{id}": {
+      "get": {
+        "description": "Retrieve structured memory by ID",
+        "operationId": "getStructuredMemory",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID of the structured memory to retrieve"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved structured memory",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectDecision"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - Invalid or missing API key"
+          },
+          "404": {
+            "description": "Structured memory not found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/context": {
+      "post": {
+        "description": "Add a shared context entry",
+        "operationId": "addSharedContext",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "requestBody": {
+          "description": "Shared context data",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SharedContextInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Shared context added successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request - Missing required fields"
+          },
+          "401": {
+            "description": "Unauthorized - Invalid or missing API key"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "get": {
+        "description": "Get all shared context entries",
+        "operationId": "getAllContexts",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved all shared contexts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SharedContext"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - Invalid or missing API key"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/directory": {
+      "get": {
+        "description": "Get all agents in the Agent Directory",
+        "operationId": "getAgentDirectory",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved agent directory",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Agent"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - Invalid or missing API key"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "description": "Add a new agent to the directory",
+        "operationId": "addAgent",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "requestBody": {
+          "description": "Agent data",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Agent added successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Agent"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request - Missing required fields"
+          },
+          "401": {
+            "description": "Unauthorized - Invalid or missing API key"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/directory/{agent_id}": {
+      "get": {
+        "description": "Get an agent by ID",
+        "operationId": "getAgent",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID of the agent"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved agent",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Agent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - Invalid or missing API key"
+          },
+          "404": {
+            "description": "Agent not found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "put": {
+        "description": "Update an agent",
+        "operationId": "updateAgent",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID of the agent"
+          }
+        ],
+        "requestBody": {
+          "description": "Updated agent data",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Agent updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Agent"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request - Missing required fields"
+          },
+          "401": {
+            "description": "Unauthorized - Invalid or missing API key"
+          },
+          "404": {
+            "description": "Agent not found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/agent/sessions": {
+      "post": {
+        "description": "Create a new agent session",
+        "operationId": "createAgentSession",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "requestBody": {
+          "description": "Session data",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentSessionInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Session created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentSession"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request - Missing required fields"
+          },
+          "401": {
+            "description": "Unauthorized - Invalid or missing API key"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "get": {
+        "description": "Get all agent sessions",
+        "operationId": "getAgentSessions",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved agent sessions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AgentSession"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - Invalid or missing API key"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/agent/sessions/{session_id}": {
+      "get": {
+        "description": "Get an agent session by ID",
+        "operationId": "getAgentSession",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID of the agent session"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved agent session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentSession"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - Invalid or missing API key"
+          },
+          "404": {
+            "description": "Session not found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "put": {
+        "description": "End an agent session",
+        "operationId": "endAgentSession",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID of the agent session"
+          }
+        ],
+        "requestBody": {
+          "description": "Session end data",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "summary_notes": {
+                    "type": "string",
+                    "description": "Summary notes for the session"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Session ended successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentSession"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - Invalid or missing API key"
+          },
+          "404": {
+            "description": "Session not found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/agent/messages": {
+      "get": {
+        "description": "Get all GPT messages for a session",
+        "operationId": "getGPTMessages",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter by session ID"
+          },
+          {
+            "name": "sender_agent",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter by sender agent"
+          },
+          {
+            "name": "receiver_agent",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter by receiver agent"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved GPT messages",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/GPTMessage"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - Invalid or missing API key"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "description": "Create a new GPT message",
+        "operationId": "createGPTMessage",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "requestBody": {
+          "description": "Message data",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GPTMessageInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Message created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GPTMessage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request - Missing required fields"
+          },
+          "401": {
+            "description": "Unauthorized - Invalid or missing API key"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/agent/messages/{message_id}": {
+      "get": {
+        "description": "Get a GPT message by ID",
+        "operationId": "getGPTMessage",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "message_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID of the GPT message"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved GPT message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GPTMessage"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - Invalid or missing API key"
+          },
+          "404": {
+            "description": "Message not found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/org/states": {
+      "get": {
+        "description": "Get all organizational states",
+        "operationId": "getOrgStates",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved organizational states",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OrgState"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - Invalid or missing API key"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "description": "Create a new organizational state",
+        "operationId": "createOrgState",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "requestBody": {
+          "description": "Organizational state data",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrgStateInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Organizational state created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrgState"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request - Missing required fields"
+          },
+          "401": {
+            "description": "Unauthorized - Invalid or missing API key"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key"
+      }
+    },
+    "schemas": {
+      "UnstructuredData": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for the memory"
+          },
+          "content": {
+            "type": "string",
+            "description": "The content stored in memory"
+          },
+          "pinecone_id": {
+            "type": "string",
+            "description": "The ID of the vector in Pinecone"
+          }
+        }
+      },
+      "SearchResult": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for the memory"
+          },
+          "content": {
+            "type": "string",
+            "description": "The content stored in memory"
+          },
+          "pinecone_id": {
+            "type": "string",
+            "description": "The ID of the vector in Pinecone"
+          },
+          "similarity_score": {
+            "type": "number",
+            "format": "float",
+            "description": "Similarity score (0-1)"
+          }
+        }
+      },
+      "ProjectDecisionInput": {
+        "type": "object",
+        "properties": {
+          "gpt_role": {
+            "type": "string",
+            "description": "The role or persona of the GPT creating this memory"
+          },
+          "decision_text": {
+            "type": "string",
+            "description": "The text of the decision or information being stored"
+          },
+          "context_embedding": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "format": "float"
+            },
+            "description": "Vector embedding of the context"
+          },
+          "related_documents": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of related document IDs"
+          }
+        },
+        "required": ["gpt_role", "decision_text", "context_embedding", "related_documents"]
+      },
+      "ProjectDecision": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for the structured memory"
+          },
+          "gpt_role": {
+            "type": "string",
+            "description": "The role or persona of the GPT creating this memory"
+          },
+          "decision_text": {
+            "type": "string",
+            "description": "The text of the decision or information being stored"
+          },
+          "context_embedding": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "format": "float"
+            },
+            "description": "Vector embedding of the context"
+          },
+          "related_documents": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of related document IDs"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the memory was created"
+          }
+        }
+      },
+      "SharedContextInput": {
+        "type": "object",
+        "properties": {
+          "sender": {
+            "type": "string",
+            "description": "The sender of the context"
+          },
+          "recipients": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of recipients for the context"
+          },
+          "context_tag": {
+            "type": "string",
+            "description": "Tag describing the context"
+          },
+          "memory_refs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "References to memory IDs"
+          }
+        },
+        "required": ["sender", "recipients", "context_tag", "memory_refs"]
+      },
+      "SharedContext": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for the shared context"
+          },
+          "sender": {
+            "type": "string",
+            "description": "The sender of the context"
+          },
+          "recipients": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of recipients for the context"
+          },
+          "context_tag": {
+            "type": "string",
+            "description": "Tag describing the context"
+          },
+          "memory_refs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "References to memory IDs"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the context was shared"
+          }
+        }
+      },
+      "AgentInput": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Name of the agent"
+          },
+          "role": {
+            "type": "string",
+            "description": "Role of the agent (e.g., CTO, Designer, Developer)"
+          },
+          "description": {
+            "type": "string",
+            "description": "Description of the agent"
+          },
+          "capabilities": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of agent capabilities"
+          },
+          "reports_to": {
+            "type": "string",
+            "description": "ID of the agent this agent reports to"
+          },
+          "seniority_level": {
+            "type": "integer",
+            "description": "Seniority level (1-5)"
+          },
+          "status": {
+            "type": "string",
+            "description": "Status of the agent (active, inactive)"
+          }
+        },
+        "required": ["name", "role", "description"]
+      },
+      "Agent": {
+        "type": "object",
+        "properties": {
+          "agent_id": {
+            "type": "string",
+            "description": "Unique identifier for the agent"
+          },
+          "name": {
+            "type": "string",
+            "description": "Name of the agent"
+          },
+          "role": {
+            "type": "string",
+            "description": "Role of the agent (e.g., CTO, Designer, Developer)"
+          },
+          "description": {
+            "type": "string",
+            "description": "Description of the agent"
+          },
+          "capabilities": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of agent capabilities"
+          },
+          "reports_to": {
+            "type": "string",
+            "description": "ID of the agent this agent reports to"
+          },
+          "seniority_level": {
+            "type": "integer",
+            "description": "Seniority level (1-5)"
+          },
+          "status": {
+            "type": "string",
+            "description": "Status of the agent (active, inactive)"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the agent was created"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the agent was last updated"
+          }
+        }
+      },
+      "AgentSessionInput": {
+        "type": "object",
+        "properties": {
+          "agent_id": {
+            "type": "string",
+            "description": "Identifier for the agent (e.g., cto_gpt)"
+          },
+          "user_id": {
+            "type": "string",
+            "description": "Identifier for the user (if interactive)"
+          },
+          "current_focus": {
+            "type": "string",
+            "description": "What the agent is currently focusing on (e.g., spec review)"
+          },
+          "active_context_tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of active context tags"
+          }
+        },
+        "required": ["agent_id"]
+      },
+      "AgentSession": {
+        "type": "object",
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "description": "Unique identifier for the agent session"
+          },
+          "agent_id": {
+            "type": "string",
+            "description": "Identifier for the agent (e.g., cto_gpt)"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the session started"
+          },
+          "ended_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the session ended (null if ongoing)"
+          },
+          "user_id": {
+            "type": "string",
+            "description": "Identifier for the user (if interactive)"
+          },
+          "current_focus": {
+            "type": "string",
+            "description": "What the agent is currently focusing on (e.g., spec review)"
+          },
+          "summary_notes": {
+            "type": "string",
+            "description": "Summary notes for the session"
+          },
+          "active_context_tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of active context tags"
+          }
+        }
+      },
+      "GPTMessageInput": {
+        "type": "object",
+        "properties": {
+          "sender_agent": {
+            "type": "string",
+            "description": "Agent that sent the message"
+          },
+          "receiver_agent": {
+            "type": "string",
+            "description": "Agent that received the message (null for user-facing messages)"
+          },
+          "message_type": {
+            "type": "string",
+            "description": "Type of message (instruction, status_update, handoff, question)"
+          },
+          "content": {
+            "type": "string",
+            "description": "Content of the message"
+          },
+          "session_id": {
+            "type": "string",
+            "description": "ID of the session this message belongs to"
+          }
+        },
+        "required": ["sender_agent", "message_type", "content"]
+      },
+      "GPTMessage": {
+        "type": "object",
+        "properties": {
+          "message_id": {
+            "type": "string",
+            "description": "Unique identifier for the message"
+          },
+          "sender_agent": {
+            "type": "string",
+            "description": "Agent that sent the message"
+          },
+          "receiver_agent": {
+            "type": "string",
+            "description": "Agent that received the message (null for user-facing messages)"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the message was sent"
+          },
+          "message_type": {
+            "type": "string",
+            "description": "Type of message (instruction, status_update, handoff, question)"
+          },
+          "content": {
+            "type": "string",
+            "description": "Content of the message"
+          },
+          "session_id": {
+            "type": "string",
+            "description": "ID of the session this message belongs to"
+          }
+        }
+      },
+      "OrgStateInput": {
+        "type": "object",
+        "properties": {
+          "entity": {
+            "type": "string",
+            "description": "Name of the entity (e.g., Project X, Client Y)"
+          },
+          "entity_type": {
+            "type": "string",
+            "description": "Type of entity (project, client, team)"
+          },
+          "status": {
+            "type": "string",
+            "description": "Current status (active, completed, on_hold)"
+          },
+          "current_phase": {
+            "type": "string",
+            "description": "Current phase or stage"
+          },
+          "key_metrics": {
+            "type": "object",
+            "description": "Key metrics associated with this entity"
+          },
+          "related_agents": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Agents involved with this entity"
+          },
+          "priority": {
+            "type": "integer",
+            "description": "Priority level (1-5)"
+          }
+        },
+        "required": ["entity", "entity_type", "status"]
+      },
+      "OrgState": {
+        "type": "object",
+        "properties": {
+          "entity_id": {
+            "type": "string",
+            "description": "Unique identifier for the organizational state entity"
+          },
+          "entity": {
+            "type": "string",
+            "description": "Name of the entity (e.g., Project X, Client Y)"
+          },
+          "entity_type": {
+            "type": "string",
+            "description": "Type of entity (project, client, team)"
+          },
+          "status": {
+            "type": "string",
+            "description": "Current status (active, completed, on_hold)"
+          },
+          "current_phase": {
+            "type": "string",
+            "description": "Current phase or stage"
+          },
+          "key_metrics": {
+            "type": "object",
+            "description": "Key metrics associated with this entity"
+          },
+          "related_agents": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Agents involved with this entity"
+          },
+          "priority": {
+            "type": "integer",
+            "description": "Priority level (1-5)"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When this org state was created"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When this org state was last updated"
+          }
+        }
+      }
+    }
+  }
+}
