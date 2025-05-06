@@ -33,5 +33,14 @@ with app.app_context():
 # Import routes after models are registered
 import routes
 
+# Import admin routes for settings and security management
+import admin_routes
+
+# Import security modules to ensure they are available
+import csrf
+import validation
+import xss_protection
+import secure_api
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
