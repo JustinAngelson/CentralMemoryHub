@@ -102,6 +102,40 @@ Record all inter-agent and agent-user communications:
 
 The Memory Hub provides a comprehensive RESTful API that can be accessed using the OpenAPI schema. This can be used with Custom GPTs or other applications to interact with the Memory Hub and support multi-agent workflows.
 
+## Deployment
+
+### Reserved VM Deployment
+
+For production use, the Central Memory Hub is designed to be deployed as a Web Server on a Reserved VM instance:
+
+1. **Environment Requirements:**
+   - Python 3.11+
+   - PostgreSQL database
+   - Required API keys:
+     - OpenAI API key (`OPENAI_API_KEY`)
+     - Pinecone API key (`PINECONE_API_KEY`)
+     - Custom API key for authentication (`API_KEY`)
+     - Session secret for security (`SESSION_SECRET`)
+
+2. **Deployment Steps:**
+   - Choose "Web Server" as the app type (not Background Worker)
+   - Set the environment variables listed above
+   - The application server runs with Gunicorn on port 5000
+   - Use `main.py` as the entry point
+   - For custom domain setup, update the URL in the OpenAPI schema
+
+3. **Database Configuration:**
+   - The application will automatically connect to the provided PostgreSQL database
+   - Tables are created automatically if they don't exist
+   - Access the database using environment variables: DATABASE_URL, PGHOST, PGPORT, PGUSER, PGPASSWORD, PGDATABASE
+
+4. **Post-Deployment Verification:**
+   - Visit `/admin/settings` to configure the application
+   - Test API endpoints using the `/api-keys` interface to create and manage API keys
+   - Verify Pinecone connectivity by adding and searching unstructured data
+
+For detailed logging information, view the application logs in the Replit console.
+
 ## OpenAPI Schema for Custom GPT Integration
 
 ```json
@@ -114,7 +148,12 @@ The Memory Hub provides a comprehensive RESTful API that can be accessed using t
   },
   "servers": [
     {
-      "url": "https://workspace.angelson.repl.co"
+      "url": "https://memory-hub-api.example.com",
+      "description": "Production server"
+    },
+    {
+      "url": "https://a4bcd18d-c239-4cf3-b41c-6f743ef6fa20-00-32na6d6s4kheq.kirk.replit.dev",
+      "description": "Development server"
     }
   ],
   "security": [

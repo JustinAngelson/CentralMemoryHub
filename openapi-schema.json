@@ -7,7 +7,12 @@
   },
   "servers": [
     {
-      "url": "https://a4bcd18d-c239-4cf3-b41c-6f743ef6fa20-00-32na6d6s4kheq.kirk.replit.dev"
+      "url": "https://memory-hub-api.example.com",
+      "description": "Production server"
+    },
+    {
+      "url": "https://a4bcd18d-c239-4cf3-b41c-6f743ef6fa20-00-32na6d6s4kheq.kirk.replit.dev",
+      "description": "Development server"
     }
   ],
   "security": [
