@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Key Management | Central Memory Hub</title>
+    <link rel="stylesheet" href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css">
+    <style>
+        .api-key-display {
+            font-family: monospace;
+            background-color: var(--bs-dark);
+            padding: 10px;
+            border-radius: 4px;
+            word-break: break-all;
+        }
+        .table-responsive {
+            overflow-x: auto;
+        }
+        .btn-copy {
+            white-space: nowrap;
+        }
+        .card {
+            margin-bottom: 1.5rem;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+        <div class="container">
+            <a class="navbar-brand" href="/">Central Memory Hub</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/">Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/agents">AI Agents</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/api-keys">API Keys</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="row mb-4">
+            <div class="col-12">
+                <h1>API Key Management</h1>
+                <p class="lead">Create and manage API keys for accessing the Memory Hub API.</p>
+            </div>
+        </div>
+
+        <!-- Create New API Key Card -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Create New API Key</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="createKeyForm">
+                            <div class="mb-3">
+                                <label for="keyName" class="form-label">Key Name*</label>
+                                <input type="text" class="form-control" id="keyName" required placeholder="e.g., Development API Key">
+                            </div>
+                            <div class="mb-3">
+                                <label for="keyDescription" class="form-label">Description</label>
+                                <textarea class="form-control" id="keyDescription" rows="2" placeholder="Optional description for this API key"></textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label for="keyExpiration" class="form-label">Expires In (Days)</label>
+                                <input type="number" class="form-control" id="keyExpiration" placeholder="Leave blank for no expiration" min="1">
+                            </div>
+                            <div class="mb-3">
+                                <label for="rateLimit" class="form-label">Rate Limit (Requests per Minute)</label>
+                                <input type="number" class="form-control" id="rateLimit" value="100" min="1" max="1000">
+                            </div>
+                            <button type="submit" class="btn btn-primary">Create API Key</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- New API Key Display (Initially Hidden) -->
+        <div class="row mb-4 d-none" id="newKeyContainer">
+            <div class="col-12">
+                <div class="card border-success">
+                    <div class="card-header bg-success text-light">
+                        <h5 class="card-title mb-0">New API Key Created</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-warning">
+                            <strong>Important:</strong> This API key will only be shown once. Please copy it now.
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Your API Key:</label>
+                            <div class="input-group">
+                                <div class="api-key-display form-control" id="newApiKey"></div>
+                                <button class="btn btn-outline-secondary btn-copy" onclick="copyNewKey()">
+                                    <i class="bi bi-clipboard"></i> Copy
+                                </button>
+                            </div>
+                        </div>
+                        <button class="btn btn-secondary" onclick="hideNewKeyDisplay()">Dismiss</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- API Keys Table -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">Existing API Keys</h5>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="refreshKeys()">
+                            <i class="bi bi-arrow-clockwise"></i> Refresh
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Created</th>
+                                        <th>Last Used</th>
+                                        <th>Expires</th>
+                                        <th>Rate Limit</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="apiKeysTable">
+                                    <tr>
+                                        <td colspan="7" class="text-center">Loading API keys...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- API Request Logs Card -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">API Request Logs</h5>
+                        <div>
+                            <select id="logFilterKey" class="form-select form-select-sm d-inline-block me-2" style="width: auto;">
+                                <option value="">All API Keys</option>
+                            </select>
+                            <button class="btn btn-sm btn-outline-secondary" onclick="refreshLogs()">
+                                <i class="bi bi-arrow-clockwise"></i> Refresh
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Timestamp</th>
+                                        <th>API Key</th>
+                                        <th>Method</th>
+                                        <th>Endpoint</th>
+                                        <th>Status</th>
+                                        <th>IP Address</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="apiLogsTable">
+                                    <tr>
+                                        <td colspan="6" class="text-center">Loading API logs...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mt-3">
+                            <div>
+                                <span>Showing <span id="logsShown">0</span> of <span id="logsTotal">0</span> logs</span>
+                            </div>
+                            <div>
+                                <button id="loadMoreLogs" class="btn btn-sm btn-outline-primary">Load More</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Confirmation -->
+    <div class="modal fade" id="confirmationModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="confirmationTitle">Confirm Action</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="confirmationMessage">
+                    Are you sure you want to proceed?
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-danger" id="confirmButton">Confirm</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Global variables
+        let apiKeys = [];
+        let apiLogs = [];
+        let logsOffset = 0;
+        let logsLimit = 25;
+        let logsTotal = 0;
+        let confirmCallback = null;
+        const confirmationModal = new bootstrap.Modal(document.getElementById('confirmationModal'));
+        
+        // Initialize when the page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set up form submission
+            document.getElementById('createKeyForm').addEventListener('submit', createApiKey);
+            
+            // Set up load more button
+            document.getElementById('loadMoreLogs').addEventListener('click', loadMoreLogs);
+            
+            // Load data
+            refreshKeys();
+            refreshLogs();
+        });
+        
+        // Fetch API keys from the server
+        async function refreshKeys() {
+            try {
+                const response = await fetch('/api/keys');
+                if (!response.ok) throw new Error('Failed to fetch API keys');
+                
+                apiKeys = await response.json();
+                populateApiKeysTable();
+                updateLogFilter();
+            } catch (error) {
+                console.error('Error fetching API keys:', error);
+                document.getElementById('apiKeysTable').innerHTML = `
+                    <tr>
+                        <td colspan="7" class="text-center text-danger">
+                            Error loading API keys: ${error.message}
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+        
+        // Fetch API logs from the server
+        async function refreshLogs(reset = true) {
+            if (reset) {
+                logsOffset = 0;
+                apiLogs = [];
+            }
+            
+            const keyFilter = document.getElementById('logFilterKey').value;
+            let url = `/api/logs?limit=${logsLimit}&offset=${logsOffset}`;
+            if (keyFilter) url += `&key_id=${keyFilter}`;
+            
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error('Failed to fetch API logs');
+                
+                const data = await response.json();
+                logsTotal = data.total;
+                
+                if (reset) {
+                    apiLogs = data.logs;
+                } else {
+                    apiLogs = [...apiLogs, ...data.logs];
+                }
+                
+                populateApiLogsTable();
+            } catch (error) {
+                console.error('Error fetching API logs:', error);
+                document.getElementById('apiLogsTable').innerHTML = `
+                    <tr>
+                        <td colspan="6" class="text-center text-danger">
+                            Error loading API logs: ${error.message}
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+        
+        // Load more logs
+        function loadMoreLogs() {
+            logsOffset += logsLimit;
+            refreshLogs(false);
+        }
+        
+        // Create a new API key
+        async function createApiKey(event) {
+            event.preventDefault();
+            
+            const keyName = document.getElementById('keyName').value;
+            const keyDescription = document.getElementById('keyDescription').value;
+            const keyExpiration = document.getElementById('keyExpiration').value;
+            const rateLimit = document.getElementById('rateLimit').value;
+            
+            const payload = {
+                name: keyName,
+                description: keyDescription || null,
+                rate_limit: parseInt(rateLimit, 10)
+            };
+            
+            if (keyExpiration) {
+                payload.expires_in_days = parseInt(keyExpiration, 10);
+            }
+            
+            try {
+                const response = await fetch('/api/keys', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Failed to create API key');
+                }
+                
+                const newKey = await response.json();
+                
+                // Display the new key
+                document.getElementById('newApiKey').textContent = newKey.api_key;
+                document.getElementById('newKeyContainer').classList.remove('d-none');
+                
+                // Reset the form
+                document.getElementById('createKeyForm').reset();
+                
+                // Refresh the keys list
+                refreshKeys();
+                
+            } catch (error) {
+                console.error('Error creating API key:', error);
+                alert(`Error creating API key: ${error.message}`);
+            }
+        }
+        
+        // Populate the API keys table
+        function populateApiKeysTable() {
+            const tableBody = document.getElementById('apiKeysTable');
+            
+            if (apiKeys.length === 0) {
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="text-center">No API keys found. Create one to get started.</td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            let html = '';
+            for (const key of apiKeys) {
+                const created = new Date(key.created_at).toLocaleString();
+                const lastUsed = key.last_used_at ? new Date(key.last_used_at).toLocaleString() : 'Never';
+                const expires = key.expires_at ? new Date(key.expires_at).toLocaleString() : 'Never';
+                const status = key.is_active ? 
+                    '<span class="badge bg-success">Active</span>' : 
+                    '<span class="badge bg-danger">Revoked</span>';
+                
+                html += `
+                    <tr>
+                        <td>${key.name}</td>
+                        <td>${created}</td>
+                        <td>${lastUsed}</td>
+                        <td>${expires}</td>
+                        <td>${key.rate_limit} req/min</td>
+                        <td>${status}</td>
+                        <td>
+                            ${key.is_active ? 
+                                `<button class="btn btn-sm btn-outline-danger" onclick="confirmRevoke('${key.key_id}', '${key.name}')">
+                                    Revoke
+                                </button>` : 
+                                '<span class="text-muted">Revoked</span>'
+                            }
+                        </td>
+                    </tr>
+                `;
+            }
+            
+            tableBody.innerHTML = html;
+        }
+        
+        // Populate the API logs table
+        function populateApiLogsTable() {
+            const tableBody = document.getElementById('apiLogsTable');
+            document.getElementById('logsShown').textContent = apiLogs.length;
+            document.getElementById('logsTotal').textContent = logsTotal;
+            
+            // Show/hide load more button
+            if (apiLogs.length >= logsTotal) {
+                document.getElementById('loadMoreLogs').classList.add('d-none');
+            } else {
+                document.getElementById('loadMoreLogs').classList.remove('d-none');
+            }
+            
+            if (apiLogs.length === 0) {
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="text-center">No API logs found.</td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            let html = '';
+            for (const log of apiLogs) {
+                const timestamp = new Date(log.timestamp).toLocaleString();
+                const statusClass = log.status_code < 400 ? 'text-success' : 'text-danger';
+                
+                // Find the key name
+                let keyName = log.api_key_id;
+                if (log.api_key_id === 'default') {
+                    keyName = 'Default API Key';
+                } else {
+                    const key = apiKeys.find(k => k.key_id === log.api_key_id);
+                    if (key) keyName = key.name;
+                }
+                
+                html += `
+                    <tr>
+                        <td>${timestamp}</td>
+                        <td>${keyName}</td>
+                        <td>${log.method}</td>
+                        <td>${log.endpoint}</td>
+                        <td class="${statusClass}">${log.status_code}</td>
+                        <td>${log.ip_address || 'Unknown'}</td>
+                    </tr>
+                `;
+            }
+            
+            tableBody.innerHTML = html;
+        }
+        
+        // Update the log filter dropdown with available API keys
+        function updateLogFilter() {
+            const select = document.getElementById('logFilterKey');
+            const currentValue = select.value;
+            
+            // Clear current options (except the first one)
+            while (select.options.length > 1) {
+                select.remove(1);
+            }
+            
+            // Add default key option
+            const defaultOption = document.createElement('option');
+            defaultOption.value = 'default';
+            defaultOption.textContent = 'Default API Key';
+            select.add(defaultOption);
+            
+            // Add options for each API key
+            for (const key of apiKeys) {
+                const option = document.createElement('option');
+                option.value = key.key_id;
+                option.textContent = key.name;
+                select.add(option);
+            }
+            
+            // Restore previous selection if possible
+            if (currentValue) {
+                select.value = currentValue;
+            }
+            
+            // Set up change event
+            select.onchange = () => refreshLogs();
+        }
+        
+        // Hide the new key display
+        function hideNewKeyDisplay() {
+            document.getElementById('newKeyContainer').classList.add('d-none');
+        }
+        
+        // Copy the new API key to clipboard
+        function copyNewKey() {
+            const keyText = document.getElementById('newApiKey').textContent;
+            navigator.clipboard.writeText(keyText)
+                .then(() => {
+                    alert('API key copied to clipboard');
+                })
+                .catch(err => {
+                    console.error('Could not copy text: ', err);
+                });
+        }
+        
+        // Confirm revocation of an API key
+        function confirmRevoke(keyId, keyName) {
+            document.getElementById('confirmationTitle').textContent = 'Revoke API Key';
+            document.getElementById('confirmationMessage').textContent = 
+                `Are you sure you want to revoke the API key "${keyName}"? This action cannot be undone.`;
+            
+            confirmCallback = () => revokeApiKey(keyId);
+            document.getElementById('confirmButton').onclick = () => {
+                confirmationModal.hide();
+                if (confirmCallback) confirmCallback();
+            };
+            
+            confirmationModal.show();
+        }
+        
+        // Revoke an API key
+        async function revokeApiKey(keyId) {
+            try {
+                const response = await fetch(`/api/keys/${keyId}/revoke`, {
+                    method: 'POST'
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Failed to revoke API key');
+                }
+                
+                // Refresh the keys list
+                refreshKeys();
+                
+            } catch (error) {
+                console.error('Error revoking API key:', error);
+                alert(`Error revoking API key: ${error.message}`);
+            }
+        }
+    </script>
+</body>
+</html>
