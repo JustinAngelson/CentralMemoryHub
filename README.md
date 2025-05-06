@@ -1,18 +1,60 @@
 # Central Memory Hub
 
-A Python-based Central Memory Hub using Flask, SQLite, and Pinecone to store, manage, and search structured and unstructured data via embeddings.
+A sophisticated Central Memory Hub using Python, Flask, PostgreSQL, and Pinecone to store, manage, and search structured and unstructured data via embeddings. Enhanced with multi-agent communication and knowledge management capabilities.
 
 ## Features
 
-- SQLite database for storing structured data
+- PostgreSQL database with advanced data models
 - OpenAI integration for generating embeddings
 - Pinecone Vector Database for storing and searching embeddings
-- Complete Flask API endpoints with authentication
+- Comprehensive REST API with authentication
+- Multi-agent session and communication tracking
+- Knowledge indexing and decision logging
+- Organizational state management
+- Experimental tracking for agent learning
+- User insights for behavior analysis
+- Memory linking between structured and vector data
 - User-friendly web interface for managing data
+
+## Database Migration
+
+The system has been migrated from SQLite to PostgreSQL for improved scalability, performance, and advanced data type support. The migration includes:
+
+- Preservation of all existing data from the original SQLite database
+- Enhanced schema with JSONB fields for flexible data storage
+- Proper indexing strategies for performance optimization
+- Foreign key relationships between related data models
+- UUID-based identifiers for all tables
+
+## Multi-Agent Communication Architecture
+
+The system now includes comprehensive support for multi-agent orchestration:
+
+### Agent Sessions
+Track when and what each agent does during interactions:
+- Session management with start/end timestamps
+- Current focus tracking
+- Context tagging for organized memory access
+
+### Message Logging
+Record all inter-agent and agent-user communications:
+- Structured message types (instruction, status_update, handoff, question)
+- Complete conversation history within sessions
+- Sender/receiver relationships
+
+### Knowledge Management
+- Term indexing with relevance scoring
+- Source tracking for knowledge provenance
+- Synonym management for flexible retrieval
+
+### Decision Tracking
+- Log all agent decisions with impact assessment
+- Context preservation for decision traceability
+- Reversal possibility tracking
 
 ## API Usage
 
-The Memory Hub provides a RESTful API that can be accessed using the OpenAPI schema below. This can be used with Custom GPTs or other applications to interact with the Memory Hub.
+The Memory Hub provides a comprehensive RESTful API that can be accessed using the OpenAPI schema. This can be used with Custom GPTs or other applications to interact with the Memory Hub and support multi-agent workflows.
 
 ## OpenAPI Schema for Custom GPT Integration
 
