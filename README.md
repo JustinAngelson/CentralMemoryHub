@@ -30,6 +30,13 @@ The system has been migrated from SQLite to PostgreSQL for improved scalability,
 
 The system now includes comprehensive support for multi-agent orchestration:
 
+### Agent Directory (AI Org Chart)
+Maintain a structured organization of AI agents and their relationships:
+- Hierarchical organization with reporting structures
+- Agent capabilities and roles tracking
+- Seniority levels and status management
+- Visualize organization chart in list or tree view
+
 ### Agent Sessions
 Track when and what each agent does during interactions:
 - Session management with start/end timestamps
