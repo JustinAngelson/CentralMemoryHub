@@ -2,12 +2,13 @@ import os
 import logging
 import json
 import time
-from datetime import datetime
-from typing import Dict, List, Any, Optional
+import threading
+from datetime import datetime, timedelta
+from typing import Dict, List, Any, Optional, Union
 from functools import wraps
 import uuid
 
-from flask import request, jsonify, render_template, Blueprint, current_app
+from flask import request, jsonify, render_template, Blueprint, current_app, make_response
 from app import app, db
 import pinecone_client as pc
 from models import (
@@ -17,24 +18,163 @@ from models import (
     AgentDirectory, AgentSession, GPTMessage, OrgState, AgentTask, DecisionLog,
     KnowledgeIndex, MemoryLink, Experiment, UserInsight
 )
+# Import security models from dedicated module
+from api_keys import ApiKey, ApiRequestLog
 
-# Set up authentication
-API_KEY = os.environ.get("API_KEY")
+# Set up authentication - For backwards compatibility 
+DEFAULT_API_KEY = os.environ.get("API_KEY")
+
+# Set up request rate limiting
+class RateLimiter:
+    """Thread-safe rate limiter for API requests."""
+    
+    def __init__(self):
+        self.request_counts = {}  # {key_id: {timestamp: count}}
+        self.lock = threading.Lock()
+    
+    def is_rate_limited(self, key_id: str, limit: int) -> bool:
+        """Check if the request should be rate limited.
+        
+        Args:
+            key_id: API key ID
+            limit: Maximum requests per minute
+            
+        Returns:
+            bool: True if the request should be rate limited
+        """
+        with self.lock:
+            now = datetime.now()
+            minute_ago = now - timedelta(minutes=1)
+            
+            # Initialize if this is the first request for this key
+            if key_id not in self.request_counts:
+                self.request_counts[key_id] = {}
+            
+            # Remove counts older than 1 minute
+            self.request_counts[key_id] = {
+                ts: count for ts, count in self.request_counts[key_id].items()
+                if ts >= minute_ago
+            }
+            
+            # Get the total count for the past minute
+            total_count = sum(self.request_counts[key_id].values())
+            
+            # Check if the limit is reached
+            if total_count >= limit:
+                return True
+            
+            # Increment the count
+            timestamp = now.replace(second=0, microsecond=0)  # Round to minute
+            if timestamp not in self.request_counts[key_id]:
+                self.request_counts[key_id][timestamp] = 0
+            self.request_counts[key_id][timestamp] += 1
+            
+            return False
+
+# Create a rate limiter instance
+rate_limiter = RateLimiter()
 
 def require_api_key(f):
-    """Decorator to require API key for API endpoints"""
+    """Decorator to require API key for API endpoints with rate limiting and logging."""
     @wraps(f)
     def decorated_function(*args, **kwargs):
         # Handle preflight OPTIONS requests by returning early
         if request.method == 'OPTIONS':
             return '', 200
+        
+        status_code = 200  # Default success status
+        api_key_id = None
+        log_data = True
+        
+        try:
+            # Check if the API key is provided in the header
+            provided_key = request.headers.get("X-API-KEY")
             
-        # Check if the API key is provided in the header
-        provided_key = request.headers.get("X-API-KEY")
-        if not provided_key or provided_key != API_KEY:
-            return jsonify({"error": "Unauthorized. Invalid or missing API key."}), 401
-        return f(*args, **kwargs)
+            if not provided_key:
+                status_code = 401
+                return jsonify({"error": "Unauthorized. Missing API key."}), status_code
+            
+            # Support the legacy API key for backward compatibility
+            if provided_key == DEFAULT_API_KEY:
+                # Using the default API key (legacy support)
+                api_key_id = "default"
+                rate_limit = 200  # Higher limit for the default key
+            else:
+                # Look up the key in the database
+                api_key = db.session.query(ApiKey).filter_by(api_key=provided_key).first()
+                
+                if not api_key:
+                    status_code = 401
+                    return jsonify({"error": "Unauthorized. Invalid API key."}), status_code
+                
+                if not api_key.is_valid():
+                    status_code = 401
+                    return jsonify({"error": "Unauthorized. Expired or inactive API key."}), status_code
+                
+                # Key is valid, update usage metrics
+                api_key_id = api_key.key_id
+                rate_limit = api_key.rate_limit
+                api_key.update_last_used()
+            
+            # Check rate limiting
+            if rate_limiter.is_rate_limited(api_key_id, rate_limit):
+                status_code = 429
+                return jsonify({
+                    "error": "Too Many Requests",
+                    "message": f"Rate limit of {rate_limit} requests per minute exceeded."
+                }), status_code
+            
+            # Execute the actual function
+            response = f(*args, **kwargs)
+            
+            # Get the status code from the response
+            if isinstance(response, tuple) and len(response) > 1:
+                status_code = response[1]
+            
+            return response
+            
+        finally:
+            # Log the request (only if we have a key ID)
+            if api_key_id:
+                try:
+                    ApiRequestLog.log_request(
+                        api_key_id=api_key_id,
+                        request=request,
+                        status_code=status_code,
+                        include_data=log_data
+                    )
+                except Exception as e:
+                    # Don't fail the request if logging fails
+                    logging.error(f"Failed to log API request: {str(e)}")
+    
     return decorated_function
+
+# Add content security policy to responses
+def add_security_headers(response):
+    """Add security headers to the response."""
+    # Content Security Policy
+    response.headers['Content-Security-Policy'] = (
+        "default-src 'self'; "
+        "script-src 'self' https://cdn.jsdelivr.net; "
+        "style-src 'self' https://cdn.replit.com https://cdn.jsdelivr.net; "
+        "img-src 'self' data:; "
+        "connect-src 'self'; "
+        "font-src 'self'; "
+        "object-src 'none'; "
+        "media-src 'self'; "
+        "frame-src 'none'; "
+        "frame-ancestors 'none';"
+    )
+    # Other security headers
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    response.headers['Referrer-Policy'] = 'no-referrer-when-downgrade'
+    response.headers['Cache-Control'] = 'no-store, max-age=0'
+    return response
+
+# Apply security headers to all responses
+app.after_request(add_security_headers)
 
 # Route for the home page
 @app.route('/')
@@ -46,6 +186,139 @@ def index():
 def agents_view():
     """Render the agents interface"""
     return render_template('agent_view.html')
+
+@app.route('/api-keys')
+def api_keys_view():
+    """Render the API key management interface"""
+    return render_template('api_keys.html')
+
+# API Key management endpoints
+@app.route('/api/keys', methods=['GET'])
+def get_api_keys():
+    """Get all API keys (without requiring API key for demo purposes)"""
+    try:
+        # Get all API keys
+        keys = ApiKey.query.all()
+        return jsonify([key.to_dict() for key in keys])
+    except Exception as e:
+        logging.error(f"Error getting API keys: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/keys', methods=['POST'])
+def create_api_key():
+    """Create a new API key"""
+    try:
+        data = request.json
+        
+        # Validate required fields
+        if 'name' not in data:
+            return jsonify({"error": "Missing required field: name"}), 400
+        
+        # Optional fields
+        description = data.get('description')
+        expires_in_days = data.get('expires_in_days')
+        rate_limit = data.get('rate_limit', 100)
+        
+        # Create the API key
+        api_key = ApiKey.create(
+            name=data['name'],
+            description=description,
+            expires_in_days=expires_in_days,
+            rate_limit=rate_limit
+        )
+        
+        # Return the API key (including the actual key)
+        # This is the only time the actual key will be returned
+        return jsonify(api_key.to_dict(include_key=True)), 201
+    
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error creating API key: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/keys/<key_id>', methods=['PUT'])
+def update_api_key(key_id):
+    """Update an API key"""
+    try:
+        data = request.json
+        key = ApiKey.query.get(key_id)
+        
+        if not key:
+            return jsonify({"error": "API key not found"}), 404
+        
+        # Update fields
+        if 'name' in data:
+            key.name = data['name']
+        if 'description' in data:
+            key.description = data['description']
+        if 'rate_limit' in data:
+            key.rate_limit = data['rate_limit']
+        if 'is_active' in data:
+            key.is_active = data['is_active']
+        
+        db.session.commit()
+        return jsonify(key.to_dict()), 200
+    
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error updating API key: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/keys/<key_id>/revoke', methods=['POST'])
+def revoke_api_key(key_id):
+    """Revoke an API key"""
+    try:
+        key = ApiKey.query.get(key_id)
+        
+        if not key:
+            return jsonify({"error": "API key not found"}), 404
+        
+        key.revoke()
+        return jsonify({"message": "API key revoked successfully"}), 200
+    
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error revoking API key: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/logs', methods=['GET'])
+def get_api_logs():
+    """Get API request logs with filtering options"""
+    try:
+        # Get query parameters
+        key_id = request.args.get('key_id')
+        limit = int(request.args.get('limit', 100))
+        offset = int(request.args.get('offset', 0))
+        
+        # Build query
+        query = db.session.query(ApiRequestLog)
+        
+        # Apply filters
+        if key_id:
+            query = query.filter(ApiRequestLog.api_key_id == key_id)
+        
+        # Order by most recent first
+        query = query.order_by(ApiRequestLog.timestamp.desc())
+        
+        # Apply pagination
+        query = query.limit(limit).offset(offset)
+        
+        # Execute query
+        logs = query.all()
+        
+        # Count total
+        total = db.session.query(ApiRequestLog).count()
+        
+        return jsonify({
+            "logs": [log.__dict__ for log in logs if hasattr(log, '__dict__')],
+            "total": total,
+            "limit": limit,
+            "offset": offset
+        }), 200
+    
+    except Exception as e:
+        logging.error(f"Error getting API logs: {e}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/agents/sessions', methods=['GET'])
 def get_agent_sessions_for_ui():
