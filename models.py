@@ -4,7 +4,7 @@ from datetime import datetime
 import uuid
 from sqlalchemy import Column, String, Text, JSON, DateTime, Boolean, Integer, ForeignKey
 from sqlalchemy.sql import func
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, backref
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from app import db
 
@@ -108,6 +108,45 @@ class SharedContext(db.Model):
 
 # New Models as per the PostgreSQL enhancement plan
 
+class AgentDirectory(db.Model):
+    """
+    Directory of AI agents and their relationships (AI Org Chart)
+    """
+    __tablename__ = 'agent_directory'
+
+    agent_id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String(100), nullable=False, unique=True)
+    role = Column(String(100), nullable=False)
+    description = Column(Text, nullable=True)
+    capabilities = Column(JSONB, nullable=True)  # ["code_generation", "task_planning", "summarization"]
+    reports_to = Column(String(36), ForeignKey('agent_directory.agent_id'), nullable=True)
+    seniority_level = Column(Integer, default=1)  # 1=entry level, 5=executive
+    status = Column(String(20), default="active")  # active, inactive, in_training
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+    
+    # Relationships
+    subordinates = relationship(
+        "AgentDirectory", 
+        foreign_keys="AgentDirectory.reports_to"
+    )
+    sessions = relationship("AgentSession", back_populates="agent")
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            'agent_id': self.agent_id,
+            'name': self.name,
+            'role': self.role,
+            'description': self.description,
+            'capabilities': self.capabilities,
+            'reports_to': self.reports_to,
+            'seniority_level': self.seniority_level,
+            'status': self.status,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            'subordinate_count': len(self.subordinates) if self.subordinates else 0
+        }
+
 class AgentSession(db.Model):
     """
     Track what each GPT sees, does, and says during every session.
@@ -115,7 +154,7 @@ class AgentSession(db.Model):
     __tablename__ = 'agent_sessions'
     
     session_id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    agent_id = Column(String(100), nullable=False, index=True)  # e.g., cto_gpt
+    agent_id = Column(String(36), ForeignKey('agent_directory.agent_id'), nullable=False, index=True)
     started_at = Column(DateTime, default=func.now())
     ended_at = Column(DateTime, nullable=True)
     user_id = Column(String(100), nullable=True, index=True)  # if interactive
@@ -125,6 +164,7 @@ class AgentSession(db.Model):
     
     # Relationships
     messages = relationship("GPTMessage", back_populates="session")
+    agent = relationship("AgentDirectory", back_populates="sessions")
     
     def to_dict(self) -> Dict[str, Any]:
         return {
