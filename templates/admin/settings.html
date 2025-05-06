@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <title>Admin Settings | Central Memory Hub</title>
+    <link rel="stylesheet" href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css">
+    <style>
+        .settings-form {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .card {
+            margin-bottom: 1.5rem;
+        }
+        .form-switch {
+            padding-left: 2.5em;
+        }
+        .alert {
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+        <div class="container">
+            <a class="navbar-brand" href="/">Central Memory Hub</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/">Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/agents">AI Agents</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/api-keys">API Keys</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/admin/settings">Settings</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="row mb-4">
+            <div class="col-12">
+                <h1>Admin Settings</h1>
+                <p class="lead">Configure your Central Memory Hub settings.</p>
+            </div>
+        </div>
+
+        <!-- Display success or error messages -->
+        {% if message %}
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endif %}
+        
+        {% if error %}
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            {{ error }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endif %}
+
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">General Settings</h5>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST" action="/admin/settings" class="settings-form">
+                            <!-- CSRF Token (Hidden Field) -->
+                            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                            
+                            <div class="mb-3">
+                                <label for="site_name" class="form-label">Site Name</label>
+                                <input type="text" class="form-control" id="site_name" name="site_name" value="{{ settings.site_name }}" required>
+                                <div class="form-text">The name displayed in the header and browser title.</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="max_results" class="form-label">Maximum Search Results</label>
+                                <input type="number" class="form-control" id="max_results" name="max_results" value="{{ settings.max_results }}" min="1" max="100" required>
+                                <div class="form-text">Maximum number of results to display per search query (1-100).</div>
+                            </div>
+                            
+                            <div class="mb-3 form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="enable_public_api" name="enable_public_api" {% if settings.enable_public_api %}checked{% endif %}>
+                                <label class="form-check-label" for="enable_public_api">Enable Public API Access</label>
+                                <div class="form-text">Allow access to the API without authentication (not recommended for production).</div>
+                            </div>
+                            
+                            <button type="submit" class="btn btn-primary">Save Settings</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Security Settings</h5>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST" action="/admin/security" class="settings-form">
+                            <!-- CSRF Token (Hidden Field) -->
+                            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                            
+                            <div class="mb-3">
+                                <label for="session_timeout" class="form-label">Session Timeout (minutes)</label>
+                                <input type="number" class="form-control" id="session_timeout" name="session_timeout" value="30" min="5" max="1440" required>
+                                <div class="form-text">Time of inactivity before a user is logged out (5-1440 minutes).</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="failed_login_limit" class="form-label">Failed Login Limit</label>
+                                <input type="number" class="form-control" id="failed_login_limit" name="failed_login_limit" value="5" min="1" max="20" required>
+                                <div class="form-text">Number of failed login attempts before temporary lockout.</div>
+                            </div>
+                            
+                            <div class="mb-3 form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="enforce_strong_passwords" name="enforce_strong_passwords" checked>
+                                <label class="form-check-label" for="enforce_strong_passwords">Enforce Strong Passwords</label>
+                                <div class="form-text">Require passwords with at least 8 characters, including uppercase, lowercase, numbers, and special characters.</div>
+                            </div>
+                            
+                            <div class="mb-3 form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="enable_2fa" name="enable_2fa">
+                                <label class="form-check-label" for="enable_2fa">Enable Two-Factor Authentication</label>
+                                <div class="form-text">Require two-factor authentication for all users.</div>
+                            </div>
+                            
+                            <button type="submit" class="btn btn-primary">Save Security Settings</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card border-danger">
+                    <div class="card-header bg-danger text-white">
+                        <h5 class="card-title mb-0">Danger Zone</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-4">
+                            <h5>Revoke All API Keys</h5>
+                            <p>This will immediately revoke all active API keys. Users will need to create new keys to access the API.</p>
+                            <form method="POST" action="/admin/revoke-all-keys" onsubmit="return confirm('Are you sure you want to revoke all API keys? This action cannot be undone.')">
+                                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                                <button type="submit" class="btn btn-outline-danger">Revoke All API Keys</button>
+                            </form>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <h5>Clear All Request Logs</h5>
+                            <p>This will permanently delete all API request logs. This data cannot be recovered.</p>
+                            <form method="POST" action="/admin/clear-logs" onsubmit="return confirm('Are you sure you want to clear all request logs? This action cannot be undone.')">
+                                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                                <button type="submit" class="btn btn-outline-danger">Clear All Logs</button>
+                            </form>
+                        </div>
+                        
+                        <div>
+                            <h5>Reset Database</h5>
+                            <p>This will reset the entire database to its default state. All data will be permanently deleted.</p>
+                            <form method="POST" action="/admin/reset-database" onsubmit="return confirm('WARNING: This will permanently delete ALL data in the database. This action CANNOT be undone. Are you absolutely sure you want to proceed?')">
+                                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                                <div class="mb-3">
+                                    <label for="confirmation" class="form-label">Type "RESET" to confirm</label>
+                                    <input type="text" class="form-control" id="confirmation" name="confirmation" required pattern="RESET">
+                                </div>
+                                <button type="submit" class="btn btn-danger">Reset Database</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Example of using the CSRF token in AJAX requests
+        document.addEventListener('DOMContentLoaded', function() {
+            // Get the CSRF token from the meta tag
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            
+            // Example function to make a secure AJAX request
+            function makeSecureRequest(url, method, data) {
+                return fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': csrfToken
+                    },
+                    body: JSON.stringify(data)
+                })
+                .then(response => response.json())
+                .catch(error => console.error('Error:', error));
+            }
+            
+            // Example usage (commented out)
+            // const testButton = document.getElementById('test-button');
+            // if (testButton) {
+            //     testButton.addEventListener('click', function() {
+            //         makeSecureRequest('/api/test', 'POST', { test: 'data' })
+            //             .then(data => console.log('Response:', data));
+            //     });
+            // }
+        });
+    </script>
+</body>
+</html>
