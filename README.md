@@ -15,6 +15,45 @@ A sophisticated Central Memory Hub using Python, Flask, PostgreSQL, and Pinecone
 - User insights for behavior analysis
 - Memory linking between structured and vector data
 - User-friendly web interface for managing data
+- Enhanced security features with API key management
+
+## Security Features
+
+The system implements multiple layers of security to protect data and prevent unauthorized access:
+
+- **API Key Management System**:
+  - Create, view, and revoke API keys with custom permissions
+  - Set individual rate limits per API key
+  - Track API key usage and request logs
+  - Time-based expiration options
+
+- **Rate Limiting**:
+  - Thread-safe implementation to prevent abuse
+  - Customizable limits per endpoint and API key
+  - Automatic request throttling
+
+- **Input Validation**:
+  - Comprehensive schema-based validation
+  - Protection against malformed data
+  - Type checking and constraint enforcement
+
+- **Cross-Site Request Forgery (CSRF) Protection**:
+  - Token-based CSRF prevention
+  - Form and AJAX request protection
+
+- **Cross-Site Scripting (XSS) Prevention**:
+  - HTML content sanitization
+  - Output encoding
+  - User input filtering
+
+- **Content Security Policy (CSP)**:
+  - Strict CSP headers to prevent script injection
+  - Resource restriction to trusted sources
+
+- **Request Logging and Auditing**:
+  - Detailed logging of all API access
+  - IP address and user agent tracking
+  - Request timestamps and response status
 
 ## Database Migration
 
