@@ -42,6 +42,38 @@ def index():
     """Render the home page"""
     return render_template('index.html')
 
+@app.route('/agents')
+def agents_view():
+    """Render the agents interface"""
+    return render_template('agent_view.html')
+
+@app.route('/api/agents/sessions', methods=['GET'])
+def get_agent_sessions_for_ui():
+    """Get agent sessions for UI (without API key for demo purposes)"""
+    try:
+        # Get active sessions only
+        active_sessions = AgentSession.query.filter(AgentSession.ended_at.is_(None)).all()
+        return jsonify([session.to_dict() for session in active_sessions])
+    except Exception as e:
+        logging.error(f"Error getting agent sessions: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/agents/messages/<session_id>', methods=['GET'])
+def get_session_messages_for_ui(session_id):
+    """Get messages for a session for UI (without API key for demo purposes)"""
+    try:
+        # Check if session exists
+        session = AgentSession.query.filter_by(session_id=session_id).first()
+        if not session:
+            return jsonify({"error": "Session not found"}), 404
+            
+        # Get messages for this session
+        messages = GPTMessage.query.filter_by(session_id=session_id).order_by(GPTMessage.timestamp).all()
+        return jsonify([message.to_dict() for message in messages])
+    except Exception as e:
+        logging.error(f"Error getting session messages: {e}")
+        return jsonify({"error": str(e)}), 500
+
 # API endpoints for structured memory
 @app.route('/memory/structured', methods=['POST'])
 @require_api_key
