@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Agent Communication Hub</title>
+    <link href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css" rel="stylesheet">
+    <style>
+        .agent-card {
+            transition: transform 0.2s;
+        }
+        .agent-card:hover {
+            transform: translateY(-5px);
+        }
+        .message-container {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .message {
+            border-radius: 8px;
+            margin-bottom: 10px;
+            padding: 10px 15px;
+        }
+        .sent-message {
+            background-color: var(--bs-primary-bg-subtle);
+            margin-left: 20px;
+        }
+        .received-message {
+            background-color: var(--bs-secondary-bg-subtle);
+            margin-right: 20px;
+        }
+        .message-meta {
+            font-size: 0.8rem;
+            color: var(--bs-secondary-color);
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <i class="bi bi-hdd-network"></i> Central Memory Hub
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#">Agents</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">Knowledge Base</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">Decision Log</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">Memory Search</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-12">
+                <h1 class="mb-4">Multi-Agent Communication Hub</h1>
+                
+                <div class="card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Active Agent Sessions</h5>
+                        <button class="btn btn-primary btn-sm" id="refreshButton">Refresh</button>
+                    </div>
+                    <div class="card-body">
+                        <div class="row" id="sessionCards">
+                            <!-- Agent session cards will be added here dynamically -->
+                            <div class="col-md-4 mb-3">
+                                <div class="card agent-card">
+                                    <div class="card-body">
+                                        <h5 class="card-title">Product Manager GPT</h5>
+                                        <h6 class="card-subtitle mb-2 text-muted">Session ID: PM-123456</h6>
+                                        <p class="card-text">Current focus: Feature planning</p>
+                                        <p class="card-text"><small class="text-muted">Active since: May 6, 2025, 10:30 AM</small></p>
+                                        <div class="d-flex justify-content-between">
+                                            <button class="btn btn-outline-primary btn-sm view-messages" data-session-id="PM-123456">View Messages</button>
+                                            <button class="btn btn-outline-danger btn-sm end-session" data-session-id="PM-123456">End Session</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <div class="card agent-card">
+                                    <div class="card-body">
+                                        <h5 class="card-title">Developer GPT</h5>
+                                        <h6 class="card-subtitle mb-2 text-muted">Session ID: DEV-789012</h6>
+                                        <p class="card-text">Current focus: Implementation</p>
+                                        <p class="card-text"><small class="text-muted">Active since: May 6, 2025, 10:45 AM</small></p>
+                                        <div class="d-flex justify-content-between">
+                                            <button class="btn btn-outline-primary btn-sm view-messages" data-session-id="DEV-789012">View Messages</button>
+                                            <button class="btn btn-outline-danger btn-sm end-session" data-session-id="DEV-789012">End Session</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">Message Exchange</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="message-container" id="messageContainer">
+                            <!-- Messages will be loaded here -->
+                            <div class="message sent-message">
+                                <div class="message-content">
+                                    Please implement the user authentication flow as specified in auth_spec.md.
+                                </div>
+                                <div class="message-meta">
+                                    <span>From: Product Manager GPT</span> • 
+                                    <span>To: Developer GPT</span> • 
+                                    <span>Type: instruction</span> • 
+                                    <span>10:50 AM</span>
+                                </div>
+                            </div>
+                            <div class="message received-message">
+                                <div class="message-content">
+                                    Received the task. I'll begin implementing the authentication flow now.
+                                </div>
+                                <div class="message-meta">
+                                    <span>From: Developer GPT</span> • 
+                                    <span>To: Product Manager GPT</span> • 
+                                    <span>Type: status_update</span> • 
+                                    <span>10:51 AM</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <form class="mt-3" id="newMessageForm">
+                            <div class="mb-3">
+                                <label for="senderSelect" class="form-label">From (Agent)</label>
+                                <select class="form-select" id="senderSelect">
+                                    <option value="product_gpt">Product Manager GPT</option>
+                                    <option value="developer_gpt">Developer GPT</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="receiverSelect" class="form-label">To (Agent)</label>
+                                <select class="form-select" id="receiverSelect">
+                                    <option value="product_gpt">Product Manager GPT</option>
+                                    <option value="developer_gpt">Developer GPT</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="messageTypeSelect" class="form-label">Message Type</label>
+                                <select class="form-select" id="messageTypeSelect">
+                                    <option value="instruction">Instruction</option>
+                                    <option value="status_update">Status Update</option>
+                                    <option value="handoff">Handoff</option>
+                                    <option value="question">Question</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="messageContent" class="form-label">Message Content</label>
+                                <textarea class="form-control" id="messageContent" rows="3"></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Send Message</button>
+                        </form>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Recent Decisions</h5>
+                    </div>
+                    <div class="card-body">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Agent</th>
+                                    <th>Context</th>
+                                    <th>Decision</th>
+                                    <th>Impact Area</th>
+                                    <th>Timestamp</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Developer GPT</td>
+                                    <td>auth implementation</td>
+                                    <td>Will use JWT tokens for authentication to improve scalability</td>
+                                    <td>authentication</td>
+                                    <td>May 6, 2025, 10:55 AM</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // This would be implemented with actual API calls in a real implementation
+        document.getElementById('refreshButton').addEventListener('click', function() {
+            alert('In a real implementation, this would refresh the agent session data from the API');
+        });
+        
+        document.querySelectorAll('.view-messages').forEach(button => {
+            button.addEventListener('click', function() {
+                const sessionId = this.getAttribute('data-session-id');
+                alert(`In a real implementation, this would load messages for session ${sessionId}`);
+            });
+        });
+        
+        document.querySelectorAll('.end-session').forEach(button => {
+            button.addEventListener('click', function() {
+                const sessionId = this.getAttribute('data-session-id');
+                if (confirm(`Are you sure you want to end session ${sessionId}?`)) {
+                    alert(`In a real implementation, this would end session ${sessionId}`);
+                }
+            });
+        });
+        
+        document.getElementById('newMessageForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const sender = document.getElementById('senderSelect').value;
+            const receiver = document.getElementById('receiverSelect').value;
+            const messageType = document.getElementById('messageTypeSelect').value;
+            const content = document.getElementById('messageContent').value;
+            
+            alert(`In a real implementation, this would send a message from ${sender} to ${receiver} of type ${messageType}`);
+            
+            // Clear the message input
+            document.getElementById('messageContent').value = '';
+        });
+    </script>
+</body>
+</html>
