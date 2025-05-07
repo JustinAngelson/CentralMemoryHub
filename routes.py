@@ -116,9 +116,9 @@ def require_api_key(f):
         try:
             # Check for API key in headers, case-insensitive (supports X-API-KEY, x-api-key, etc.)
             provided_key = None
-            for header_name in request.headers:
+            for header_name, value in request.headers:
                 if header_name.lower() == 'x-api-key':
-                    provided_key = request.headers[header_name]
+                    provided_key = value
                     break
             
             if not provided_key:
