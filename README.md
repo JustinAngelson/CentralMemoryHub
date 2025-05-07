@@ -109,10 +109,12 @@ The Memory Hub provides a comprehensive RESTful API with two distinct endpoint s
 
 2. **Integration Endpoints (`/agent/...`)**: 
    - For Custom GPTs and external applications
-   - Requires API Key authentication via X-API-KEY header
+   - Requires API Key authentication via X-API-KEY header (case-insensitive)
    - Example: `/agent/directory` for authenticated agent management
 
 The full OpenAPI schema defines both endpoint sets. When integrating with Custom GPTs or external systems, always use the `/agent/...` endpoints and include your API key in the X-API-KEY header.
+
+See the [Custom GPT Integration Guide](examples/custom_gpt_integration_guide.md) for detailed instructions on connecting to the Memory Hub from a Custom GPT.
 
 ## Deployment
 
