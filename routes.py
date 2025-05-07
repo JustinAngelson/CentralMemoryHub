@@ -223,6 +223,28 @@ def health_check():
             "time": datetime.utcnow().isoformat()
         }), 500
 
+@app.route('/openapi.json')
+def serve_openapi_schema():
+    """Serve the OpenAPI schema for Custom GPT integration."""
+    try:
+        schema_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'openapi-schema-fixed.json')
+        with open(schema_path, 'r') as f:
+            schema = json.load(f)
+            
+        # Set CORS headers for the OpenAPI schema
+        response = make_response(jsonify(schema))
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, X-API-KEY'
+        
+        return response
+    except Exception as e:
+        logging.error(f"Error serving OpenAPI schema: {e}")
+        return jsonify({
+            "error": "Internal server error",
+            "message": "Failed to load OpenAPI schema"
+        }), 500
+
 @app.route('/agents')
 def agents_view():
     """Render the agents interface"""
