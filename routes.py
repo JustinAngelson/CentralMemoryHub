@@ -114,12 +114,16 @@ def require_api_key(f):
         log_data = True
         
         try:
-            # Check if the API key is provided in the header
-            provided_key = request.headers.get("X-API-KEY")
+            # Check for API key in headers, case-insensitive (supports X-API-KEY, x-api-key, etc.)
+            provided_key = None
+            for header_name in request.headers:
+                if header_name.lower() == 'x-api-key':
+                    provided_key = request.headers[header_name]
+                    break
             
             if not provided_key:
                 status_code = 401
-                return jsonify({"error": "Unauthorized. Missing API key."}), status_code
+                return jsonify({"error": "Unauthorized. Missing API key. Please provide X-API-KEY header."}), status_code
             
             # Support the legacy API key for backward compatibility
             if provided_key == DEFAULT_API_KEY:
@@ -811,6 +815,29 @@ def get_agent_hierarchy_for_ui():
         return jsonify(hierarchy)
     except Exception as e:
         logging.error(f"Error getting agent hierarchy: {e}")
+        return jsonify({"error": str(e)}), 500
+        
+@app.route('/agent/directory/hierarchy', methods=['GET'])
+@require_api_key
+def get_agent_hierarchy():
+    """Get agent hierarchy (authenticated version for API integration)"""
+    try:
+        # Get all agents
+        agents = AgentDirectory.query.all()
+        
+        # Build hierarchy map
+        agent_map = {agent.agent_id: agent for agent in agents}
+        hierarchy = []
+        
+        # Find root agents (those with no reports_to)
+        for agent in agents:
+            if agent.reports_to is None:
+                # Create hierarchy starting with this root
+                hierarchy.append(build_hierarchy_tree(agent, agent_map))
+        
+        return jsonify(hierarchy)
+    except Exception as e:
+        logging.error(f"Error getting agent hierarchy via API: {e}")
         return jsonify({"error": str(e)}), 500
 
 # Define the validation schema for agent directory requests
