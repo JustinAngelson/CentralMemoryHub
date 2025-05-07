@@ -1403,18 +1403,6 @@
               "type": "string"
             },
             "description": "List of agent capabilities"
-          },
-          "reports_to": {
-            "type": "string",
-            "description": "ID of the agent this agent reports to"
-          },
-          "seniority_level": {
-            "type": "integer",
-            "description": "Seniority level (1-5)"
-          },
-          "status": {
-            "type": "string",
-            "description": "Status of the agent (active, inactive)"
           }
         },
         "required": ["name", "role", "description"]
