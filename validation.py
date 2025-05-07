@@ -622,24 +622,20 @@ def handle_custom_gpt_request(validator_schema: Dict[str, Dict[str, Any]] = None
                 # Validate request data if schema provided
                 if validator_schema and request_data:
                     try:
-                        # First try strict validation
+                        # Use strict validation for better security and proper Custom GPT integration
                         validated_data = validate_request_data(request_data, validator_schema, strict_mode=True)
                     except ValidationError as e:
-                        try:
-                            # If strict validation fails, try permissive mode
-                            logging.warning(f"Strict validation failed: {e.message}. Trying permissive mode.")
-                            validated_data = validate_request_data(request_data, validator_schema, strict_mode=False)
-                        except Exception as e2:
-                            # If even permissive validation fails, return detailed error
-                            return jsonify({
-                                "error": "Validation error",
-                                "message": str(e),
-                                "field": e.field if hasattr(e, 'field') else None,
-                                "debug_info": {
-                                    "received_data": request_data,
-                                    "validation_schema": validator_schema
-                                }
-                            }), 400
+                        # Return detailed validation error
+                        return jsonify({
+                            "error": "Validation error",
+                            "message": str(e),
+                            "field": e.field if hasattr(e, 'field') else None,
+                            "debug_info": {
+                                "received_data": request_data,
+                                "validation_schema": {k: v for k, v in validator_schema.items() if k in ['type', 'required']},
+                                "user_agent": request.headers.get('User-Agent', 'Unknown')
+                            }
+                        }), 400
                     
                     # Update request data with validated data
                     request_data = validated_data
