@@ -804,3 +804,41 @@ Headers: X-API-KEY: your_api_key
   "memory_refs": ["mem123", "mem456"]
 }
 ```
+
+## Custom GPT Integration
+
+The Memory Hub API is designed to integrate seamlessly with Custom GPTs to enable long-term memory, context sharing, and multi-agent orchestration.
+
+### Integration Steps
+
+1. **Health Check Connectivity:**
+   - Use the `/sys/health` endpoint to verify API connectivity
+   - This endpoint doesn't require authentication and is specifically designed for Custom GPT integration
+
+2. **Authentication:**
+   - Use the `X-API-KEY` header (all capital letters) for authentication
+   - Example: `X-API-KEY: your-api-key-here`
+   - Get an API key from the Memory Hub web interface
+
+3. **Common Operations:**
+   - Store memories: `POST /memory/unstructured`
+   - Search for relevant information: `POST /search`
+   - Retrieve specific memories: `GET /memory/unstructured/{id}`
+   - Access the Agent Directory: `GET /api/directory`
+   - Add agents to the directory: `POST /api/directory`
+
+### Example Code
+
+See the `examples/` directory for detailed integration examples:
+- `custom_gpt_integration.md`: Integration guide with HTTP request examples
+- `api_client.py`: Python client implementation
+- `api_test.sh`: Bash script for testing the API
+
+### Debugging
+
+If you encounter issues with Custom GPT integration:
+
+1. Verify your API key is valid and not expired
+2. Use the health check endpoint to verify API connectivity
+3. Check that you're using the correct case for the `X-API-KEY` header (all caps)
+4. Ensure your JSON payloads match the expected format
