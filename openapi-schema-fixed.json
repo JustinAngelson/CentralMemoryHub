@@ -642,15 +642,11 @@
         }
       }
     },
-    "/agent/directory": {
+    "/api/directory": {
       "get": {
-        "description": "Get all agents in the Agent Directory",
-        "operationId": "getAgentDirectory",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ],
+        "description": "Get all agents in the Agent Directory (UI endpoint, no authentication required)",
+        "operationId": "getAgentDirectoryForUI",
+        "security": [],
         "responses": {
           "200": {
             "description": "Successfully retrieved agent directory",
@@ -665,14 +661,49 @@
               }
             }
           },
-          "401": {
-            "description": "Unauthorized - Invalid or missing API key"
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/directory/hierarchy": {
+      "get": {
+        "description": "Get agent hierarchy for UI visualization (no authentication required)",
+        "operationId": "getAgentHierarchyForUI",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved agent hierarchy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "agent": {
+                        "$ref": "#/components/schemas/Agent"
+                      },
+                      "subordinates": {
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/components/schemas/Agent"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
           },
           "500": {
             "description": "Internal Server Error"
           }
         }
-      },
+      }
+    },
+    "/agent/directory": {
       "post": {
         "description": "Add a new agent to the directory",
         "operationId": "addAgent",
@@ -800,6 +831,53 @@
           },
           "400": {
             "description": "Bad Request - Missing required fields"
+          },
+          "401": {
+            "description": "Unauthorized - Invalid or missing API key"
+          },
+          "404": {
+            "description": "Agent not found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "delete": {
+        "description": "Delete an agent",
+        "operationId": "deleteAgent",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID of the agent"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Agent deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "description": "Success message"
+                    }
+                  }
+                }
+              }
+            }
           },
           "401": {
             "description": "Unauthorized - Invalid or missing API key"
