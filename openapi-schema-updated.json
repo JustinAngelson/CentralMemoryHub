@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Central Memory Hub API",
-    "description": "API for managing structured and unstructured data with vector embeddings in a Central Memory Hub",
+    "description": "API for managing structured and unstructured data with vector embeddings in a Central Memory Hub. \n\nIMPORTANT: This API provides two sets of endpoints:\n1. `/api/...` endpoints - Used by the web UI, no authentication required\n2. `/agent/...` endpoints - Used by Custom GPTs and external integrations, requires API Key authentication via X-API-KEY header\n\nCustom GPT integrators should use the `/agent/...` endpoints and provide the API key in the X-API-KEY header.",
     "version": "1.0.0"
   },
   "servers": [
@@ -411,6 +411,51 @@
                   "type": "array",
                   "items": {
                     "$ref": "#/components/schemas/Agent"
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/directory/hierarchy": {
+      "get": {
+        "description": "Get hierarchical view of agent directory (UI endpoint, no auth required)",
+        "operationId": "getAgentHierarchyForUI",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Hierarchical view of agent directory",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "agent_id": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "role": {
+                        "type": "string"
+                      },
+                      "seniority_level": {
+                        "type": "integer"
+                      },
+                      "subordinates": {
+                        "type": "array",
+                        "items": {
+                          "type": "object"
+                        }
+                      }
+                    }
                   }
                 }
               }
