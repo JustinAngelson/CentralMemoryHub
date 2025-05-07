@@ -130,8 +130,8 @@ For production use, the Central Memory Hub is designed to be deployed as a Web S
    - Access the database using environment variables: DATABASE_URL, PGHOST, PGPORT, PGUSER, PGPASSWORD, PGDATABASE
 
 4. **Post-Deployment Verification:**
-   - Visit `/admin/settings` to configure the application
-   - Test API endpoints using the `/api-keys` interface to create and manage API keys
+   - Visit `https://memory-vault-angelson.replit.app/admin/settings` to configure the application
+   - Test API endpoints using the `https://memory-vault-angelson.replit.app/api-keys` interface to create and manage API keys
    - Verify Pinecone connectivity by adding and searching unstructured data
 
 For detailed logging information, view the application logs in the Replit console.
@@ -148,7 +148,7 @@ For detailed logging information, view the application logs in the Replit consol
   },
   "servers": [
     {
-      "url": "https://memory-hub-api.example.com",
+      "url": "https://memory-vault-angelson.replit.app",
       "description": "Production server"
     },
     {
