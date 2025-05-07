@@ -29,6 +29,7 @@ class MemoryHubClient:
             "Content-Type": "application/json",
             "X-API-KEY": api_key  # Note: The header must be all caps X-API-KEY
         }
+        # Set default request headers for authentication
     
     def check_health(self) -> Dict[str, Any]:
         """
@@ -129,11 +130,11 @@ class MemoryHubClient:
         }
         
         if capabilities:
-            data["capabilities"] = capabilities
+            data["capabilities"] = capabilities  # This will be properly serialized to JSON by requests
         if reports_to:
             data["reports_to"] = reports_to
-        if seniority_level:
-            data["seniority_level"] = seniority_level
+        if seniority_level is not None:
+            data["seniority_level"] = seniority_level  # This will be properly serialized to JSON by requests
             
         response = requests.post(url, headers=self.headers, json=data)
         return self._process_response(response)
