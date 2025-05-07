@@ -155,7 +155,7 @@ For detailed logging information, view the application logs in the Replit consol
   "openapi": "3.1.0",
   "info": {
     "title": "Central Memory Hub API",
-    "description": "API for managing structured and unstructured data with vector embeddings in a Central Memory Hub",
+    "description": "API for managing structured and unstructured data with vector embeddings in a Central Memory Hub. \n\nIMPORTANT: This API provides two sets of endpoints:\n1. `/api/...` endpoints - Used by the web UI, no authentication required\n2. `/agent/...` endpoints - Used by Custom GPTs and external integrations, requires API Key authentication via X-API-KEY header\n\nCustom GPT integrators should use the `/agent/...` endpoints and provide the API key in the X-API-KEY header.",
     "version": "1.0.0"
   },
   "servers": [
