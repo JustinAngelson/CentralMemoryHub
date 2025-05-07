@@ -703,6 +703,49 @@
         }
       }
     },
+    "/agent/directory/hierarchy": {
+      "get": {
+        "description": "Get agent hierarchy (authenticated version for API integration)",
+        "operationId": "getAgentHierarchy",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved agent hierarchy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "agent": {
+                        "$ref": "#/components/schemas/Agent"
+                      },
+                      "subordinates": {
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/components/schemas/Agent"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - Invalid or missing API key"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
     "/agent/directory": {
       "post": {
         "description": "Add a new agent to the directory",
