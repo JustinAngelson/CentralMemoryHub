@@ -2005,7 +2005,8 @@
       "ApiKeyAuth": {
         "type": "apiKey",
         "in": "header",
-        "name": "X-API-KEY"
+        "name": "X-API-KEY",
+        "description": "API key must be provided in the X-API-KEY header for all endpoints except /sys/health. You can get an API key from the application's API Keys page."
       }
     }
   }
