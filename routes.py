@@ -182,6 +182,47 @@ def index():
     """Render the home page"""
     return render_template('index.html')
 
+# System Health endpoints for integration with OpenAI Custom GPTs
+@app.route('/sys/health', methods=['GET', 'POST'])
+def health_check():
+    """Health check endpoint for OpenAI Custom GPT integration."""
+    try:
+        # Check database connection
+        db_ok = True
+        try:
+            db.session.execute(db.select(db.text("1"))).scalar()
+        except Exception as e:
+            db_ok = False
+            logging.error(f"Database health check failed: {e}")
+        
+        # Check Pinecone connection
+        pinecone_ok = True
+        try:
+            pc.get_index_stats()
+        except Exception as e:
+            pinecone_ok = False
+            logging.error(f"Pinecone health check failed: {e}")
+            
+        health_status = {
+            "status": "healthy" if db_ok and pinecone_ok else "degraded",
+            "time": datetime.utcnow().isoformat(),
+            "components": {
+                "database": "up" if db_ok else "down",
+                "vector_db": "up" if pinecone_ok else "down",
+                "api": "up"
+            },
+            "version": "1.0.0"
+        }
+        
+        return jsonify(health_status), 200
+    except Exception as e:
+        logging.error(f"Health check failed with error: {e}")
+        return jsonify({
+            "status": "error",
+            "message": "Health check failed",
+            "time": datetime.utcnow().isoformat()
+        }), 500
+
 @app.route('/agents')
 def agents_view():
     """Render the agents interface"""

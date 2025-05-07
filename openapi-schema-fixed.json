@@ -21,6 +21,108 @@
     }
   ],
   "paths": {
+    "/sys/health": {
+      "get": {
+        "description": "Health check endpoint for Custom GPT integration",
+        "operationId": "healthCheck",
+        "responses": {
+          "200": {
+            "description": "System health status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "description": "Overall health status (healthy, degraded, or error)"
+                    },
+                    "time": {
+                      "type": "string",
+                      "description": "ISO timestamp of the health check"
+                    },
+                    "components": {
+                      "type": "object",
+                      "properties": {
+                        "database": {
+                          "type": "string",
+                          "description": "Database status (up or down)"
+                        },
+                        "vector_db": {
+                          "type": "string",
+                          "description": "Vector database status (up or down)"
+                        },
+                        "api": {
+                          "type": "string",
+                          "description": "API status (up or down)"
+                        }
+                      }
+                    },
+                    "version": {
+                      "type": "string",
+                      "description": "API version"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "description": "Health check endpoint for Custom GPT integration (POST method)",
+        "operationId": "healthCheckPost",
+        "responses": {
+          "200": {
+            "description": "System health status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "description": "Overall health status (healthy, degraded, or error)"
+                    },
+                    "time": {
+                      "type": "string",
+                      "description": "ISO timestamp of the health check"
+                    },
+                    "components": {
+                      "type": "object",
+                      "properties": {
+                        "database": {
+                          "type": "string",
+                          "description": "Database status (up or down)"
+                        },
+                        "vector_db": {
+                          "type": "string",
+                          "description": "Vector database status (up or down)"
+                        },
+                        "api": {
+                          "type": "string",
+                          "description": "API status (up or down)"
+                        }
+                      }
+                    },
+                    "version": {
+                      "type": "string",
+                      "description": "API version"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
     "/memory/unstructured": {
       "post": {
         "description": "Add unstructured memory to the Central Memory Hub",
