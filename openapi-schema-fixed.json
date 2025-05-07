@@ -1403,9 +1403,24 @@
               "type": "string"
             },
             "description": "List of agent capabilities"
+          },
+          "reports_to": {
+            "type": "string",
+            "description": "ID of the agent this agent reports to"
+          },
+          "seniority_level": {
+            "type": "integer",
+            "description": "Seniority level (1-10)",
+            "minimum": 1,
+            "maximum": 10
+          },
+          "status": {
+            "type": "string",
+            "description": "Status of the agent",
+            "enum": ["active", "inactive", "archived"]
           }
         },
-        "required": ["name", "role", "description"]
+        "required": ["name", "role"]
       },
       "Agent": {
         "type": "object",
