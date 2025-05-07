@@ -129,3 +129,27 @@ def search_by_content(query: str) -> List[Dict[str, Any]]:
     results = similarity_search(query_embedding)
     
     return results
+    
+def get_index_stats() -> Dict[str, Any]:
+    """Get statistics about the Pinecone index"""
+    try:
+        # Check if index is available
+        if 'index' not in globals() or index is None:
+            logging.warning("Pinecone index not available. Returning empty stats.")
+            return {"status": "error", "message": "Pinecone index not available"}
+            
+        # Get the index
+        pinecone_index = pc.Index(PINECONE_INDEX_NAME)
+        
+        # Get index statistics
+        stats = pinecone_index.describe_index_stats()
+        
+        return {
+            "status": "ok",
+            "name": PINECONE_INDEX_NAME,
+            "vector_count": stats.get("total_vector_count", 0),
+            "dimension": stats.get("dimension", 1536)
+        }
+    except Exception as e:
+        logging.error(f"Error getting Pinecone index stats: {e}")
+        return {"status": "error", "message": str(e)}
