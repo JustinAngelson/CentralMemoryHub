@@ -100,7 +100,19 @@ Record all inter-agent and agent-user communications:
 
 ## API Usage
 
-The Memory Hub provides a comprehensive RESTful API that can be accessed using the OpenAPI schema. This can be used with Custom GPTs or other applications to interact with the Memory Hub and support multi-agent workflows.
+The Memory Hub provides a comprehensive RESTful API with two distinct endpoint structures:
+
+1. **UI Endpoints (`/api/...`)**: 
+   - For web interface usage
+   - No authentication required
+   - Example: `/api/directory` to list agents in the UI
+
+2. **Integration Endpoints (`/agent/...`)**: 
+   - For Custom GPTs and external applications
+   - Requires API Key authentication via X-API-KEY header
+   - Example: `/agent/directory` for authenticated agent management
+
+The full OpenAPI schema defines both endpoint sets. When integrating with Custom GPTs or external systems, always use the `/agent/...` endpoints and include your API key in the X-API-KEY header.
 
 ## Deployment
 
