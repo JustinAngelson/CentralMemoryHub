@@ -642,7 +642,7 @@
         }
       }
     },
-    "/api/directory": {
+    "/agent/directory": {
       "get": {
         "description": "Get all agents in the Agent Directory",
         "operationId": "getAgentDirectory",
@@ -715,7 +715,7 @@
         }
       }
     },
-    "/api/directory/{agent_id}": {
+    "/agent/directory/{agent_id}": {
       "get": {
         "description": "Get an agent by ID",
         "operationId": "getAgent",
