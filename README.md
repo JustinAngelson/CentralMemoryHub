@@ -831,6 +831,8 @@ The Memory Hub API is designed to integrate seamlessly with Custom GPTs to enabl
 
 See the `examples/` directory for detailed integration examples:
 - `custom_gpt_integration.md`: Integration guide with HTTP request examples
+- `custom_gpt_connectivity_troubleshooting.md`: Detailed guide for solving connectivity issues
+- `connectivity_test.py`: Python script to test API connectivity and diagnose issues
 - `api_client.py`: Python client implementation
 - `api_test.sh`: Bash script for testing the API
 
@@ -838,7 +840,27 @@ See the `examples/` directory for detailed integration examples:
 
 If you encounter issues with Custom GPT integration:
 
-1. Verify your API key is valid and not expired
-2. Use the health check endpoint to verify API connectivity
-3. Check that you're using the correct case for the `X-API-KEY` header (all caps)
-4. Ensure your JSON payloads match the expected format
+1. **Enhanced Diagnostic Endpoint:**
+   - Use the `/sys/gpt-diagnostic` endpoint for comprehensive troubleshooting
+   - View detailed information about request headers, server configuration, and connectivity
+   - This endpoint doesn't require authentication and provides specific guidance for connectivity issues
+
+2. **CORS Support:**
+   - The API now includes comprehensive CORS support for all endpoints
+   - All responses include the following headers:
+     - `Access-Control-Allow-Origin: *`
+     - `Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS`
+     - `Access-Control-Allow-Headers: Content-Type, X-API-KEY, Authorization, Accept`
+   - OPTIONS requests are properly handled for preflight checks
+
+3. **Authentication Troubleshooting:**
+   - Verify your API key is valid and not expired
+   - Check that you're using the correct case for the `X-API-KEY` header (all caps)
+   - Ensure your API key has permissions for the endpoints you're accessing
+
+4. **Connectivity Solutions:**
+   - If DNS resolution fails, try the production URL: `https://memory-vault-angelson.replit.app`
+   - For detailed troubleshooting, see `examples/custom_gpt_connectivity_troubleshooting.md`
+   - Run the connectivity testing script: `examples/connectivity_test.py`
+
+Refer to the `examples/` directory for more detailed guidance and example code.
