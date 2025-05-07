@@ -21,6 +21,135 @@
     }
   ],
   "paths": {
+    "/sys/gpt-diagnostic": {
+      "get": {
+        "description": "Enhanced diagnostic endpoint specifically for Custom GPT troubleshooting. Provides detailed diagnostics about connectivity and server configuration. This endpoint does not require authentication.",
+        "operationId": "gptDiagnostic",
+        "security": [],
+        "x-no-auth-required": true,
+        "tags": ["System"],
+        "responses": {
+          "200": {
+            "description": "Detailed diagnostic information for Custom GPT connectivity troubleshooting",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "description": "Connection status"
+                    },
+                    "timestamp": {
+                      "type": "string",
+                      "description": "ISO timestamp of the diagnostic check"
+                    },
+                    "request_info": {
+                      "type": "object",
+                      "description": "Information about the incoming request",
+                      "properties": {
+                        "method": {
+                          "type": "string",
+                          "description": "HTTP method used"
+                        },
+                        "path": {
+                          "type": "string",
+                          "description": "Request path"
+                        },
+                        "remote_addr": {
+                          "type": "string",
+                          "description": "IP address of the client"
+                        },
+                        "user_agent": {
+                          "type": "string",
+                          "description": "User agent information"
+                        },
+                        "headers": {
+                          "type": "object",
+                          "description": "Request headers (for debugging)"
+                        }
+                      }
+                    },
+                    "server_info": {
+                      "type": "object",
+                      "description": "Information about the server",
+                      "properties": {
+                        "hostname": {
+                          "type": "string"
+                        },
+                        "platform": {
+                          "type": "string"
+                        },
+                        "python_version": {
+                          "type": "string"
+                        },
+                        "local_ip": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "connectivity": {
+                      "type": "object",
+                      "description": "Connectivity status information",
+                      "properties": {
+                        "pinecone_connection": {
+                          "type": "string",
+                          "description": "Vector database connectivity"
+                        },
+                        "cors_enabled": {
+                          "type": "boolean",
+                          "description": "Whether CORS is enabled"
+                        },
+                        "api_version": {
+                          "type": "string",
+                          "description": "API version"
+                        }
+                      }
+                    },
+                    "notes": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Important diagnostic notes"
+                    },
+                    "troubleshooting_steps": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Suggested troubleshooting steps"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Diagnostic check error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": ["error"]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "timestamp": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/sys/health": {
       "get": {
         "description": "Health check endpoint for Custom GPT integration. This endpoint does not require authentication and is specifically designed for testing connectivity from Custom GPTs.",
