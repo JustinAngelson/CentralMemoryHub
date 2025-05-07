@@ -1,7 +1,7 @@
 import os
 import logging
 import json
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Optional, Tuple, Union
 import uuid
 from openai import OpenAI
 from pinecone import Pinecone, ServerlessSpec
@@ -153,3 +153,64 @@ def get_index_stats() -> Dict[str, Any]:
     except Exception as e:
         logging.error(f"Error getting Pinecone index stats: {e}")
         return {"status": "error", "message": str(e)}
+
+
+def check_connection() -> Dict[str, Any]:
+    """Check the connection to Pinecone and OpenAI.
+    
+    Returns:
+        Status dictionary with connection information
+    """
+    status = {
+        "pinecone": {
+            "status": "unknown",
+            "message": "",
+            "index_name": PINECONE_INDEX_NAME,
+            "api_key_configured": bool(os.environ.get("PINECONE_API_KEY"))
+        },
+        "openai": {
+            "status": "unknown",
+            "message": "",
+            "model": EMBEDDING_MODEL,
+            "api_key_configured": bool(os.environ.get("OPENAI_API_KEY"))
+        }
+    }
+    
+    # Check Pinecone connection
+    try:
+        # Try to list indexes
+        index_list = pc.list_indexes()
+        index_count = len(list(index_list))
+        
+        # Try to get our specific index
+        if 'index' not in globals() or index is None:
+            status["pinecone"]["status"] = "error"
+            status["pinecone"]["message"] = "Index object not initialized"
+        else:
+            # Get the index stats for our index
+            index_stats = get_index_stats()
+            if index_stats.get("status") == "ok":
+                status["pinecone"]["status"] = "ok"
+                status["pinecone"]["message"] = f"Connected to index with {index_stats.get('vector_count', 0)} vectors"
+                status["pinecone"]["vector_count"] = index_stats.get("vector_count", 0)
+            else:
+                status["pinecone"]["status"] = "error"
+                status["pinecone"]["message"] = index_stats.get("message", "Unknown error")
+    except Exception as e:
+        status["pinecone"]["status"] = "error"
+        status["pinecone"]["message"] = str(e)
+    
+    # Check OpenAI connection
+    try:
+        # Try to generate a minimal embedding as a connectivity test
+        _ = openai_client.embeddings.create(
+            model=EMBEDDING_MODEL,
+            input="connectivity test"
+        )
+        status["openai"]["status"] = "ok"
+        status["openai"]["message"] = "Successfully connected to OpenAI API"
+    except Exception as e:
+        status["openai"]["status"] = "error"
+        status["openai"]["message"] = str(e)
+    
+    return status

@@ -13,6 +13,7 @@ import socket
 from flask import request, jsonify, render_template, Blueprint, current_app, make_response, after_this_request
 from app import app, db
 import pinecone_client as pc
+from validation import handle_custom_gpt_request
 from models import (
     # Existing models
     ProjectDecision, UnstructuredData, SharedContext,
@@ -555,17 +556,28 @@ def get_structured_memory(id):
         logging.error(f"Error retrieving structured memory: {e}")
         return jsonify({"error": str(e)}), 500
 
+# Define the validation schema for unstructured memory requests
+unstructured_memory_schema = {
+    'content': {
+        'type': 'string',
+        'required': True,
+        'min_length': 1,
+        'max_length': 10000
+    }
+}
+
 # API endpoints for unstructured memory
 @app.route('/memory/unstructured', methods=['POST'])
 @require_api_key
+@handle_custom_gpt_request(validator_schema=unstructured_memory_schema)
 def add_unstructured_memory():
-    """Add a new unstructured memory entry"""
+    """
+    Add a new unstructured memory entry.
+    Enhanced with robust error handling and flexible request parsing for Custom GPT integration.
+    """
     try:
-        data = request.json
-        
-        # Validate required fields
-        if 'content' not in data:
-            return jsonify({"error": "Missing required field: content"}), 400
+        # Get the validated data (comes from the handle_custom_gpt_request decorator)
+        data = request.validated_data
         
         # Process the content with Pinecone
         embedding, pinecone_id = pc.process_unstructured_data(data['content'])
@@ -663,13 +675,23 @@ def search_memory():
         }), 200
     except Exception as e:
         logging.error(f"Error performing search: {e}")
+        query = "Unknown"
+        if 'data' in locals() and hasattr(data, 'get'):
+            query = data.get('query', 'Unknown')
+        
+        # Get connection status
+        try:
+            connection_status = pc.check_connection()
+        except Exception as conn_error:
+            connection_status = {"error": str(conn_error)}
+            
         return jsonify({
             "error": "Search operation failed",
             "message": str(e),
-            "query": data.get('query', 'Unknown'),
+            "query": query,
             "debug_info": {
                 "exception_type": type(e).__name__,
-                "pinecone_status": pc.check_connection()
+                "pinecone_status": connection_status
             }
         }), 500
 
