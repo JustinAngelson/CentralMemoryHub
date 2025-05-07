@@ -76,12 +76,19 @@ def secure_endpoint(
                 
                 # API key validation
                 if require_api_key:
-                    if not request.headers.get("X-API-KEY"):
+                    # Check for API key in headers, case-insensitive (supports X-API-KEY, x-api-key, etc.)
+                    api_key_header = None
+                    for header_name in request.headers:
+                        if header_name.lower() == 'x-api-key':
+                            api_key_header = request.headers[header_name]
+                            break
+                    
+                    if not api_key_header:
                         status_code = 401
-                        return jsonify({"error": "Unauthorized. Missing API key."}), status_code
+                        return jsonify({"error": "Unauthorized. Missing API key. Please provide X-API-KEY header."}), status_code
                     
                     # Get the API key
-                    api_key = _get_api_key(request.headers.get("X-API-KEY"))
+                    api_key = _get_api_key(api_key_header)
                     if not api_key:
                         status_code = 401
                         return jsonify({"error": "Unauthorized. Invalid API key."}), status_code
