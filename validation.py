@@ -645,9 +645,8 @@ def handle_custom_gpt_request(validator_schema: Dict[str, Dict[str, Any]] = None
                     request_data = validated_data
                 
                 # Call the original function with validated data
-                if hasattr(request, 'validated_data'):
-                    # Store validated data on request object if not already present
-                    request.validated_data = request_data
+                # Store validated data on request object
+                request.validated_data = request_data
                 
                 # Execute the function
                 result = f(*args, **kwargs)
