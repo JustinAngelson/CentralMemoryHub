@@ -23,8 +23,9 @@
   "paths": {
     "/sys/health": {
       "get": {
-        "description": "Health check endpoint for Custom GPT integration",
+        "description": "Health check endpoint for Custom GPT integration (does not require authentication)",
         "operationId": "healthCheck",
+        "security": [],
         "responses": {
           "200": {
             "description": "System health status",
@@ -73,8 +74,9 @@
         }
       },
       "post": {
-        "description": "Health check endpoint for Custom GPT integration (POST method)",
+        "description": "Health check endpoint for Custom GPT integration (POST method, does not require authentication)",
         "operationId": "healthCheckPost",
+        "security": [],
         "responses": {
           "200": {
             "description": "System health status",
