@@ -7,8 +7,10 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional, Union
 from functools import wraps
 import uuid
+import platform
+import socket
 
-from flask import request, jsonify, render_template, Blueprint, current_app, make_response
+from flask import request, jsonify, render_template, Blueprint, current_app, make_response, after_this_request
 from app import app, db
 import pinecone_client as pc
 from models import (
@@ -18,6 +20,30 @@ from models import (
     AgentDirectory, AgentSession, GPTMessage, OrgState, AgentTask, DecisionLog,
     KnowledgeIndex, MemoryLink, Experiment, UserInsight
 )
+
+# Set up logging
+logging.basicConfig(level=logging.DEBUG)
+
+# CORS middleware for Custom GPT compatibility
+def add_cors_headers(response):
+    """Add CORS and security headers to make API more accessible to Custom GPTs"""
+    # CORS headers
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, X-API-KEY, Authorization, Accept'
+    response.headers['Access-Control-Allow-Credentials'] = 'true'
+    response.headers['Access-Control-Max-Age'] = '3600'  # Cache preflight requests
+    
+    # Additional headers for security and caching
+    response.headers['Cache-Control'] = 'no-store, max-age=0'
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    
+    return response
+
+# Global middleware to add CORS headers to all responses
+@app.after_request
+def after_request_func(response):
+    return add_cors_headers(response)
 # Import security models from dedicated module
 from api_keys import ApiKey, ApiRequestLog
 
@@ -243,6 +269,74 @@ def serve_openapi_schema():
         return jsonify({
             "error": "Internal server error",
             "message": "Failed to load OpenAPI schema"
+        }), 500
+        
+@app.route('/sys/gpt-diagnostic')
+def gpt_diagnostic():
+    """Enhanced diagnostic endpoint specifically for Custom GPT troubleshooting."""
+    try:
+        # Get system information
+        hostname = socket.gethostname()
+        try:
+            local_ip = socket.gethostbyname(hostname)
+        except:
+            local_ip = "Unable to determine"
+            
+        # Get network information
+        external_ip = request.remote_addr
+        
+        # Get request information
+        headers = {k: v for k, v in request.headers.items()}
+        
+        # Perform basic connectivity tests
+        pinecone_ok = True
+        try:
+            pc.get_index_stats()
+        except Exception as e:
+            pinecone_ok = False
+            logging.error(f"Pinecone health check failed: {e}")
+        
+        # Build response with detailed diagnostics
+        diagnostic_info = {
+            "status": "connected",
+            "timestamp": datetime.utcnow().isoformat(),
+            "request_info": {
+                "method": request.method,
+                "path": request.path,
+                "remote_addr": external_ip,
+                "user_agent": request.user_agent.string if request.user_agent else "Unknown",
+                "headers": headers
+            },
+            "server_info": {
+                "hostname": hostname,
+                "platform": platform.platform(),
+                "python_version": platform.python_version(),
+                "local_ip": local_ip
+            },
+            "connectivity": {
+                "pinecone_connection": "up" if pinecone_ok else "down",
+                "cors_enabled": True,
+                "api_version": "1.0.0"
+            },
+            "notes": [
+                "If you can see this response, your Custom GPT can reach this API.",
+                "Check the request headers to ensure the X-API-KEY header is being sent correctly.",
+                "For persistent connectivity issues, consider using a different domain or a proxy service."
+            ],
+            "troubleshooting_steps": [
+                "Verify the API base URL is correctly configured in the Custom GPT actions section",
+                "Ensure your API key is valid and properly formatted in the Custom GPT",
+                "Try using webhooks or a stable public domain if direct connections continue to fail"
+            ]
+        }
+        
+        return jsonify(diagnostic_info)
+    except Exception as e:
+        logging.error(f"Diagnostic endpoint error: {e}")
+        return jsonify({
+            "status": "error",
+            "message": f"Diagnostic check failed: {str(e)}",
+            "timestamp": datetime.utcnow().isoformat()
         }), 500
 
 @app.route('/agents')
