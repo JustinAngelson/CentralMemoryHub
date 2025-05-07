@@ -606,17 +606,31 @@ def get_unstructured_memory(id):
         logging.error(f"Error retrieving unstructured memory: {e}")
         return jsonify({"error": str(e)}), 500
 
+# Import the handler from the validation module
+from validation import handle_custom_gpt_request
+
+# Define the validation schema for search requests
+search_schema = {
+    'query': {
+        'type': 'string',
+        'required': True,
+        'min_length': 1,
+        'max_length': 1000
+    }
+}
+
 # API endpoint for search
 @app.route('/search', methods=['POST'])
 @require_api_key
+@handle_custom_gpt_request(validator_schema=search_schema)
 def search_memory():
-    """Search unstructured data using Pinecone's similarity search"""
+    """
+    Search unstructured data using Pinecone's similarity search.
+    Enhanced with robust error handling and flexible request parsing for Custom GPT integration.
+    """
     try:
-        data = request.json
-        
-        # Validate required fields
-        if 'query' not in data:
-            return jsonify({"error": "Missing required field: query"}), 400
+        # Get the validated data (comes from the handle_custom_gpt_request decorator)
+        data = request.validated_data
         
         # Perform search with Pinecone
         pinecone_results = pc.search_by_content(data['query'])
@@ -649,7 +663,15 @@ def search_memory():
         }), 200
     except Exception as e:
         logging.error(f"Error performing search: {e}")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({
+            "error": "Search operation failed",
+            "message": str(e),
+            "query": data.get('query', 'Unknown'),
+            "debug_info": {
+                "exception_type": type(e).__name__,
+                "pinecone_status": pc.check_connection()
+            }
+        }), 500
 
 # API endpoints for shared contexts
 @app.route('/context', methods=['POST'])
