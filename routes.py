@@ -695,19 +695,41 @@ def search_memory():
             }
         }), 500
 
+# Define the validation schema for shared context requests
+shared_context_schema = {
+    'sender': {
+        'type': 'string',
+        'required': True,
+        'min_length': 1,
+        'max_length': 100
+    },
+    'recipients': {
+        'type': 'list',
+        'required': True,
+        'min_length': 1
+    },
+    'context_tag': {
+        'type': 'string',
+        'required': True,
+        'min_length': 1,
+        'max_length': 100
+    },
+    'memory_refs': {
+        'type': 'list',
+        'required': True,
+        'min_length': 1
+    }
+}
+
 # API endpoints for shared contexts
 @app.route('/context', methods=['POST'])
 @require_api_key
+@handle_custom_gpt_request(validator_schema=shared_context_schema)
 def add_shared_context():
-    """Add a new shared context entry"""
+    """Add a new shared context entry with enhanced validation for Custom GPT integration"""
     try:
-        data = request.json
-        
-        # Validate required fields
-        required_fields = ['sender', 'recipients', 'context_tag', 'memory_refs']
-        for field in required_fields:
-            if field not in data:
-                return jsonify({"error": f"Missing required field: {field}"}), 400
+        # Get the validated data (comes from the handle_custom_gpt_request decorator)
+        data = request.validated_data
         
         # Create a new shared context using SQLAlchemy model
         context = SharedContext(
@@ -729,7 +751,21 @@ def add_shared_context():
     except Exception as e:
         db.session.rollback()
         logging.error(f"Error adding shared context: {e}")
-        return jsonify({"error": str(e)}), 500
+        
+        # Get connection status for diagnostics
+        try:
+            connection_status = pc.check_connection()
+        except Exception as conn_error:
+            connection_status = {"error": str(conn_error)}
+        
+        return jsonify({
+            "error": "Failed to add shared context",
+            "message": str(e),
+            "debug_info": {
+                "exception_type": type(e).__name__,
+                "service_status": connection_status
+            }
+        }), 500
 
 @app.route('/context', methods=['GET'])
 @require_api_key
@@ -777,18 +813,53 @@ def get_agent_hierarchy_for_ui():
         logging.error(f"Error getting agent hierarchy: {e}")
         return jsonify({"error": str(e)}), 500
 
+# Define the validation schema for agent directory requests
+agent_directory_schema = {
+    'name': {
+        'type': 'string',
+        'required': True,
+        'min_length': 2,
+        'max_length': 100
+    },
+    'role': {
+        'type': 'string',
+        'required': True,
+        'min_length': 2,
+        'max_length': 100
+    },
+    'description': {
+        'type': 'string',
+        'required': False
+    },
+    'capabilities': {
+        'type': 'list',
+        'required': False
+    },
+    'reports_to': {
+        'type': 'string',
+        'required': False
+    },
+    'seniority_level': {
+        'type': 'integer',
+        'required': False,
+        'min': 1,
+        'max': 10
+    },
+    'status': {
+        'type': 'string',
+        'required': False,
+        'allowed': ['active', 'inactive', 'archived']
+    }
+}
+
 @app.route('/agent/directory', methods=['POST'])
 @require_api_key
+@handle_custom_gpt_request(validator_schema=agent_directory_schema)
 def create_agent():
     """Create a new agent in the directory"""
     try:
-        data = request.json
-        
-        # Validate required fields
-        required_fields = ['name', 'role']
-        for field in required_fields:
-            if field not in data:
-                return jsonify({"error": f"Missing required field: {field}"}), 400
+        # Get the validated data (comes from the handle_custom_gpt_request decorator)
+        data = request.validated_data
         
         # Check if agent name is unique
         existing_agent = AgentDirectory.query.filter_by(name=data['name']).first()
@@ -931,19 +1002,45 @@ def build_hierarchy_tree(agent, agent_map):
     
     return agent_dict
 
+# Define the validation schema for agent sessions
+agent_session_schema = {
+    'agent_id': {
+        'type': 'string',
+        'required': True,
+        'min_length': 1
+    },
+    'user_id': {
+        'type': 'string',
+        'required': False,
+    },
+    'current_focus': {
+        'type': 'string',
+        'required': False
+    },
+    'summary_notes': {
+        'type': 'string',
+        'required': False
+    },
+    'active_context_tags': {
+        'type': 'list',
+        'required': False
+    }
+}
+
 # Agent Sessions endpoints
 @app.route('/agent/sessions', methods=['POST'])
 @require_api_key
+@handle_custom_gpt_request(validator_schema=agent_session_schema)
 def create_agent_session():
     """Create a new agent session"""
     try:
-        data = request.json
+        # Get the validated data (comes from the handle_custom_gpt_request decorator)
+        data = request.validated_data
         
-        # Validate required fields
-        required_fields = ['agent_id']
-        for field in required_fields:
-            if field not in data:
-                return jsonify({"error": f"Missing required field: {field}"}), 400
+        # Verify agent exists
+        agent = AgentDirectory.query.get(data['agent_id'])
+        if not agent:
+            return jsonify({"error": f"Agent with ID '{data['agent_id']}' does not exist"}), 400
         
         # Create a new agent session
         session = AgentSession(
@@ -1038,19 +1135,43 @@ def get_agent_sessions():
         logging.error(f"Error retrieving agent sessions: {e}")
         return jsonify({"error": str(e)}), 500
 
+# Define the validation schema for GPT messages
+gpt_message_schema = {
+    'sender_agent': {
+        'type': 'string',
+        'required': True,
+        'min_length': 1
+    },
+    'receiver_agent': {
+        'type': 'string',
+        'required': False
+    },
+    'message_type': {
+        'type': 'string',
+        'required': True,
+        'allowed': ['system', 'user', 'assistant', 'function', 'tool', 'data']
+    },
+    'content': {
+        'type': 'string',
+        'required': True,
+        'min_length': 1
+    },
+    'session_id': {
+        'type': 'string',
+        'required': True,
+        'min_length': 1
+    }
+}
+
 # GPT Messages endpoints
 @app.route('/agent/messages', methods=['POST'])
 @require_api_key
+@handle_custom_gpt_request(validator_schema=gpt_message_schema)
 def create_gpt_message():
-    """Create a new GPT message"""
+    """Create a new GPT message with enhanced validation for Custom GPT integration"""
     try:
-        data = request.json
-        
-        # Validate required fields
-        required_fields = ['sender_agent', 'message_type', 'content', 'session_id']
-        for field in required_fields:
-            if field not in data:
-                return jsonify({"error": f"Missing required field: {field}"}), 400
+        # Get the validated data (comes from the handle_custom_gpt_request decorator)
+        data = request.validated_data
         
         # Check if the session exists
         session = AgentSession.query.get(data['session_id'])
@@ -1078,7 +1199,22 @@ def create_gpt_message():
     except Exception as e:
         db.session.rollback()
         logging.error(f"Error creating GPT message: {e}")
-        return jsonify({"error": str(e)}), 500
+        
+        # Get connection status for diagnostics
+        try:
+            connection_status = pc.check_connection()
+        except Exception as conn_error:
+            connection_status = {"error": str(conn_error)}
+        
+        return jsonify({
+            "error": "Failed to create GPT message",
+            "message": str(e),
+            "debug_info": {
+                "exception_type": type(e).__name__,
+                "service_status": connection_status,
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        }), 500
 
 @app.route('/agent/messages/<message_id>', methods=['GET'])
 @require_api_key
@@ -1283,19 +1419,61 @@ def get_org_states():
         logging.error(f"Error retrieving organizational state entries: {e}")
         return jsonify({"error": str(e)}), 500
 
+# Define the validation schema for agent tasks
+agent_task_schema = {
+    'title': {
+        'type': 'string',
+        'required': True,
+        'min_length': 1,
+        'max_length': 200
+    },
+    'description': {
+        'type': 'string',
+        'required': False
+    },
+    'assigned_to_agent': {
+        'type': 'string',
+        'required': True,
+        'min_length': 1
+    },
+    'created_by_agent': {
+        'type': 'string',
+        'required': True,
+        'min_length': 1
+    },
+    'status': {
+        'type': 'string',
+        'required': True,
+        'allowed': ['pending', 'in_progress', 'completed', 'cancelled', 'blocked']
+    },
+    'priority': {
+        'type': 'string',
+        'required': False,
+        'allowed': ['low', 'medium', 'high', 'critical']
+    },
+    'linked_project': {
+        'type': 'string',
+        'required': False
+    },
+    'summary_notes': {
+        'type': 'string',
+        'required': False
+    },
+    'due_date': {
+        'type': 'string',
+        'required': False
+    }
+}
+
 # Agent Tasks endpoints
 @app.route('/agent/tasks', methods=['POST'])
 @require_api_key
+@handle_custom_gpt_request(validator_schema=agent_task_schema)
 def create_agent_task():
-    """Create a new agent task"""
+    """Create a new agent task with enhanced validation for Custom GPT integration"""
     try:
-        data = request.json
-        
-        # Validate required fields
-        required_fields = ['title', 'assigned_to_agent', 'created_by_agent', 'status']
-        for field in required_fields:
-            if field not in data:
-                return jsonify({"error": f"Missing required field: {field}"}), 400
+        # Get the validated data (comes from the handle_custom_gpt_request decorator)
+        data = request.validated_data
         
         # Create a new task
         task = AgentTask(
