@@ -17,4 +17,6 @@ dependencies = [
     "requests>=2.31.0",
     "routes>=2.5.1",
     "sqlalchemy>=2.0.40",
+    "twilio>=9.6.1",
+    "sendgrid>=6.12.2",
 ]
