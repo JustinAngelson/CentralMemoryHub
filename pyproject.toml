@@ -19,4 +19,5 @@ dependencies = [
     "sqlalchemy>=2.0.40",
     "twilio>=9.6.1",
     "sendgrid>=6.12.2",
+    "mcp[cli]>=1.26.0",
 ]
