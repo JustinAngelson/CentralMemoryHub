@@ -2224,6 +2224,3 @@ def get_user_insights():
     except Exception as e:
         logging.error(f"Error retrieving user insights: {e}")
         return jsonify({"error": str(e)}), 500
-
-# Register MCP proxy route (/mcp → FastMCP on port 8000)
-import mcp_proxy  # noqa: F401, E402

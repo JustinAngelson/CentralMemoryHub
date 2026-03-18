@@ -1,65 +1,133 @@
 """
-MCP Proxy Route for Flask
+MCP Proxy — WSGI middleware
 
-Adds a /mcp endpoint to the Flask app that proxies requests to the
-FastMCP server running on port 8001. This solves the single-port
-exposure problem on Replit — Claude.ai connects to the public URL
-at /mcp and requests are forwarded internally.
+Intercepts /mcp requests at the WSGI layer (before Werkzeug touches
+headers) and forwards them to the FastMCP server on port 8000.
 
-Usage: Import this module in routes.py:
-    import mcp_proxy
+This approach avoids Werkzeug 3.x strict header validation, which
+rejects 'mcp-session-id' when processed as a Flask route.
+
+Applied in app.py:  app.wsgi_app = MCPProxyMiddleware(app.wsgi_app)
 """
 import logging
-import requests as http_requests
-from flask import request, make_response
-from app import app
+import urllib.request
+import urllib.error
 
 MCP_INTERNAL_URL = "http://localhost:8000/mcp"
 
+# Headers forwarded from client → MCP server
+REQUEST_PASSTHROUGH = {
+    "content-type",
+    "accept",
+    "mcp-session-id",
+    "last-event-id",
+}
 
-@app.route('/mcp', methods=['POST', 'OPTIONS', 'GET'])
-def mcp_proxy():
-    """Proxy MCP protocol requests to the internal FastMCP server."""
-    if request.method == 'OPTIONS':
-        response = make_response('', 204)
-        response.headers['Access-Control-Allow-Origin'] = '*'
-        response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS, GET'
-        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Accept'
-        return response
+# Headers forwarded from MCP server → client
+RESPONSE_PASSTHROUGH = {
+    "content-type",
+    "mcp-session-id",
+    "cache-control",
+    "transfer-encoding",
+}
 
-    try:
-        method = request.method.lower()
-        kwargs = {
-            'headers': {
-                'Content-Type': request.content_type or 'application/json',
-                'Accept': request.headers.get('Accept', 'application/json, text/event-stream'),
-            },
-            'timeout': 30,
-        }
-        if request.data:
-            kwargs['data'] = request.data
+CORS_HEADERS = [
+    ("Access-Control-Allow-Origin", "*"),
+    ("Access-Control-Allow-Methods", "POST, GET, DELETE, OPTIONS"),
+    ("Access-Control-Allow-Headers", "Content-Type, Accept, mcp-session-id, Last-Event-ID"),
+    ("Access-Control-Expose-Headers", "mcp-session-id"),
+]
 
-        resp = getattr(http_requests, method)(MCP_INTERNAL_URL, **kwargs)
 
-        response = make_response(resp.content, resp.status_code)
-        response.headers['Content-Type'] = resp.headers.get('Content-Type', 'application/json')
-        response.headers['Access-Control-Allow-Origin'] = '*'
-        return response
+class MCPProxyMiddleware:
+    """WSGI middleware that proxies /mcp to the FastMCP server on port 8000."""
 
-    except http_requests.ConnectionError:
-        logging.error("MCP proxy: Cannot reach FastMCP server on port 8001")
-        return {
-            "jsonrpc": "2.0",
-            "error": {
-                "code": -32000,
-                "message": "MCP server is not running. Check that mcp_server.py is started on port 8001."
-            },
-            "id": None
-        }, 502
-    except Exception as e:
-        logging.error(f"MCP proxy error: {e}")
-        return {
-            "jsonrpc": "2.0",
-            "error": {"code": -32000, "message": f"Proxy error: {str(e)}"},
-            "id": None
-        }, 500
+    def __init__(self, wsgi_app):
+        self.wsgi_app = wsgi_app
+
+    def __call__(self, environ, start_response):
+        path = environ.get("PATH_INFO", "")
+
+        if path != "/mcp":
+            return self.wsgi_app(environ, start_response)
+
+        method = environ.get("REQUEST_METHOD", "GET")
+
+        # CORS preflight
+        if method == "OPTIONS":
+            headers = list(CORS_HEADERS) + [("Content-Length", "0")]
+            start_response("204 No Content", headers)
+            return [b""]
+
+        # Build forwarded headers from WSGI environ
+        forward_headers = {}
+        for key, value in environ.items():
+            if key.startswith("HTTP_"):
+                # WSGI converts "mcp-session-id" → "HTTP_MCP_SESSION_ID"
+                header_name = key[5:].replace("_", "-").lower()
+                if header_name in REQUEST_PASSTHROUGH:
+                    forward_headers[header_name] = value
+            elif key == "CONTENT_TYPE" and environ.get("CONTENT_TYPE"):
+                forward_headers["content-type"] = environ["CONTENT_TYPE"]
+
+        if "accept" not in forward_headers:
+            forward_headers["accept"] = "application/json, text/event-stream"
+
+        # Read request body
+        content_length = int(environ.get("CONTENT_LENGTH") or 0)
+        body = environ["wsgi.input"].read(content_length) if content_length > 0 else b""
+
+        try:
+            req = urllib.request.Request(
+                MCP_INTERNAL_URL,
+                data=body if body else None,
+                headers={k: v for k, v in forward_headers.items()},
+                method=method,
+            )
+
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                status_code = resp.status
+                status_text = resp.reason
+
+                # Build response headers
+                response_headers = list(CORS_HEADERS)
+                for key, value in resp.headers.items():
+                    if key.lower() in RESPONSE_PASSTHROUGH:
+                        response_headers.append((key, value))
+
+                response_body = resp.read()
+
+                start_response(
+                    f"{status_code} {status_text}",
+                    response_headers,
+                )
+                return [response_body]
+
+        except urllib.error.HTTPError as e:
+            body = e.read()
+            response_headers = list(CORS_HEADERS) + [
+                ("Content-Type", "application/json"),
+                ("Content-Length", str(len(body))),
+            ]
+            start_response(f"{e.code} {e.reason}", response_headers)
+            return [body]
+
+        except (urllib.error.URLError, ConnectionRefusedError, OSError) as e:
+            logging.error(f"MCP proxy: Cannot reach FastMCP server on port 8000: {e}")
+            body = b'{"jsonrpc":"2.0","error":{"code":-32000,"message":"MCP server unavailable. It may still be starting up."},"id":null}'
+            response_headers = list(CORS_HEADERS) + [
+                ("Content-Type", "application/json"),
+                ("Content-Length", str(len(body))),
+            ]
+            start_response("502 Bad Gateway", response_headers)
+            return [body]
+
+        except Exception as e:
+            logging.error(f"MCP proxy error: {e}")
+            body = f'{{"jsonrpc":"2.0","error":{{"code":-32000,"message":"Proxy error: {e}"}},"id":null}}'.encode()
+            response_headers = list(CORS_HEADERS) + [
+                ("Content-Type", "application/json"),
+                ("Content-Length", str(len(body))),
+            ]
+            start_response("500 Internal Server Error", response_headers)
+            return [body]
