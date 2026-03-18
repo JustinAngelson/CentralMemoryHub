@@ -4,8 +4,8 @@ modules = ["python-3.11", "postgresql-16"]
 channel = "stable-24_05"
 
 [deployment]
-deploymentTarget = "gce"
-run = ["gunicorn", "--bind", "0.0.0.0:5000", "main:app"]
+deploymentTarget = "vm"
+run = ["bash", "start_all.sh"]
 
 [workflows]
 runButton = "Project"
@@ -19,36 +19,18 @@ author = "agent"
 task = "workflow.run"
 args = "Start application"
 
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "MCP Server"
-
 [[workflows.workflow]]
 name = "Start application"
 author = "agent"
 
 [workflows.workflow.metadata]
 agentRequireRestartOnSave = false
-
-[[workflows.workflow.tasks]]
-task = "packager.installForAll"
+outputType = "webview"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "gunicorn --bind 0.0.0.0:5000 --reuse-port --reload main:app"
+args = "bash start_all.sh"
 waitForPort = 5000
-
-[[workflows.workflow]]
-name = "MCP Server"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "MCP_TRANSPORT=streamable_http MCP_PORT=8000 python mcp_server.py"
-waitForPort = 8000
-
-[workflows.workflow.metadata]
-outputType = "console"
 
 [[ports]]
 localPort = 5000
