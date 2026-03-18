@@ -1,5 +1,6 @@
 #!/bin/bash
 # Start both Flask (CMH web UI + REST API) and MCP server
+# Used as the production deployment run command.
 
 echo "=== Central Memory Hub + MCP Server ==="
 
@@ -10,13 +11,12 @@ FLASK_PID=$!
 sleep 2
 
 echo "Starting MCP server on :8000..."
-MCP_TRANSPORT=streamable_http MCP_PORT=8000 python mcp_server.py &
+MCP_TRANSPORT=streamable-http MCP_PORT=8000 python mcp_server.py &
 MCP_PID=$!
 
 echo ""
 echo "Flask PID:  $FLASK_PID  →  http://0.0.0.0:5000"
 echo "MCP PID:    $MCP_PID  →  http://0.0.0.0:8000/mcp"
-echo ""
 echo "Public MCP endpoint: https://memory-vault-angelson.replit.app/mcp"
 echo ""
 
