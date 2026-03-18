@@ -29,4 +29,10 @@ db = SQLAlchemy(app)
 # Enable CORS for all routes - necessary for Custom GPT API access
 CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
 
+# MCP proxy middleware — must be applied before routes are imported
+# Intercepts /mcp at the WSGI level to bypass Werkzeug header validation
+from mcp_proxy import MCPProxyMiddleware
+from werkzeug.middleware.proxy_fix import ProxyFix
+app.wsgi_app = MCPProxyMiddleware(ProxyFix(app.wsgi_app, x_proto=1, x_host=1))
+
 # Import routes at the end to avoid circular imports
