@@ -147,6 +147,15 @@ class ListUserInsightsInput(BaseModel):
     to_date: Optional[str] = Field(None, description="ISO date string — only return insights before this date")
 
 
+class ListMessagesInput(BaseModel):
+    """Input for listing/filtering agent messages."""
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    sender_agent: Optional[str] = Field(default=None, description="Filter by sending agent name")
+    receiver_agent: Optional[str] = Field(default=None, description="Filter by receiving agent name")
+    message_type: Optional[str] = Field(default=None, description="Filter by type: system, user, assistant, function, tool, data")
+    session_id: Optional[str] = Field(default=None, description="Filter by session UUID")
+
+
 # ────────────────────────────────────────────────────────────────────
 # Tool Registrations
 # ────────────────────────────────────────────────────────────────────
@@ -720,6 +729,57 @@ def register_agent_tools(mcp: FastMCP) -> None:
         except Exception as e:
             logging.error(f"cmh_list_user_insights error: {e}")
             return f"Error listing user insights: {e}"
+        finally:
+            session.close()
+
+    @mcp.tool(
+        name="cmh_list_messages",
+        annotations={
+            "title": "List Agent Messages",
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    )
+    async def cmh_list_messages(params: ListMessagesInput) -> str:
+        """List inter-agent messages with optional filters.
+
+        Query the message log to find messages sent between agents. Supports
+        filtering by sender, receiver, message type, and session.
+
+        Use receiver_agent filter to check an agent's inbox.
+
+        Args:
+            params: ListMessagesInput with optional sender_agent, receiver_agent,
+                    message_type, session_id filters.
+
+        Returns:
+            JSON array of matching GPTMessage records, sorted by timestamp descending.
+        """
+        session = get_db_session()
+        try:
+            query = session.query(GPTMessage)
+
+            if params.sender_agent:
+                query = query.filter(GPTMessage.sender_agent == params.sender_agent)
+            if params.receiver_agent:
+                query = query.filter(GPTMessage.receiver_agent == params.receiver_agent)
+            if params.message_type:
+                query = query.filter(GPTMessage.message_type == params.message_type)
+            if params.session_id:
+                query = query.filter(GPTMessage.session_id == params.session_id)
+
+            query = query.order_by(GPTMessage.timestamp.desc())
+            messages = query.all()
+
+            if not messages:
+                return "No messages found matching filters."
+
+            return json.dumps([msg.to_dict() for msg in messages], indent=2, default=str)
+        except Exception as e:
+            logging.error(f"cmh_list_messages error: {e}")
+            return f"Error listing messages: {e}"
         finally:
             session.close()
 
