@@ -5,11 +5,11 @@
 
 echo "=== Central Memory Hub ==="
 
-# Free ports if anything is still holding them from a previous run
-echo "Clearing ports 5000 and 8000..."
-fuser -k 5000/tcp 2>/dev/null || true
-fuser -k 8000/tcp 2>/dev/null || true
-sleep 1
+# Kill any leftover processes from a previous run
+echo "Clearing previous processes..."
+pkill -f "mcp_server.py" 2>/dev/null || true
+pkill -f "gunicorn" 2>/dev/null || true
+sleep 2
 
 # Start MCP server in the background first
 echo "Starting MCP server on :8000..."
