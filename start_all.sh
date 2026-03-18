@@ -5,6 +5,12 @@
 
 echo "=== Central Memory Hub ==="
 
+# Free ports if anything is still holding them from a previous run
+echo "Clearing ports 5000 and 8000..."
+fuser -k 5000/tcp 2>/dev/null || true
+fuser -k 8000/tcp 2>/dev/null || true
+sleep 1
+
 # Start MCP server in the background first
 echo "Starting MCP server on :8000..."
 MCP_TRANSPORT=streamable-http MCP_PORT=8000 python mcp_server.py &
