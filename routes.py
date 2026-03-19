@@ -967,7 +967,8 @@ def create_agent():
         
         return jsonify({
             "agent_id": agent.agent_id,
-            "message": "Agent created successfully"
+            "message": "Agent created successfully",
+            "agent": agent.to_dict()
         }), 201
     except Exception as e:
         db.session.rollback()
@@ -1028,6 +1029,11 @@ def update_agent(agent_id):
         if 'birth_date' in data:
             try:
                 agent.birth_date = datetime.fromisoformat(data['birth_date'].replace('Z', '+00:00').replace('+00:00', '')) if data['birth_date'] else None
+            except Exception:
+                pass
+        if 'join_date' in data:
+            try:
+                agent.join_date = datetime.fromisoformat(data['join_date'].replace('Z', '+00:00').replace('+00:00', '')) if data['join_date'] else agent.join_date
             except Exception:
                 pass
         
