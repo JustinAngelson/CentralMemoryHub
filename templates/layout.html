@@ -22,12 +22,43 @@
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
+                <ul class="navbar-nav me-auto">
                     <li class="nav-item">
                         <a class="nav-link" href="/">Home</a>
                     </li>
                     <li class="nav-item">
+                        <a class="nav-link" href="/agents">Agents</a>
+                    </li>
+                    {% if current_user.is_admin %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="/api-keys">API Keys</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('auth.users') }}">Users</a>
+                    </li>
+                    {% endif %}
+                    <li class="nav-item">
                         <a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#apiDocsModal">API Docs</a>
+                    </li>
+                </ul>
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i data-feather="user" style="width:15px;height:15px;"></i>
+                            {{ current_user.username }}
+                            <span class="badge {{ 'bg-danger' if current_user.is_admin else 'bg-secondary' }} ms-1" style="font-size:.65rem;">
+                                {{ current_user.role }}
+                            </span>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><span class="dropdown-item-text small text-muted">{{ current_user.email }}</span></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <a class="dropdown-item text-danger" href="{{ url_for('auth.logout') }}">
+                                    <i data-feather="log-out" style="width:14px;height:14px;"></i> Sign out
+                                </a>
+                            </li>
+                        </ul>
                     </li>
                 </ul>
             </div>
@@ -35,6 +66,15 @@
     </nav>
 
     <div class="container mt-4">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show py-2 small" role="alert">
+              {{ message }}
+              <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+          {% endfor %}
+        {% endwith %}
+
         {% block content %}{% endblock %}
     </div>
 
@@ -49,24 +89,24 @@
                 <div class="modal-body">
                     <h6>Authentication</h6>
                     <p>All API endpoints require the <code>X-API-KEY</code> header with your API key.</p>
-                    
+
                     <h6>Structured Memory</h6>
                     <ul>
                         <li><strong>POST /memory/structured</strong> - Add a new structured memory entry</li>
                         <li><strong>GET /memory/structured/{id}</strong> - Retrieve a structured memory entry by ID</li>
                     </ul>
-                    
+
                     <h6>Unstructured Memory</h6>
                     <ul>
                         <li><strong>POST /memory/unstructured</strong> - Add a new unstructured memory entry</li>
                         <li><strong>GET /memory/unstructured/{id}</strong> - Retrieve an unstructured memory entry by ID</li>
                     </ul>
-                    
+
                     <h6>Search</h6>
                     <ul>
                         <li><strong>POST /search</strong> - Search for similar unstructured data</li>
                     </ul>
-                    
+
                     <h6>Shared Contexts</h6>
                     <ul>
                         <li><strong>POST /context</strong> - Add a new shared context</li>
@@ -85,7 +125,6 @@
     <!-- Custom JS -->
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
     <script>
-        // Initialize Feather icons
         feather.replace();
     </script>
 </body>
