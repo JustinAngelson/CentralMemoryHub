@@ -11,6 +11,7 @@ import platform
 import socket
 
 from flask import request, jsonify, render_template, Blueprint, current_app, make_response, after_this_request
+from flask_login import login_required, current_user
 from app import app, db
 import pinecone_client as pc
 from validation import handle_custom_gpt_request
@@ -21,6 +22,10 @@ from models import (
     AgentDirectory, AgentSession, GPTMessage, OrgState, AgentTask, DecisionLog,
     KnowledgeIndex, MemoryLink, Experiment, UserInsight
 )
+
+# Register auth blueprint
+from auth import auth_bp, admin_required
+app.register_blueprint(auth_bp)
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
@@ -209,6 +214,7 @@ app.after_request(add_security_headers)
 
 # Route for the home page
 @app.route('/')
+@login_required
 def index():
     """Render the home page"""
     return render_template('index.html')
@@ -277,6 +283,8 @@ def serve_openapi_schema():
         }), 500
         
 @app.route('/sys/gpt-diagnostic')
+@login_required
+@admin_required
 def gpt_diagnostic():
     """Enhanced diagnostic endpoint specifically for Custom GPT troubleshooting."""
     try:
@@ -345,19 +353,24 @@ def gpt_diagnostic():
         }), 500
 
 @app.route('/agents')
+@login_required
 def agents_view():
     """Render the agents interface"""
     return render_template('agent_view.html')
 
 @app.route('/api-keys')
+@login_required
+@admin_required
 def api_keys_view():
-    """Render the API key management interface"""
+    """Render the API key management interface (admin only)"""
     return render_template('api_keys.html')
 
 # API Key management endpoints
 @app.route('/api/keys', methods=['GET'])
+@login_required
+@admin_required
 def get_api_keys():
-    """Get all API keys (without requiring API key for demo purposes)"""
+    """Get all API keys (admin only)"""
     try:
         # Get all API keys
         keys = ApiKey.query.all()
@@ -367,6 +380,8 @@ def get_api_keys():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/keys', methods=['POST'])
+@login_required
+@admin_required
 def create_api_key():
     """Create a new API key"""
     try:
@@ -399,6 +414,8 @@ def create_api_key():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/keys/<key_id>', methods=['PUT'])
+@login_required
+@admin_required
 def update_api_key(key_id):
     """Update an API key"""
     try:
@@ -427,6 +444,8 @@ def update_api_key(key_id):
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/keys/<key_id>/revoke', methods=['POST'])
+@login_required
+@admin_required
 def revoke_api_key(key_id):
     """Revoke an API key"""
     try:
@@ -444,6 +463,8 @@ def revoke_api_key(key_id):
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/logs', methods=['GET'])
+@login_required
+@admin_required
 def get_api_logs():
     """Get API request logs with filtering options"""
     try:
@@ -483,8 +504,9 @@ def get_api_logs():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/agents/sessions', methods=['GET'])
+@login_required
 def get_agent_sessions_for_ui():
-    """Get agent sessions for UI (without API key for demo purposes)"""
+    """Get agent sessions for UI (login required)"""
     try:
         # Get active sessions only
         active_sessions = AgentSession.query.filter(AgentSession.ended_at.is_(None)).all()
@@ -494,8 +516,9 @@ def get_agent_sessions_for_ui():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/agents/messages/<session_id>', methods=['GET'])
+@login_required
 def get_session_messages_for_ui(session_id):
-    """Get messages for a session for UI (without API key for demo purposes)"""
+    """Get messages for a session for UI (login required)"""
     try:
         # Check if session exists
         session = AgentSession.query.filter_by(session_id=session_id).first()
@@ -786,8 +809,9 @@ def get_all_contexts():
 
 # Agent Directory (AI Org Chart) endpoints
 @app.route('/api/directory', methods=['GET'])
+@login_required
 def get_agent_directory_for_ui():
-    """Get agent directory for UI (without API key for demo purposes)"""
+    """Get agent directory for UI (login required)"""
     try:
         agents = AgentDirectory.query.all()
         return jsonify([agent.to_dict() for agent in agents])
@@ -796,8 +820,9 @@ def get_agent_directory_for_ui():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/directory/hierarchy', methods=['GET'])
+@login_required
 def get_agent_hierarchy_for_ui():
-    """Get agent hierarchy for UI (without API key for demo purposes)"""
+    """Get agent hierarchy for UI (login required)"""
     try:
         # Get all agents
         agents = AgentDirectory.query.all()

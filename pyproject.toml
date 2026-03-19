@@ -20,4 +20,6 @@ dependencies = [
     "twilio>=9.6.1",
     "sendgrid>=6.12.2",
     "mcp[cli]>=1.26.0",
+    "flask-login>=0.6.3",
+    "werkzeug>=3.1.3",
 ]

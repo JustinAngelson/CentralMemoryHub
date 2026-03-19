@@ -3,6 +3,7 @@ import logging
 from flask import Flask
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
+from flask_login import LoginManager
 from dotenv import load_dotenv
 
 # Configure logging
@@ -28,6 +29,17 @@ db = SQLAlchemy(app)
 
 # Enable CORS for all routes - necessary for Custom GPT API access
 CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
+
+# Flask-Login
+login_manager = LoginManager(app)
+login_manager.login_view = "auth.login"
+login_manager.login_message = "Please log in to access this page."
+login_manager.login_message_category = "warning"
+
+@login_manager.user_loader
+def load_user(user_id):
+    from models import User
+    return User.query.get(user_id)
 
 # MCP proxy middleware — must be applied before routes are imported
 # Intercepts /mcp at the WSGI level to bypass Werkzeug header validation
