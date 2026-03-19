@@ -942,8 +942,8 @@ def create_agent():
         if data.get('birth_date'):
             try:
                 birth_date = datetime.fromisoformat(data['birth_date'].replace('Z', '+00:00').replace('+00:00', ''))
-            except Exception:
-                pass
+            except (ValueError, AttributeError):
+                return jsonify({"error": "Invalid birth_date format. Use ISO 8601 (e.g. 2024-03-15 or 2024-03-15T00:00:00)"}), 400
 
         # Create a new agent
         agent = AgentDirectory(
@@ -1027,15 +1027,14 @@ def update_agent(agent_id):
         if 'status' in data:
             agent.status = data['status']
         if 'birth_date' in data:
-            try:
-                agent.birth_date = datetime.fromisoformat(data['birth_date'].replace('Z', '+00:00').replace('+00:00', '')) if data['birth_date'] else None
-            except Exception:
-                pass
-        if 'join_date' in data:
-            try:
-                agent.join_date = datetime.fromisoformat(data['join_date'].replace('Z', '+00:00').replace('+00:00', '')) if data['join_date'] else agent.join_date
-            except Exception:
-                pass
+            if data['birth_date']:
+                try:
+                    agent.birth_date = datetime.fromisoformat(data['birth_date'].replace('Z', '+00:00').replace('+00:00', ''))
+                except (ValueError, AttributeError):
+                    return jsonify({"error": "Invalid birth_date format. Use ISO 8601 (e.g. 2024-03-15 or 2024-03-15T00:00:00)"}), 400
+            else:
+                agent.birth_date = None
+        # join_date is server-authoritative (set on creation); ignored if supplied in PUT
         
         # Save changes
         db.session.commit()
