@@ -182,35 +182,7 @@
                     </div>
                     <div class="card-body">
                         <div class="row" id="sessionCards">
-                            <!-- Agent session cards will be added here dynamically -->
-                            <div class="col-md-4 mb-3">
-                                <div class="card agent-card">
-                                    <div class="card-body">
-                                        <h5 class="card-title">Product Manager GPT</h5>
-                                        <h6 class="card-subtitle mb-2 text-muted">Session ID: PM-123456</h6>
-                                        <p class="card-text">Current focus: Feature planning</p>
-                                        <p class="card-text"><small class="text-muted">Active since: May 6, 2025, 10:30 AM</small></p>
-                                        <div class="d-flex justify-content-between">
-                                            <button class="btn btn-outline-primary btn-sm view-messages" data-session-id="PM-123456">View Messages</button>
-                                            <button class="btn btn-outline-danger btn-sm end-session" data-session-id="PM-123456">End Session</button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-4 mb-3">
-                                <div class="card agent-card">
-                                    <div class="card-body">
-                                        <h5 class="card-title">Developer GPT</h5>
-                                        <h6 class="card-subtitle mb-2 text-muted">Session ID: DEV-789012</h6>
-                                        <p class="card-text">Current focus: Implementation</p>
-                                        <p class="card-text"><small class="text-muted">Active since: May 6, 2025, 10:45 AM</small></p>
-                                        <div class="d-flex justify-content-between">
-                                            <button class="btn btn-outline-primary btn-sm view-messages" data-session-id="DEV-789012">View Messages</button>
-                                            <button class="btn btn-outline-danger btn-sm end-session" data-session-id="DEV-789012">End Session</button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                            <!-- Sessions populated dynamically by fetchAgentSessions() -->
                         </div>
                     </div>
                 </div>
@@ -721,26 +693,75 @@
         });
         
         function fetchAgentSessions() {
-            // In a real implementation, this would fetch from the API
-            // For now, we'll just log to console
-            console.log("Fetching agent sessions...");
+            fetch('/api/agents/sessions', { credentials: 'same-origin' })
+                .then(r => r.json())
+                .then(sessions => renderSessionCards(sessions))
+                .catch(err => console.error('Error fetching sessions:', err));
         }
-        
-        document.querySelectorAll('.view-messages').forEach(button => {
-            button.addEventListener('click', function() {
-                const sessionId = this.getAttribute('data-session-id');
-                alert(`In a real implementation, this would load messages for session ${sessionId}`);
+
+        function renderSessionCards(sessions) {
+            const container = document.getElementById('sessionCards');
+            container.innerHTML = '';
+
+            if (!sessions || sessions.length === 0) {
+                container.innerHTML = '<div class="col-12"><p class="text-muted">No active sessions.</p></div>';
+                return;
+            }
+
+            const agentNameMap = {};
+            allAgents.forEach(a => { agentNameMap[a.agent_id] = a.name; });
+
+            sessions.forEach(s => {
+                const agentName = agentNameMap[s.agent_id] || s.agent_id;
+                const since = s.started_at ? new Date(s.started_at).toLocaleString() : '—';
+                const focus = s.current_focus || 'No focus set';
+                const col = document.createElement('div');
+                col.className = 'col-md-4 mb-3';
+                col.innerHTML = `
+                    <div class="card agent-card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title">${agentName}</h5>
+                            <h6 class="card-subtitle mb-2 text-muted small">${s.session_id}</h6>
+                            <p class="card-text small mb-1"><strong>Focus:</strong> ${focus}</p>
+                            <p class="card-text"><small class="text-muted">Active since: ${since}</small></p>
+                            <div class="d-flex justify-content-between mt-2">
+                                <button class="btn btn-outline-primary btn-sm view-messages" data-session-id="${s.session_id}">Messages</button>
+                            </div>
+                        </div>
+                    </div>`;
+                container.appendChild(col);
             });
-        });
-        
-        document.querySelectorAll('.end-session').forEach(button => {
-            button.addEventListener('click', function() {
-                const sessionId = this.getAttribute('data-session-id');
-                if (confirm(`Are you sure you want to end session ${sessionId}?`)) {
-                    alert(`In a real implementation, this would end session ${sessionId}`);
-                }
+
+            container.querySelectorAll('.view-messages').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const sid = this.getAttribute('data-session-id');
+                    fetch(`/api/agents/messages/${sid}`, { credentials: 'same-origin' })
+                        .then(r => r.json())
+                        .then(msgs => {
+                            const msgContainer = document.getElementById('messageContainer');
+                            msgContainer.innerHTML = '';
+                            if (!msgs.messages || msgs.messages.length === 0) {
+                                msgContainer.innerHTML = '<p class="text-muted p-3">No messages in this session.</p>';
+                                return;
+                            }
+                            msgs.messages.forEach(m => {
+                                const div = document.createElement('div');
+                                div.className = 'message sent-message';
+                                div.innerHTML = `
+                                    <div class="message-content">${m.content}</div>
+                                    <div class="message-meta">
+                                        <span>From: ${m.sender_agent}</span> •
+                                        <span>To: ${m.receiver_agent || 'broadcast'}</span> •
+                                        <span>${m.message_type}</span> •
+                                        <span>${new Date(m.timestamp).toLocaleTimeString()}</span>
+                                    </div>`;
+                                msgContainer.appendChild(div);
+                            });
+                        })
+                        .catch(err => console.error('Error loading messages:', err));
+                });
             });
-        });
+        }
         
         document.getElementById('newMessageForm').addEventListener('submit', function(e) {
             e.preventDefault();
