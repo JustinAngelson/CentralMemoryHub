@@ -894,6 +894,14 @@ agent_directory_schema = {
         'type': 'list',
         'required': False
     },
+    'skills': {
+        'type': 'list',
+        'required': False
+    },
+    'usual_model': {
+        'type': 'string',
+        'required': False
+    },
     'reports_to': {
         'type': 'string',
         'required': False
@@ -907,7 +915,11 @@ agent_directory_schema = {
     'status': {
         'type': 'string',
         'required': False,
-        'allowed': ['active', 'inactive', 'archived']
+        'allowed': ['active', 'inactive', 'in_training', 'archived']
+    },
+    'birth_date': {
+        'type': 'string',
+        'required': False
     }
 }
 
@@ -925,6 +937,14 @@ def create_agent():
         if existing_agent:
             return jsonify({"error": f"Agent with name '{data['name']}' already exists"}), 400
         
+        # Parse optional birth_date
+        birth_date = None
+        if data.get('birth_date'):
+            try:
+                birth_date = datetime.fromisoformat(data['birth_date'].replace('Z', '+00:00').replace('+00:00', ''))
+            except Exception:
+                pass
+
         # Create a new agent
         agent = AgentDirectory(
             agent_id=str(uuid.uuid4()),
@@ -932,9 +952,13 @@ def create_agent():
             role=data['role'],
             description=data.get('description'),
             capabilities=data.get('capabilities', []),
+            skills=data.get('skills', []),
+            usual_model=data.get('usual_model'),
             reports_to=data.get('reports_to'),
             seniority_level=data.get('seniority_level', 1),
-            status=data.get('status', 'active')
+            status=data.get('status', 'active'),
+            join_date=datetime.utcnow(),
+            birth_date=birth_date,
         )
         
         # Save to database
@@ -991,12 +1015,21 @@ def update_agent(agent_id):
             agent.description = data['description']
         if 'capabilities' in data:
             agent.capabilities = data['capabilities']
+        if 'skills' in data:
+            agent.skills = data['skills']
+        if 'usual_model' in data:
+            agent.usual_model = data['usual_model']
         if 'reports_to' in data:
             agent.reports_to = data['reports_to']
         if 'seniority_level' in data:
             agent.seniority_level = data['seniority_level']
         if 'status' in data:
             agent.status = data['status']
+        if 'birth_date' in data:
+            try:
+                agent.birth_date = datetime.fromisoformat(data['birth_date'].replace('Z', '+00:00').replace('+00:00', '')) if data['birth_date'] else None
+            except Exception:
+                pass
         
         # Save changes
         db.session.commit()

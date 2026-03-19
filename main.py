@@ -14,6 +14,22 @@ with app.app_context():
     # Create all tables
     db.create_all()
     print("PostgreSQL database tables created successfully")
+
+    # Add new columns to agent_directory if they don't exist yet (safe migration)
+    try:
+        with db.engine.connect() as conn:
+            migrations = [
+                "ALTER TABLE agent_directory ADD COLUMN IF NOT EXISTS skills JSONB",
+                "ALTER TABLE agent_directory ADD COLUMN IF NOT EXISTS usual_model VARCHAR(100)",
+                "ALTER TABLE agent_directory ADD COLUMN IF NOT EXISTS join_date TIMESTAMP",
+                "ALTER TABLE agent_directory ADD COLUMN IF NOT EXISTS birth_date TIMESTAMP",
+            ]
+            for sql in migrations:
+                conn.execute(db.text(sql))
+            conn.commit()
+        print("Agent directory columns migrated successfully")
+    except Exception as e:
+        print(f"Column migration note: {e}")
     
     # Initialize a default API key if none exists
     default_api_key = ApiKey.query.filter_by(name="Default API Key").first()
