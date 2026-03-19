@@ -149,6 +149,7 @@
 
                         <!-- Agent Directory List View -->
                         <div id="agentDirectoryList">
+                            <div id="deleteAgentError" class="alert alert-danger d-none mb-2" role="alert"></div>
                             <table class="table table-hover">
                                 <thead>
                                     <tr>
@@ -300,8 +301,8 @@
                             <input type="text" class="form-control" id="agentCapabilities" placeholder="code_generation, task_planning">
                         </div>
                         <div class="mb-3">
-                            <label for="agentSkills" class="form-label">Skills <small class="text-muted">(comma-separated, e.g. Skills.md entries)</small></label>
-                            <input type="text" class="form-control" id="agentSkills" placeholder="Python, RAG, Prompt Engineering">
+                            <label for="agentSkills" class="form-label">Skills <small class="text-muted">(one per line or comma-separated, e.g. Skills.md entries)</small></label>
+                            <textarea class="form-control" id="agentSkills" rows="3" placeholder="Python&#10;RAG&#10;Prompt Engineering"></textarea>
                         </div>
                         <div class="mb-3">
                             <label for="agentUsualModel" class="form-label">Usual Model</label>
@@ -368,8 +369,8 @@
                             <input type="text" class="form-control" id="editAgentCapabilities">
                         </div>
                         <div class="mb-3">
-                            <label for="editAgentSkills" class="form-label">Skills <small class="text-muted">(comma-separated)</small></label>
-                            <input type="text" class="form-control" id="editAgentSkills" placeholder="Python, RAG, Prompt Engineering">
+                            <label for="editAgentSkills" class="form-label">Skills <small class="text-muted">(one per line or comma-separated, e.g. Skills.md entries)</small></label>
+                            <textarea class="form-control" id="editAgentSkills" rows="3" placeholder="Python&#10;RAG&#10;Prompt Engineering"></textarea>
                         </div>
                         <div class="mb-3">
                             <label for="editAgentUsualModel" class="form-label">Usual Model</label>
@@ -689,7 +690,7 @@
             document.getElementById('editAgentRole').value = agent.role;
             document.getElementById('editAgentDescription').value = agent.description || '';
             document.getElementById('editAgentCapabilities').value = agent.capabilities ? agent.capabilities.join(', ') : '';
-            document.getElementById('editAgentSkills').value = agent.skills ? agent.skills.join(', ') : '';
+            document.getElementById('editAgentSkills').value = agent.skills ? agent.skills.join('\n') : '';
             document.getElementById('editAgentUsualModel').value = agent.usual_model || '';
             document.getElementById('editAgentBirthDate').value = agent.birth_date ? agent.birth_date.substring(0, 10) : '';
             document.getElementById('editAgentJoinDate').value = agent.join_date ? new Date(agent.join_date).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }) : '—';
@@ -704,7 +705,7 @@
         }
         
         function splitList(val) {
-            return val.split(',').map(s => s.trim()).filter(s => s.length > 0);
+            return val.split(/[\n,]+/).map(s => s.trim()).filter(s => s.length > 0);
         }
 
         function showModalError(elId, msg) {
@@ -783,17 +784,25 @@
             .catch(() => showModalError('editAgentError', 'Network error. Please try again.'));
         }
         
+        function showDeleteError(msg) {
+            const el = document.getElementById('deleteAgentError');
+            el.textContent = msg;
+            el.classList.remove('d-none');
+            setTimeout(() => el.classList.add('d-none'), 6000);
+        }
+
         function deleteAgent(agentId) {
+            document.getElementById('deleteAgentError').classList.add('d-none');
             fetch(`/agent/directory/${agentId}`, {
                 method: 'DELETE',
                 credentials: 'same-origin'
             })
             .then(r => r.json().then(data => ({ ok: r.ok, data })))
             .then(({ ok, data }) => {
-                if (!ok) { alert(data.error || 'Failed to delete agent.'); return; }
+                if (!ok) { showDeleteError(data.error || 'Failed to delete agent.'); return; }
                 fetchAgentDirectory();
             })
-            .catch(() => alert('Network error. Please try again.'));
+            .catch(() => showDeleteError('Network error. Please try again.'));
         }
         
         // Toggle between list and hierarchy views
