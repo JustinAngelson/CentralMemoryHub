@@ -161,7 +161,22 @@
                                     </tr>
                                 </thead>
                                 <tbody id="agentTableBody">
-                                    <!-- Agents will be populated here dynamically -->
+                                    {% for agent in agents %}
+                                    {% set badge = 'bg-success' if agent.status == 'active' else ('bg-danger' if agent.status == 'inactive' else 'bg-warning text-dark') %}
+                                    <tr>
+                                        <td>{{ agent.name }}</td>
+                                        <td>{{ agent.role }}</td>
+                                        <td><span class="badge {{ badge }}">{{ agent.status }}</span></td>
+                                        <td>{{ agent.seniority_level }}</td>
+                                        <td>{{ agent.reports_to or 'None' }}</td>
+                                        <td>
+                                            <button class="btn btn-sm btn-outline-primary edit-agent" data-agent-id="{{ agent.agent_id }}">Edit</button>
+                                            <button class="btn btn-sm btn-outline-danger delete-agent" data-agent-id="{{ agent.agent_id }}">Delete</button>
+                                        </td>
+                                    </tr>
+                                    {% else %}
+                                    <tr><td colspan="6" class="text-center text-muted">No agents found. Add your first agent to get started.</td></tr>
+                                    {% endfor %}
                                 </tbody>
                             </table>
                         </div>
@@ -193,44 +208,24 @@
                     </div>
                     <div class="card-body">
                         <div class="message-container" id="messageContainer">
-                            <!-- Messages will be loaded here -->
-                            <div class="message sent-message">
-                                <div class="message-content">
-                                    Please implement the user authentication flow as specified in auth_spec.md.
-                                </div>
-                                <div class="message-meta">
-                                    <span>From: Product Manager GPT</span> • 
-                                    <span>To: Developer GPT</span> • 
-                                    <span>Type: instruction</span> • 
-                                    <span>10:50 AM</span>
-                                </div>
-                            </div>
-                            <div class="message received-message">
-                                <div class="message-content">
-                                    Received the task. I'll begin implementing the authentication flow now.
-                                </div>
-                                <div class="message-meta">
-                                    <span>From: Developer GPT</span> • 
-                                    <span>To: Product Manager GPT</span> • 
-                                    <span>Type: status_update</span> • 
-                                    <span>10:51 AM</span>
-                                </div>
-                            </div>
+                            <p class="text-muted p-3 mb-0">Select a session above to view its messages.</p>
                         </div>
                         
                         <form class="mt-3" id="newMessageForm">
                             <div class="mb-3">
                                 <label for="senderSelect" class="form-label">From (Agent)</label>
                                 <select class="form-select" id="senderSelect">
-                                    <option value="product_gpt">Product Manager GPT</option>
-                                    <option value="developer_gpt">Developer GPT</option>
+                                    {% for agent in agents %}
+                                    <option value="{{ agent.agent_id }}">{{ agent.name }}</option>
+                                    {% endfor %}
                                 </select>
                             </div>
                             <div class="mb-3">
                                 <label for="receiverSelect" class="form-label">To (Agent)</label>
                                 <select class="form-select" id="receiverSelect">
-                                    <option value="product_gpt">Product Manager GPT</option>
-                                    <option value="developer_gpt">Developer GPT</option>
+                                    {% for agent in agents %}
+                                    <option value="{{ agent.agent_id }}">{{ agent.name }}</option>
+                                    {% endfor %}
                                 </select>
                             </div>
                             <div class="mb-3">
@@ -266,14 +261,8 @@
                                     <th>Timestamp</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                <tr>
-                                    <td>Developer GPT</td>
-                                    <td>auth implementation</td>
-                                    <td>Will use JWT tokens for authentication to improve scalability</td>
-                                    <td>authentication</td>
-                                    <td>May 6, 2025, 10:55 AM</td>
-                                </tr>
+                            <tbody id="decisionLogBody">
+                                <tr><td colspan="5" class="text-center text-muted">No recent decisions.</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -395,19 +384,38 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Global variables
-        let allAgents = [];
-        
+        // Global variables — seeded server-side, kept in sync on refresh
+        let allAgents = {{ agents_json | tojson }};
+
         // Fetch agents data when page loads
         document.addEventListener('DOMContentLoaded', function() {
-            fetchAgentDirectory();
+            populateAgentDropdowns(allAgents);
+            attachDirectoryButtonListeners();
             fetchAgentSessions();
         });
         
-        // Agent Directory functions
+        // Attach edit/delete listeners to the server-rendered table rows
+        function attachDirectoryButtonListeners() {
+            document.querySelectorAll('.edit-agent').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    openEditAgentModal(this.getAttribute('data-agent-id'));
+                });
+            });
+            document.querySelectorAll('.delete-agent').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const id = this.getAttribute('data-agent-id');
+                    if (confirm('Are you sure you want to delete this agent?')) deleteAgent(id);
+                });
+            });
+        }
+
+        // Agent Directory functions — used for Refresh button
         function fetchAgentDirectory() {
-            fetch('/api/directory')
-                .then(response => response.json())
+            fetch('/api/directory', { credentials: 'same-origin' })
+                .then(response => {
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    return response.json();
+                })
                 .then(data => {
                     allAgents = data;
                     renderAgentTable(data);
@@ -415,7 +423,8 @@
                 })
                 .catch(error => {
                     console.error('Error fetching agent directory:', error);
-                    alert('Failed to load agent directory. Please try again later.');
+                    document.getElementById('agentTableBody').innerHTML =
+                        '<tr><td colspan="6" class="text-center text-danger">Failed to refresh. Please reload the page.</td></tr>';
                 });
         }
         

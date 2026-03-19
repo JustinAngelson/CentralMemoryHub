@@ -361,7 +361,9 @@ def gpt_diagnostic():
 @login_required
 def agents_view():
     """Render the agents interface"""
-    return render_template('agent_view.html')
+    agents = AgentDirectory.query.order_by(AgentDirectory.name).all()
+    agents_json = [a.to_dict() for a in agents]
+    return render_template('agent_view.html', agents=agents, agents_json=agents_json)
 
 @app.route('/api-keys')
 @login_required
