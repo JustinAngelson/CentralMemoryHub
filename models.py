@@ -154,9 +154,13 @@ class AgentDirectory(db.Model):
     role = Column(String(100), nullable=False)
     description = Column(Text, nullable=True)
     capabilities = Column(JSONB, nullable=True)  # ["code_generation", "task_planning", "summarization"]
+    skills = Column(JSONB, nullable=True)          # known skills, e.g. Skills.md entries
+    usual_model = Column(String(100), nullable=True)  # e.g. "Claude Sonnet 4", "GPT-4o"
     reports_to = Column(String(36), ForeignKey('agent_directory.agent_id'), nullable=True)
-    seniority_level = Column(Integer, default=1)  # 1=entry level, 5=executive
+    seniority_level = Column(Integer, default=1)  # 1=entry level, 10=executive
     status = Column(String(20), default="active")  # active, inactive, in_training
+    join_date = Column(DateTime, nullable=True)    # when the agent registered on CMH
+    birth_date = Column(DateTime, nullable=True)   # when the agent came online
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
     
@@ -174,9 +178,13 @@ class AgentDirectory(db.Model):
             'role': self.role,
             'description': self.description,
             'capabilities': self.capabilities,
+            'skills': self.skills,
+            'usual_model': self.usual_model,
             'reports_to': self.reports_to,
             'seniority_level': self.seniority_level,
             'status': self.status,
+            'join_date': self.join_date.isoformat() if self.join_date else None,
+            'birth_date': self.birth_date.isoformat() if self.birth_date else None,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
             'subordinate_count': len(self.subordinates) if self.subordinates else 0
