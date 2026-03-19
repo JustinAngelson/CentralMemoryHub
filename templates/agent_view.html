@@ -95,25 +95,27 @@
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container">
-            <a class="navbar-brand" href="#">
-                <i class="bi bi-hdd-network"></i> Central Memory Hub
+            <a class="navbar-brand" href="/">
+                Central Memory Hub
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav">
+                <ul class="navbar-nav me-auto">
                     <li class="nav-item">
-                        <a class="nav-link active" href="#">Agents</a>
+                        <a class="nav-link" href="/">Home</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="#">Knowledge Base</a>
+                        <a class="nav-link active" href="/agents">Agents</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="#">Decision Log</a>
+                        <a class="nav-link" href="/#search">Memory Search</a>
                     </li>
+                </ul>
+                <ul class="navbar-nav ms-auto">
                     <li class="nav-item">
-                        <a class="nav-link" href="#">Memory Search</a>
+                        <a class="nav-link text-danger" href="/logout">Sign out</a>
                     </li>
                 </ul>
             </div>

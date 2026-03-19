@@ -107,13 +107,18 @@ class RateLimiter:
 rate_limiter = RateLimiter()
 
 def require_api_key(f):
-    """Decorator to require API key for API endpoints with rate limiting and logging."""
+    """Decorator to require API key for API endpoints with rate limiting and logging.
+    Also accepts a valid Flask-Login session so UI users don't need an API key."""
     @wraps(f)
     def decorated_function(*args, **kwargs):
         # Handle preflight OPTIONS requests by returning early
         if request.method == 'OPTIONS':
             return '', 200
-        
+
+        # Allow logged-in UI users to bypass API key check
+        if current_user.is_authenticated:
+            return f(*args, **kwargs)
+
         status_code = 200  # Default success status
         api_key_id = None
         log_data = True

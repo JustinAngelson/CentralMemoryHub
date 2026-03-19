@@ -174,32 +174,51 @@ def register_agent_tools(mcp: FastMCP) -> None:
         },
     )
     async def cmh_list_agents() -> str:
-        """Get the full agent directory as a hierarchical org chart.
+        """Get the full agent directory as a flat list and hierarchical org chart.
 
-        Returns all agents organized by reporting relationships. Top-level agents
-        (no reports_to) are roots; subordinates are nested under their managers.
+        Returns all agents — first as a flat summary (name, role, status) so you
+        can quickly see every agent, then as a nested hierarchy organized by
+        reporting relationships.
 
         Returns:
-            JSON org chart with nested subordinates at each level.
+            Text block with a flat roster followed by the full JSON org chart.
         """
         session = get_db_session()
         try:
-            all_agents = session.query(AgentDirectory).all()
+            all_agents = session.query(AgentDirectory).order_by(
+                AgentDirectory.seniority_level.desc(),
+                AgentDirectory.name
+            ).all()
             if not all_agents:
                 return "No agents registered in the directory."
 
+            # Flat roster — easy to read at a glance
+            active = [a for a in all_agents if a.status == "active"]
+            inactive = [a for a in all_agents if a.status != "active"]
+
+            lines = [f"AGENT ROSTER ({len(all_agents)} total, {len(active)} active)\n"]
+            lines.append("Active agents:")
+            for a in active:
+                mgr = next((x.name for x in all_agents if x.agent_id == a.reports_to), None)
+                reports_str = f" → reports to {mgr}" if mgr else " (top-level)"
+                lines.append(f"  • {a.name} | {a.role}{reports_str}")
+            if inactive:
+                lines.append("\nInactive agents:")
+                for a in inactive:
+                    lines.append(f"  • {a.name} | {a.role}")
+
+            # Hierarchical org chart
             agent_map = {a.agent_id: a for a in all_agents}
             roots = [a for a in all_agents if not a.reports_to]
             hierarchy = [build_hierarchy_tree(a, agent_map) for a in roots]
-
-            orphans = [
-                a for a in all_agents
-                if a.reports_to and a.reports_to not in agent_map
-            ]
+            orphans = [a for a in all_agents if a.reports_to and a.reports_to not in agent_map]
             if orphans:
                 hierarchy.extend([a.to_dict() for a in orphans])
 
-            return json.dumps(hierarchy, indent=2)
+            lines.append("\n\nFULL ORG CHART (JSON):")
+            lines.append(json.dumps(hierarchy, indent=2))
+
+            return "\n".join(lines)
         except Exception as e:
             logging.error(f"cmh_list_agents error: {e}")
             return f"Error listing agents: {e}"
