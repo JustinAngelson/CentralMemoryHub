@@ -507,12 +507,19 @@ def skills_new():
             flash('Skill name is required.', 'danger')
             return redirect('/skills/new')
 
+        sk_type = request.form.get('type', 'Agent')
+        if sk_type not in Skill.TYPES:
+            sk_type = 'Agent'
+        poc_type = request.form.get('poc_type', 'Any')
+        if poc_type not in Skill.POC_TYPES:
+            poc_type = 'Any'
+
         skill = Skill(
             name=name,
-            type=request.form.get('type', 'Agent'),
+            type=sk_type,
             source=request.form.get('source', '').strip() or None,
             description=request.form.get('description', '').strip() or None,
-            poc_type=request.form.get('poc_type', 'Any'),
+            poc_type=poc_type,
             created_by=current_user.id,
         )
         db.session.add(skill)
@@ -554,11 +561,13 @@ def skills_edit(skill_id):
             flash('Skill name is required.', 'danger')
             return redirect(f'/skills/{skill_id}/edit')
 
+        new_type = request.form.get('type', skill.type)
+        new_poc = request.form.get('poc_type', skill.poc_type)
         skill.name = name
-        skill.type = request.form.get('type', skill.type)
+        skill.type = new_type if new_type in Skill.TYPES else skill.type
         skill.source = request.form.get('source', '').strip() or None
         skill.description = request.form.get('description', '').strip() or None
-        skill.poc_type = request.form.get('poc_type', skill.poc_type)
+        skill.poc_type = new_poc if new_poc in Skill.POC_TYPES else skill.poc_type
 
         # Handle new file uploads (respecting the 5-file limit)
         existing_count = len(skill.files)
@@ -1252,8 +1261,8 @@ def create_agent():
         db.session.add(agent)
         db.session.flush()
 
-        # Handle skill associations
-        skill_ids = data.get('skill_ids', [])
+        # Handle skill associations (deduplicate before insert)
+        skill_ids = list(dict.fromkeys(data.get('skill_ids', [])))
         for sid in skill_ids:
             if Skill.query.get(sid):
                 db.session.add(AgentSkill(agent_id=agent.agent_id, skill_id=sid))
@@ -1331,10 +1340,10 @@ def update_agent(agent_id):
                 agent.birth_date = None
         # join_date is server-authoritative (set on creation); ignored if supplied in PUT
 
-        # Handle skill associations update
+        # Handle skill associations update (deduplicate before insert)
         if 'skill_ids' in data:
             AgentSkill.query.filter_by(agent_id=agent_id).delete()
-            for sid in data['skill_ids']:
+            for sid in list(dict.fromkeys(data['skill_ids'])):
                 if Skill.query.get(sid):
                     db.session.add(AgentSkill(agent_id=agent_id, skill_id=sid))
 
