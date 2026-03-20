@@ -1,0 +1,275 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12 d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <div>
+            <h2 class="mb-1"><i data-feather="package" class="me-2"></i>Resources</h2>
+            <p class="text-muted mb-0">Tools, assets, integrations, and services available to the organization.</p>
+        </div>
+        {% if current_user.is_admin %}
+        <a href="{{ url_for('auth.org_profile') }}#resources" class="btn btn-sm btn-outline-primary">
+            <i data-feather="plus" style="width:14px;height:14px;" class="me-1"></i> Manage Resources
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Search & Filter Bar -->
+<div class="card mb-4">
+    <div class="card-body py-3">
+        <form method="GET" action="/resources" class="row g-2 align-items-end">
+            <div class="col-sm-5">
+                <label class="form-label small fw-semibold mb-1">Search</label>
+                <input type="text" name="q" class="form-control form-control-sm"
+                       placeholder="Search by name, purpose, or description…"
+                       value="{{ q }}">
+            </div>
+            <div class="col-sm-3">
+                <label class="form-label small fw-semibold mb-1">Type</label>
+                <select name="type" class="form-select form-select-sm">
+                    <option value="">All Types</option>
+                    {% for t in resource_types %}
+                    <option value="{{ t }}" {% if t == type_filter %}selected{% endif %}>{{ t }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-sm-2">
+                <label class="form-label small fw-semibold mb-1">Sort by</label>
+                <select name="sort" class="form-select form-select-sm">
+                    <option value="name" {% if sort == 'name' %}selected{% endif %}>Name</option>
+                    <option value="type" {% if sort == 'type' %}selected{% endif %}>Type</option>
+                    <option value="date" {% if sort == 'date' %}selected{% endif %}>Date Added</option>
+                </select>
+            </div>
+            <div class="col-sm-2 d-flex gap-2">
+                <button type="submit" class="btn btn-sm btn-primary flex-fill">Filter</button>
+                {% if q or type_filter %}
+                <a href="/resources" class="btn btn-sm btn-outline-secondary">Clear</a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Results count -->
+<div class="d-flex align-items-center mb-3 gap-2">
+    <span class="text-muted small">
+        {{ resources|length }} resource{{ 's' if resources|length != 1 else '' }}
+        {% if q %}matching "<strong>{{ q }}</strong>"{% endif %}
+        {% if type_filter %}of type <strong>{{ type_filter }}</strong>{% endif %}
+    </span>
+</div>
+
+<!-- Resource Cards -->
+{% if resources %}
+<div class="row g-3">
+    {% for r in resources %}
+    <div class="col-md-6 col-xl-4 resource-card" data-type="{{ r.type }}">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-start justify-content-between mb-2">
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <span class="badge
+                            {% if r.type == 'Tool' %}bg-primary
+                            {% elif r.type == 'Asset' %}bg-success
+                            {% elif r.type == 'Integration' %}bg-info text-dark
+                            {% elif r.type == 'Service' %}bg-warning text-dark
+                            {% elif r.type == 'Document' %}bg-secondary
+                            {% else %}bg-dark border border-secondary
+                            {% endif %}">
+                            {{ r.type }}
+                        </span>
+                        {% if r.poc_type and r.poc_type != 'N/A' %}
+                        <span class="badge bg-outline border border-secondary text-muted small" style="font-size:.65rem;">
+                            POC: {{ r.poc_type }}
+                        </span>
+                        {% endif %}
+                    </div>
+                    {% if r.url %}
+                    <a href="{{ r.url }}" target="_blank" rel="noopener noreferrer"
+                       class="btn btn-sm btn-outline-secondary ms-2 flex-shrink-0" style="padding:.2rem .5rem;">
+                        <i data-feather="external-link" style="width:13px;height:13px;"></i>
+                    </a>
+                    {% endif %}
+                </div>
+
+                <h6 class="fw-semibold mb-1">{{ r.name }}</h6>
+
+                {% if r.purpose %}
+                <p class="small text-muted mb-2">{{ r.purpose }}</p>
+                {% endif %}
+
+                {% if r.description %}
+                <div class="small text-muted description-text" style="overflow:hidden;">
+                    <span class="description-short">{{ r.description[:180] }}{% if r.description|length > 180 %}…{% endif %}</span>
+                    {% if r.description|length > 180 %}
+                    <span class="description-full d-none">{{ r.description }}</span>
+                    <button class="btn btn-link btn-sm p-0 ms-1 toggle-desc" style="font-size:.75rem;">more</button>
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                {% if r.related_skills %}
+                <div class="mt-2">
+                    <span class="text-muted small fw-semibold">Related Skills: </span>
+                    <span class="small text-muted">{{ r.related_skills }}</span>
+                </div>
+                {% endif %}
+            </div>
+            <div class="card-footer d-flex align-items-center justify-content-between py-2" style="border-top:1px solid rgba(255,255,255,0.08);">
+                <span class="small text-muted">
+                    <i data-feather="calendar" style="width:12px;height:12px;" class="me-1"></i>
+                    {{ r.created_at.strftime('%b %d, %Y') if r.created_at else '—' }}
+                </span>
+                {% if current_user.is_admin %}
+                <div class="d-flex gap-1">
+                    <button class="btn btn-sm btn-outline-secondary edit-resource-btn py-0 px-2"
+                            style="font-size:.7rem;"
+                            data-id="{{ r.id }}"
+                            data-name="{{ r.name | e }}"
+                            data-type="{{ r.type }}"
+                            data-purpose="{{ r.purpose or '' | e }}"
+                            data-url="{{ r.url or '' | e }}"
+                            data-poc="{{ r.poc_type }}"
+                            data-skills="{{ r.related_skills or '' | e }}"
+                            data-description="{{ r.description or '' | e }}">
+                        Edit
+                    </button>
+                    <form method="POST"
+                          action="{{ url_for('auth.resource_delete', resource_id=r.id) }}"
+                          onsubmit="return confirm('Delete resource \'{{ r.name | e }}\'?');"
+                          class="d-inline">
+                        <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2" style="font-size:.7rem;">Del</button>
+                    </form>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% else %}
+<div class="text-center py-5">
+    <i data-feather="package" style="width:48px;height:48px;" class="text-muted mb-3 d-block mx-auto"></i>
+    <h5 class="text-muted">No resources found</h5>
+    {% if q or type_filter %}
+    <p class="text-muted small mb-3">Try adjusting your search or filters.</p>
+    <a href="/resources" class="btn btn-sm btn-outline-secondary">Clear filters</a>
+    {% else %}
+    <p class="text-muted small mb-0">
+        {% if current_user.is_admin %}
+        Get started by <a href="{{ url_for('auth.org_profile') }}#resources">adding resources</a> in the Org Profile.
+        {% else %}
+        Ask an admin to add resources to the directory.
+        {% endif %}
+    </p>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- Edit Resource Modal (admin only) -->
+{% if current_user.is_admin %}
+<div class="modal fade" id="editResourceModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Resource</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" id="editResourceForm" action="">
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-8">
+                            <label class="form-label small fw-semibold">Name <span class="text-danger">*</span></label>
+                            <input type="text" name="name" id="edit_name" class="form-control" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Type</label>
+                            <select name="type" id="edit_type" class="form-select">
+                                {% for t in resource_types %}
+                                <option value="{{ t }}">{{ t }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label small fw-semibold">Purpose</label>
+                            <input type="text" name="purpose" id="edit_purpose" class="form-control"
+                                   placeholder="What is this resource for?">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Point of Contact</label>
+                            <select name="poc_type" id="edit_poc" class="form-select">
+                                {% for p in ['N/A', 'Users', 'Agents', 'Both'] %}
+                                <option value="{{ p }}">{{ p }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-semibold">Link / URL</label>
+                            <input type="url" name="url" id="edit_url" class="form-control"
+                                   placeholder="https://…">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-semibold">Related Skills</label>
+                            <input type="text" name="related_skills" id="edit_skills" class="form-control"
+                                   placeholder="e.g. Python, API Integration, Data Analysis">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-semibold">Description</label>
+                            <textarea name="description" id="edit_description" class="form-control" rows="4"
+                                      placeholder="Detailed description…"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Expand/collapse description
+    document.querySelectorAll('.toggle-desc').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var card = btn.closest('.description-text');
+            var s = card.querySelector('.description-short');
+            var f = card.querySelector('.description-full');
+            if (f.classList.contains('d-none')) {
+                s.classList.add('d-none');
+                f.classList.remove('d-none');
+                btn.textContent = 'less';
+            } else {
+                f.classList.add('d-none');
+                s.classList.remove('d-none');
+                btn.textContent = 'more';
+            }
+        });
+    });
+
+    {% if current_user.is_admin %}
+    // Edit modal population
+    document.querySelectorAll('.edit-resource-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var id = btn.dataset.id;
+            document.getElementById('editResourceForm').action = '/admin/resources/' + id + '/edit';
+            document.getElementById('edit_name').value = btn.dataset.name;
+            document.getElementById('edit_type').value = btn.dataset.type;
+            document.getElementById('edit_purpose').value = btn.dataset.purpose;
+            document.getElementById('edit_url').value = btn.dataset.url;
+            document.getElementById('edit_poc').value = btn.dataset.poc;
+            document.getElementById('edit_skills').value = btn.dataset.skills;
+            document.getElementById('edit_description').value = btn.dataset.description;
+            new bootstrap.Modal(document.getElementById('editResourceModal')).show();
+        });
+    });
+    {% endif %}
+});
+</script>
+{% endblock %}
