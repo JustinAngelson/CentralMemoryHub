@@ -1,0 +1,365 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+
+<!-- Hero Section -->
+<div class="row mb-5">
+    <div class="col-12">
+        <div class="card border-0" style="background: linear-gradient(135deg, rgba(13,110,253,0.15) 0%, rgba(108,117,125,0.1) 100%); border-radius: 1rem;">
+            <div class="card-body py-5 px-4">
+                <div class="row align-items-center">
+                    <div class="col-lg-8">
+                        <div class="d-flex align-items-center mb-3">
+                            <i data-feather="database" style="width:36px;height:36px;color:#0d6efd;" class="me-3"></i>
+                            <h1 class="display-5 mb-0 fw-bold">Central Memory Hub</h1>
+                        </div>
+                        <p class="lead mb-3 text-muted">Vendor-neutral organizational memory for multi-agent AI systems.</p>
+                        <p class="mb-4" style="max-width:640px;">
+                            CMH gives heterogeneous AI agents — Claude, GPT, local models, custom harnesses —
+                            a shared memory substrate they can all read from and write to. One persistence layer.
+                            Every agent. Every session.
+                        </p>
+                        <div class="d-flex flex-wrap gap-2">
+                            <a href="/memories" class="btn btn-primary">
+                                <i data-feather="layers" style="width:15px;height:15px;" class="me-1"></i> Open Memories
+                            </a>
+                            <a href="/agents" class="btn btn-outline-secondary">
+                                <i data-feather="cpu" style="width:15px;height:15px;" class="me-1"></i> View Agents
+                            </a>
+                        </div>
+                    </div>
+                    <div class="col-lg-4 mt-4 mt-lg-0 text-center">
+                        <div class="d-inline-block p-4 rounded-3" style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1);">
+                            <div class="small text-muted mb-2 text-uppercase fw-bold tracking-wide" style="letter-spacing:.1em;">Category</div>
+                            <div class="fs-5 fw-semibold text-info">SOMI</div>
+                            <div class="small text-muted mt-1">Shared Organizational<br>Memory Infrastructure</div>
+                            <hr class="my-3" style="border-color:rgba(255,255,255,0.1);">
+                            <div class="small text-muted mb-1">Estimated TAM by 2027</div>
+                            <div class="fs-4 fw-bold text-warning">$5.9B</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Capabilities Grid -->
+<div class="row mb-2">
+    <div class="col-12">
+        <h5 class="text-uppercase text-muted fw-bold mb-3" style="letter-spacing:.1em; font-size:.75rem;">What It Does</h5>
+    </div>
+</div>
+<div class="row g-3 mb-5">
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-2">
+                    <i data-feather="search" class="text-primary me-2" style="width:18px;height:18px;"></i>
+                    <h6 class="mb-0 fw-semibold">Semantic Memory</h6>
+                </div>
+                <p class="small text-muted mb-0">Store and search unstructured content via vector embeddings powered by Pinecone. Find relevant memories by meaning, not just keywords.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-2">
+                    <i data-feather="grid" class="text-success me-2" style="width:18px;height:18px;"></i>
+                    <h6 class="mb-0 fw-semibold">Structured Memory</h6>
+                </div>
+                <p class="small text-muted mb-0">Role-attributed decisions, facts, and knowledge with full provenance. Every entry knows who created it and why.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-2">
+                    <i data-feather="cpu" class="text-info me-2" style="width:18px;height:18px;"></i>
+                    <h6 class="mb-0 fw-semibold">Agent Directory</h6>
+                </div>
+                <p class="small text-muted mb-0">Hierarchical org chart for your AI team — who reports to whom, capabilities, seniority, and status all in one place.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-2">
+                    <i data-feather="message-circle" class="text-warning me-2" style="width:18px;height:18px;"></i>
+                    <h6 class="mb-0 fw-semibold">Inter-Agent Messaging</h6>
+                </div>
+                <p class="small text-muted mb-0">Agents send typed messages to each other across sessions and models. Coordination that survives context resets.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-2">
+                    <i data-feather="share-2" class="text-danger me-2" style="width:18px;height:18px;"></i>
+                    <h6 class="mb-0 fw-semibold">Shared Context</h6>
+                </div>
+                <p class="small text-muted mb-0">Broadcast memory references to groups of agents with semantic tags. One update, every agent that needs it.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-2">
+                    <i data-feather="clipboard" class="text-secondary me-2" style="width:18px;height:18px;"></i>
+                    <h6 class="mb-0 fw-semibold">Decision Logging</h6>
+                </div>
+                <p class="small text-muted mb-0">Durable record of decisions with context, attribution, and reversibility. Your org's reasoning, preserved.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-2">
+                    <i data-feather="bar-chart-2" class="text-primary me-2" style="width:18px;height:18px;"></i>
+                    <h6 class="mb-0 fw-semibold">Experiment Tracking</h6>
+                </div>
+                <p class="small text-muted mb-0">Structured records of agent learning experiments with hypotheses and outcomes. Build on what works.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-2">
+                    <i data-feather="box" class="text-info me-2" style="width:18px;height:18px;"></i>
+                    <h6 class="mb-0 fw-semibold">Organizational State</h6>
+                </div>
+                <p class="small text-muted mb-0">Snapshot and track the state of any entity in your org. Know where everything stands at any point in time.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-2">
+                    <i data-feather="clock" class="text-success me-2" style="width:18px;height:18px;"></i>
+                    <h6 class="mb-0 fw-semibold">Session Management</h6>
+                </div>
+                <p class="small text-muted mb-0">Track what each agent is doing and when. Full session history across all models and integration paths.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Architecture -->
+<div class="row mb-2">
+    <div class="col-12">
+        <h5 class="text-uppercase text-muted fw-bold mb-3" style="letter-spacing:.1em; font-size:.75rem;">Architecture</h5>
+    </div>
+</div>
+<div class="row mb-5">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <div class="row g-4 align-items-start">
+                    <!-- Integration Paths -->
+                    <div class="col-md-5">
+                        <h6 class="fw-semibold mb-3">Two Integration Paths — Same Shared Memory</h6>
+                        <div class="d-flex mb-3">
+                            <div class="flex-shrink-0 me-3">
+                                <span class="badge bg-primary px-3 py-2">REST</span>
+                            </div>
+                            <div>
+                                <div class="fw-semibold small">Flask REST API · Port 5000</div>
+                                <div class="text-muted small"><code>/agent/*</code> endpoints for Custom GPTs, OpenClaw agents, and any HTTP client.</div>
+                            </div>
+                        </div>
+                        <div class="d-flex mb-3">
+                            <div class="flex-shrink-0 me-3">
+                                <span class="badge bg-success px-3 py-2">MCP</span>
+                            </div>
+                            <div>
+                                <div class="fw-semibold small">FastMCP Server · Port 8000</div>
+                                <div class="text-muted small">30 MCP tools via <code>/mcp</code> for Claude.ai, Cursor, and any MCP-compatible client.</div>
+                            </div>
+                        </div>
+                        <div class="d-flex">
+                            <div class="flex-shrink-0 me-3">
+                                <span class="badge bg-secondary px-3 py-2">DB</span>
+                            </div>
+                            <div>
+                                <div class="fw-semibold small">PostgreSQL + Pinecone</div>
+                                <div class="text-muted small">Structured data in PostgreSQL. Vector embeddings in Pinecone. Both paths read from the same store.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Divider -->
+                    <div class="col-md-1 d-none d-md-flex justify-content-center">
+                        <div style="width:1px; background:rgba(255,255,255,0.1); min-height:160px;"></div>
+                    </div>
+
+                    <!-- MCP Tools count + quick connect -->
+                    <div class="col-md-6">
+                        <h6 class="fw-semibold mb-3">Quick Connect</h6>
+                        <div class="mb-3">
+                            <div class="small fw-semibold mb-1 text-muted">Claude.ai via MCP</div>
+                            <div class="bg-dark rounded p-2 font-monospace small text-light" style="border:1px solid rgba(255,255,255,0.1);">
+                                Settings → Integrations → Add MCP Server<br>
+                                <span class="text-info">URL:</span> https://your-instance/mcp
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <div class="small fw-semibold mb-1 text-muted">OpenClaw / REST clients</div>
+                            <div class="bg-dark rounded p-2 font-monospace small text-light" style="border:1px solid rgba(255,255,255,0.1);">
+                                Header: <span class="text-warning">X-API-KEY</span>: &lt;your key&gt;<br>
+                                Base: <span class="text-info">https://your-instance/agent/</span>
+                            </div>
+                        </div>
+                        <div class="d-flex gap-3 small text-muted mt-3">
+                            <span><i data-feather="tool" style="width:13px;height:13px;" class="me-1"></i>30 MCP Tools</span>
+                            <span><i data-feather="zap" style="width:13px;height:13px;" class="me-1"></i>REST + MCP</span>
+                            <span><i data-feather="lock" style="width:13px;height:13px;" class="me-1"></i>API Key Auth</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Navigation Cards -->
+<div class="row mb-2">
+    <div class="col-12">
+        <h5 class="text-uppercase text-muted fw-bold mb-3" style="letter-spacing:.1em; font-size:.75rem;">Navigate</h5>
+    </div>
+</div>
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-lg-4">
+        <a href="/agents" class="text-decoration-none">
+            <div class="card h-100 card-hover">
+                <div class="card-body d-flex align-items-start">
+                    <div class="me-3 mt-1">
+                        <i data-feather="cpu" class="text-info" style="width:24px;height:24px;"></i>
+                    </div>
+                    <div>
+                        <h6 class="mb-1 fw-semibold">Agents</h6>
+                        <p class="small text-muted mb-0">View and manage your AI agent directory, org chart, sessions, and tasks.</p>
+                    </div>
+                    <i data-feather="chevron-right" class="ms-auto text-muted" style="width:16px;height:16px;"></i>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-sm-6 col-lg-4">
+        <a href="/memories" class="text-decoration-none">
+            <div class="card h-100 card-hover">
+                <div class="card-body d-flex align-items-start">
+                    <div class="me-3 mt-1">
+                        <i data-feather="layers" class="text-primary" style="width:24px;height:24px;"></i>
+                    </div>
+                    <div>
+                        <h6 class="mb-1 fw-semibold">Memories</h6>
+                        <p class="small text-muted mb-0">Store unstructured data, search memory, log decisions, and share context.</p>
+                    </div>
+                    <i data-feather="chevron-right" class="ms-auto text-muted" style="width:16px;height:16px;"></i>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-sm-6 col-lg-4">
+        <a href="/resources" class="text-decoration-none">
+            <div class="card h-100 card-hover">
+                <div class="card-body d-flex align-items-start">
+                    <div class="me-3 mt-1">
+                        <i data-feather="package" class="text-warning" style="width:24px;height:24px;"></i>
+                    </div>
+                    <div>
+                        <h6 class="mb-1 fw-semibold">Resources</h6>
+                        <p class="small text-muted mb-0">Browse the organization's tools, assets, integrations, and services.</p>
+                    </div>
+                    <i data-feather="chevron-right" class="ms-auto text-muted" style="width:16px;height:16px;"></i>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-sm-6 col-lg-4">
+        <a href="/skills" class="text-decoration-none">
+            <div class="card h-100 card-hover">
+                <div class="card-body d-flex align-items-start">
+                    <div class="me-3 mt-1">
+                        <i data-feather="star" class="text-success" style="width:24px;height:24px;"></i>
+                    </div>
+                    <div>
+                        <h6 class="mb-1 fw-semibold">Skills</h6>
+                        <p class="small text-muted mb-0">Explore the collective skill registry — agent skills, human skills, and hybrid capabilities.</p>
+                    </div>
+                    <i data-feather="chevron-right" class="ms-auto text-muted" style="width:16px;height:16px;"></i>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-sm-6 col-lg-4">
+        <a href="#" data-bs-toggle="modal" data-bs-target="#apiDocsModal" class="text-decoration-none">
+            <div class="card h-100 card-hover">
+                <div class="card-body d-flex align-items-start">
+                    <div class="me-3 mt-1">
+                        <i data-feather="code" class="text-secondary" style="width:24px;height:24px;"></i>
+                    </div>
+                    <div>
+                        <h6 class="mb-1 fw-semibold">API Docs</h6>
+                        <p class="small text-muted mb-0">REST API endpoints for Custom GPTs and HTTP clients, authentication, and schema reference.</p>
+                    </div>
+                    <i data-feather="chevron-right" class="ms-auto text-muted" style="width:16px;height:16px;"></i>
+                </div>
+            </div>
+        </a>
+    </div>
+    {% if current_user.is_admin %}
+    <div class="col-sm-6 col-lg-4">
+        <a href="{{ url_for('auth.org_profile') }}" class="text-decoration-none">
+            <div class="card h-100 card-hover">
+                <div class="card-body d-flex align-items-start">
+                    <div class="me-3 mt-1">
+                        <i data-feather="briefcase" class="text-danger" style="width:24px;height:24px;"></i>
+                    </div>
+                    <div>
+                        <h6 class="mb-1 fw-semibold">Org Profile</h6>
+                        <p class="small text-muted mb-0">Manage organization identity, contact info, and registered resources.</p>
+                    </div>
+                    <i data-feather="chevron-right" class="ms-auto text-muted" style="width:16px;height:16px;"></i>
+                </div>
+            </div>
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Open Source Callout -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card border-0" style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08) !important;">
+            <div class="card-body py-3 px-4">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <div class="small fw-semibold mb-1">
+                            <i data-feather="github" style="width:14px;height:14px;" class="me-1"></i>
+                            Open Source · Apache 2.0
+                        </div>
+                        <p class="small text-muted mb-0">
+                            CMH is a <a href="https://foundari.com" target="_blank" class="text-muted">Foundari</a> open-source project. The infrastructure of intelligence should be open, vendor-neutral, and owned by the people building with it.
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-md-end mt-2 mt-md-0">
+                        <a href="https://github.com/JustinAngelson/Central_Memory_Hub" target="_blank" class="btn btn-sm btn-outline-secondary">
+                            <i data-feather="github" style="width:13px;height:13px;" class="me-1"></i> View on GitHub
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
