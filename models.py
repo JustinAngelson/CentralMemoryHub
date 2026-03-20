@@ -366,6 +366,8 @@ class AgentDirectory(db.Model):
         foreign_keys="AgentDirectory.reports_to"
     )
     sessions = relationship("AgentSession", back_populates="agent")
+    skill_links = relationship("AgentSkill", foreign_keys="AgentSkill.agent_id",
+                               cascade="all, delete-orphan", lazy="selectin")
     
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -375,6 +377,7 @@ class AgentDirectory(db.Model):
             'description': self.description,
             'capabilities': self.capabilities,
             'skills': self.skills,
+            'skill_ids': [sl.skill_id for sl in self.skill_links] if self.skill_links else [],
             'usual_model': self.usual_model,
             'reports_to': self.reports_to,
             'seniority_level': self.seniority_level,
