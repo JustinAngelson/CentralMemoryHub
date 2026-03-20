@@ -80,11 +80,9 @@
                             {% endif %}">
                             {{ r.type }}
                         </span>
-                        {% if r.poc_type and r.poc_type != 'N/A' %}
                         <span class="badge bg-outline border border-secondary text-muted small" style="font-size:.65rem;">
-                            POC: {{ r.poc_type }}
+                            POC: {{ r.poc_type or 'N/A' }}
                         </span>
-                        {% endif %}
                     </div>
                     {% if r.url %}
                     <a href="{{ r.url }}" target="_blank" rel="noopener noreferrer"

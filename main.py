@@ -52,6 +52,28 @@ with app.app_context():
     except Exception as e:
         print(f"User column migration note: {e}")
     
+    # Ensure resources table columns exist (safe migration)
+    try:
+        with db.engine.connect() as conn:
+            resource_migrations = [
+                "ALTER TABLE resources ADD COLUMN IF NOT EXISTS name VARCHAR(255)",
+                "ALTER TABLE resources ADD COLUMN IF NOT EXISTS type VARCHAR(32)",
+                "ALTER TABLE resources ADD COLUMN IF NOT EXISTS purpose TEXT",
+                "ALTER TABLE resources ADD COLUMN IF NOT EXISTS url VARCHAR(512)",
+                "ALTER TABLE resources ADD COLUMN IF NOT EXISTS poc_type VARCHAR(32)",
+                "ALTER TABLE resources ADD COLUMN IF NOT EXISTS related_skills TEXT",
+                "ALTER TABLE resources ADD COLUMN IF NOT EXISTS description TEXT",
+                "ALTER TABLE resources ADD COLUMN IF NOT EXISTS created_by VARCHAR(36)",
+                "ALTER TABLE resources ADD COLUMN IF NOT EXISTS created_at TIMESTAMP",
+                "ALTER TABLE resources ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP",
+            ]
+            for sql in resource_migrations:
+                conn.execute(db.text(sql))
+            conn.commit()
+        print("Resources table columns migrated successfully")
+    except Exception as e:
+        print(f"Resources column migration note: {e}")
+
     # Initialize a default API key if none exists
     default_api_key = ApiKey.query.filter_by(name="Default API Key").first()
     if not default_api_key and os.environ.get("API_KEY"):
