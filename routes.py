@@ -1203,6 +1203,10 @@ agent_directory_schema = {
     'birth_date': {
         'type': 'string',
         'required': False
+    },
+    'skill_ids': {
+        'type': 'list',
+        'required': False
     }
 }
 
