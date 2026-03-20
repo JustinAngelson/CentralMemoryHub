@@ -36,6 +36,9 @@
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('auth.users') }}">Users</a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('auth.org_profile') }}">Org Profile</a>
+                    </li>
                     {% endif %}
                     <li class="nav-item">
                         <a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#apiDocsModal">API Docs</a>
@@ -44,7 +47,13 @@
                 <ul class="navbar-nav ms-auto">
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            {% if current_user.profile_image %}
+                            <img src="{{ url_for('static', filename=current_user.profile_image) }}"
+                                 alt="" class="rounded-circle me-1"
+                                 style="width:20px;height:20px;object-fit:cover;">
+                            {% else %}
                             <i data-feather="user" style="width:15px;height:15px;"></i>
+                            {% endif %}
                             {{ current_user.username }}
                             <span class="badge {{ 'bg-danger' if current_user.is_admin else 'bg-secondary' }} ms-1" style="font-size:.65rem;">
                                 {{ current_user.role }}
@@ -52,6 +61,19 @@
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end">
                             <li><span class="dropdown-item-text small text-muted">{{ current_user.email }}</span></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('auth.profile') }}">
+                                    <i data-feather="user" style="width:14px;height:14px;"></i> My Profile
+                                </a>
+                            </li>
+                            {% if current_user.is_admin %}
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('auth.org_profile') }}">
+                                    <i data-feather="briefcase" style="width:14px;height:14px;"></i> Org Profile
+                                </a>
+                            </li>
+                            {% endif %}
                             <li><hr class="dropdown-divider"></li>
                             <li>
                                 <a class="dropdown-item text-danger" href="{{ url_for('auth.logout') }}">
@@ -68,10 +90,12 @@
     <div class="container mt-4">
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% for category, message in messages %}
+            {% if category != 'invite' %}
             <div class="alert alert-{{ category }} alert-dismissible fade show py-2 small" role="alert">
               {{ message }}
               <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
+            {% endif %}
           {% endfor %}
         {% endwith %}
 
