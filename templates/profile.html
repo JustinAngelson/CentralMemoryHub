@@ -126,6 +126,62 @@
                 <button type="submit" class="btn btn-primary">Save Changes</button>
             </div>
         </form>
+
+        <!-- My Skills -->
+        <div class="card border-secondary mt-4" id="skills">
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <span class="text-muted small fw-semibold">My Skills</span>
+                <a href="/skills" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:.75rem;">
+                    Browse All Skills
+                </a>
+            </div>
+            <div class="card-body">
+                {% if my_skill_ids %}
+                <div class="d-flex flex-wrap gap-2 mb-3">
+                    {% for sk in all_skills if sk.id in my_skill_ids %}
+                    <span class="badge d-inline-flex align-items-center gap-1
+                        {% if sk.type == 'Agent' %}bg-info text-dark
+                        {% elif sk.type == 'Human' %}bg-success
+                        {% else %}bg-warning text-dark{% endif %}">
+                        {{ sk.name }}
+                        <form method="POST" action="/skills/{{ sk.id }}/user-remove" class="d-inline m-0 p-0">
+                            <button type="submit" class="btn-close btn-close-white ms-1"
+                                    style="width:.5rem;height:.5rem;font-size:.5rem;"
+                                    aria-label="Remove"></button>
+                        </form>
+                    </span>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted small mb-3">No skills associated yet.</p>
+                {% endif %}
+
+                {% if all_skills %}
+                <div class="border-top pt-3">
+                    <p class="small text-muted fw-semibold mb-2">Add a skill:</p>
+                    <div class="d-flex flex-wrap gap-2">
+                        {% for sk in all_skills if sk.id not in my_skill_ids %}
+                        <form method="POST" action="/skills/{{ sk.id }}/user-add" class="d-inline">
+                            <button type="submit" class="btn btn-sm btn-outline-secondary py-0 px-2"
+                                    style="font-size:.75rem;" title="{{ sk.type }}">
+                                + {{ sk.name }}
+                            </button>
+                        </form>
+                        {% else %}
+                        <span class="text-muted small">All skills already linked.</span>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if not all_skills %}
+                <p class="text-muted small mb-0">
+                    No skills in the registry yet.
+                    <a href="/skills/new">Create the first skill.</a>
+                </p>
+                {% endif %}
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}

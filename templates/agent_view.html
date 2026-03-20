@@ -112,6 +112,12 @@
                     <li class="nav-item">
                         <a class="nav-link active" href="/agents">Agents</a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/resources">Resources</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/skills">Skills</a>
+                    </li>
                 </ul>
                 <ul class="navbar-nav ms-auto">
                     <li class="nav-item">
@@ -304,6 +310,27 @@
                             <label for="agentSkills" class="form-label">Skills <small class="text-muted">(one per line or comma-separated, e.g. Skills.md entries)</small></label>
                             <textarea class="form-control" id="agentSkills" rows="3" placeholder="Python&#10;RAG&#10;Prompt Engineering"></textarea>
                         </div>
+                        {% if all_skills %}
+                        <div class="mb-3">
+                            <label class="form-label">Skill Registry Links <small class="text-muted">(select from registry)</small></label>
+                            <div class="border rounded p-2" style="max-height:150px;overflow-y:auto;" id="newAgentSkillChecks">
+                                {% for sk in all_skills %}
+                                <div class="form-check">
+                                    <input class="form-check-input new-agent-skill-cb" type="checkbox"
+                                           value="{{ sk.id }}" id="nsk_{{ sk.id }}">
+                                    <label class="form-check-label small" for="nsk_{{ sk.id }}">
+                                        {{ sk.name }}
+                                        <span class="badge ms-1
+                                            {% if sk.type == 'Agent' %}bg-info text-dark
+                                            {% elif sk.type == 'Human' %}bg-success
+                                            {% else %}bg-warning text-dark{% endif %}"
+                                            style="font-size:.6rem;">{{ sk.type }}</span>
+                                    </label>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
                         <div class="mb-3">
                             <label for="agentUsualModel" class="form-label">Usual Model</label>
                             <input type="text" class="form-control" id="agentUsualModel" placeholder="e.g. Claude Sonnet 4, GPT-4o, LLaMA 3.1">
@@ -376,6 +403,27 @@
                             <label for="editAgentSkills" class="form-label">Skills <small class="text-muted">(one per line or comma-separated, e.g. Skills.md entries)</small></label>
                             <textarea class="form-control" id="editAgentSkills" rows="3" placeholder="Python&#10;RAG&#10;Prompt Engineering"></textarea>
                         </div>
+                        {% if all_skills %}
+                        <div class="mb-3">
+                            <label class="form-label">Skill Registry Links <small class="text-muted">(select from registry)</small></label>
+                            <div class="border rounded p-2" style="max-height:150px;overflow-y:auto;" id="editAgentSkillChecks">
+                                {% for sk in all_skills %}
+                                <div class="form-check">
+                                    <input class="form-check-input edit-agent-skill-cb" type="checkbox"
+                                           value="{{ sk.id }}" id="esk_{{ sk.id }}">
+                                    <label class="form-check-label small" for="esk_{{ sk.id }}">
+                                        {{ sk.name }}
+                                        <span class="badge ms-1
+                                            {% if sk.type == 'Agent' %}bg-info text-dark
+                                            {% elif sk.type == 'Human' %}bg-success
+                                            {% else %}bg-warning text-dark{% endif %}"
+                                            style="font-size:.6rem;">{{ sk.type }}</span>
+                                    </label>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
                         <div class="mb-3">
                             <label for="editAgentUsualModel" class="form-label">Usual Model</label>
                             <input type="text" class="form-control" id="editAgentUsualModel" placeholder="e.g. Claude Sonnet 4, GPT-4o, LLaMA 3.1">
@@ -438,6 +486,7 @@
     <script>
         // Global variables — seeded server-side, kept in sync on refresh
         let allAgents = {{ agents_json | tojson }};
+        let agentSkillMap = {{ agent_skill_map | tojson }};
 
         // Fetch agents data when page loads
         document.addEventListener('DOMContentLoaded', function() {
@@ -702,6 +751,12 @@
             document.getElementById('editAgentSeniority').value = agent.seniority_level || 1;
             document.getElementById('editAgentStatus').value = agent.status || 'active';
             document.getElementById('editAgentError').classList.add('d-none');
+
+            // Pre-check skill registry checkboxes for this agent
+            const agentSkillIds = agentSkillMap[agentId] || [];
+            document.querySelectorAll('.edit-agent-skill-cb').forEach(cb => {
+                cb.checked = agentSkillIds.includes(cb.value);
+            });
             
             // Show the modal
             const modal = new bootstrap.Modal(document.getElementById('editAgentModal'));
@@ -718,6 +773,10 @@
             el.classList.remove('d-none');
         }
 
+        function getCheckedSkillIds(cbClass) {
+            return Array.from(document.querySelectorAll('.' + cbClass + ':checked')).map(cb => cb.value);
+        }
+
         function createNewAgent() {
             const name = document.getElementById('agentName').value.trim();
             const role = document.getElementById('agentRole').value.trim();
@@ -729,6 +788,7 @@
                 description: document.getElementById('agentDescription').value.trim(),
                 capabilities: splitList(document.getElementById('agentCapabilities').value),
                 skills: splitList(document.getElementById('agentSkills').value),
+                skill_ids: getCheckedSkillIds('new-agent-skill-cb'),
                 usual_model: document.getElementById('agentUsualModel').value.trim() || null,
                 birth_date: document.getElementById('agentBirthDate').value || null,
                 reports_to: document.getElementById('agentReportsTo').value || null,
@@ -765,6 +825,7 @@
                 description: document.getElementById('editAgentDescription').value.trim(),
                 capabilities: splitList(document.getElementById('editAgentCapabilities').value),
                 skills: splitList(document.getElementById('editAgentSkills').value),
+                skill_ids: getCheckedSkillIds('edit-agent-skill-cb'),
                 usual_model: document.getElementById('editAgentUsualModel').value.trim() || null,
                 birth_date: document.getElementById('editAgentBirthDate').value || null,
                 reports_to: document.getElementById('editAgentReportsTo').value || null,

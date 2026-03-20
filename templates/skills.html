@@ -1,0 +1,345 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+
+{% if mode == 'new' %}
+<!-- ── Create New Skill ──────────────────────────────────────────────────── -->
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="d-flex align-items-center mb-4 gap-2">
+            <a href="/skills" class="btn btn-sm btn-outline-secondary">
+                <i data-feather="arrow-left" style="width:14px;height:14px;"></i> Back
+            </a>
+            <h3 class="mb-0 ms-2">New Skill</h3>
+        </div>
+        <div class="card">
+            <div class="card-body">
+                <form method="POST" action="/skills/new" enctype="multipart/form-data">
+                    <div class="row g-3">
+                        <div class="col-md-8">
+                            <label class="form-label small fw-semibold">Name <span class="text-danger">*</span></label>
+                            <input type="text" name="name" class="form-control" required
+                                   placeholder="e.g. Python, RAG, Prompt Engineering">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Type</label>
+                            <select name="type" class="form-select">
+                                {% for t in skill_types %}
+                                <option value="{{ t }}">{{ t }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label small fw-semibold">Source</label>
+                            <input type="text" name="source" class="form-control"
+                                   placeholder="URL or description of where this skill comes from">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Point of Contact</label>
+                            <select name="poc_type" class="form-select">
+                                {% for p in poc_types %}
+                                <option value="{{ p }}">{{ p }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-semibold">Description</label>
+                            <textarea name="description" class="form-control" rows="4"
+                                      placeholder="Detailed description of this skill…"></textarea>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-semibold">
+                                Attach Files
+                                <span class="text-muted fw-normal">(md, txt, pdf, docx · 2 MB each · up to 5)</span>
+                            </label>
+                            <input type="file" name="files" class="form-control" multiple
+                                   accept=".md,.txt,.pdf,.docx">
+                        </div>
+                    </div>
+                    <div class="d-flex gap-2 justify-content-end mt-4">
+                        <a href="/skills" class="btn btn-outline-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-primary">Create Skill</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% elif mode == 'edit' %}
+<!-- ── Edit Skill ────────────────────────────────────────────────────────── -->
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="d-flex align-items-center mb-4 gap-2">
+            <a href="/skills" class="btn btn-sm btn-outline-secondary">
+                <i data-feather="arrow-left" style="width:14px;height:14px;"></i> Back
+            </a>
+            <h3 class="mb-0 ms-2">Edit: {{ skill.name }}</h3>
+        </div>
+        <div class="card mb-4">
+            <div class="card-body">
+                <form method="POST" action="/skills/{{ skill.id }}/edit" enctype="multipart/form-data">
+                    <div class="row g-3">
+                        <div class="col-md-8">
+                            <label class="form-label small fw-semibold">Name <span class="text-danger">*</span></label>
+                            <input type="text" name="name" class="form-control" required
+                                   value="{{ skill.name | e }}">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Type</label>
+                            <select name="type" class="form-select">
+                                {% for t in skill_types %}
+                                <option value="{{ t }}" {% if t == skill.type %}selected{% endif %}>{{ t }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label small fw-semibold">Source</label>
+                            <input type="text" name="source" class="form-control"
+                                   placeholder="URL or description of where this skill comes from"
+                                   value="{{ skill.source or '' | e }}">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Point of Contact</label>
+                            <select name="poc_type" class="form-select">
+                                {% for p in poc_types %}
+                                <option value="{{ p }}" {% if p == skill.poc_type %}selected{% endif %}>{{ p }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-semibold">Description</label>
+                            <textarea name="description" class="form-control" rows="4"
+                                      placeholder="Detailed description…">{{ skill.description or '' }}</textarea>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-semibold">
+                                Attach More Files
+                                <span class="text-muted fw-normal">
+                                    (md, txt, pdf, docx · 2 MB each · {{ skill.files|length }} of 5 slots used)
+                                </span>
+                            </label>
+                            <input type="file" name="files" class="form-control" multiple
+                                   accept=".md,.txt,.pdf,.docx"
+                                   {% if skill.files|length >= 5 %}disabled{% endif %}>
+                            {% if skill.files|length >= 5 %}
+                            <div class="form-text text-warning">Maximum 5 files reached. Remove a file before uploading more.</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="d-flex gap-2 justify-content-end mt-4">
+                        <a href="/skills" class="btn btn-outline-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        {% if skill.files %}
+        <div class="card">
+            <div class="card-header small fw-semibold text-muted">Attached Files</div>
+            <div class="card-body p-0">
+                <table class="table table-sm mb-0">
+                    <tbody>
+                        {% for sf in skill.files %}
+                        <tr>
+                            <td class="py-2 px-3 small">
+                                <i data-feather="file" style="width:13px;height:13px;" class="me-1 text-muted"></i>
+                                <a href="{{ url_for('static', filename='uploads/skills/' + sf.stored_filename) }}"
+                                   target="_blank" class="text-muted">{{ sf.filename | e }}</a>
+                            </td>
+                            <td class="py-2 px-3 small text-muted">
+                                {{ sf.uploaded_at.strftime('%b %d, %Y') if sf.uploaded_at else '—' }}
+                            </td>
+                            <td class="py-2 px-3 text-end">
+                                <form method="POST"
+                                      action="/skills/{{ skill.id }}/files/{{ sf.id }}/delete"
+                                      onsubmit="return confirm('Remove this file?');" class="d-inline">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2"
+                                            style="font-size:.7rem;">Remove</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% else %}
+<!-- ── Directory ─────────────────────────────────────────────────────────── -->
+<div class="row mb-4">
+    <div class="col-12 d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <div>
+            <h2 class="mb-1"><i data-feather="award" class="me-2"></i>Skills</h2>
+            <p class="text-muted mb-0">Collective skill registry — agent, human, and hybrid capabilities.</p>
+        </div>
+        <a href="/skills/new" class="btn btn-sm btn-primary">
+            <i data-feather="plus" style="width:14px;height:14px;" class="me-1"></i> Add Skill
+        </a>
+    </div>
+</div>
+
+<!-- Search & Filter Bar -->
+<div class="card mb-4">
+    <div class="card-body py-3">
+        <form method="GET" action="/skills" class="row g-2 align-items-end">
+            <div class="col-sm-5">
+                <label class="form-label small fw-semibold mb-1">Search</label>
+                <input type="text" name="q" class="form-control form-control-sm"
+                       placeholder="Name, description, or source…" value="{{ q }}">
+            </div>
+            <div class="col-sm-3">
+                <label class="form-label small fw-semibold mb-1">Type</label>
+                <select name="type" class="form-select form-select-sm">
+                    <option value="">All Types</option>
+                    {% for t in skill_types %}
+                    <option value="{{ t }}" {% if t == type_filter %}selected{% endif %}>{{ t }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-sm-2">
+                <label class="form-label small fw-semibold mb-1">Sort by</label>
+                <select name="sort" class="form-select form-select-sm">
+                    <option value="name" {% if sort == 'name' %}selected{% endif %}>Name</option>
+                    <option value="type" {% if sort == 'type' %}selected{% endif %}>Type</option>
+                    <option value="date" {% if sort == 'date' %}selected{% endif %}>Date Added</option>
+                </select>
+            </div>
+            <div class="col-sm-2 d-flex gap-2">
+                <button type="submit" class="btn btn-sm btn-primary flex-fill">Filter</button>
+                {% if q or type_filter %}
+                <a href="/skills" class="btn btn-sm btn-outline-secondary">Clear</a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="d-flex align-items-center mb-3">
+    <span class="text-muted small">
+        {{ skills|length }} skill{{ 's' if skills|length != 1 else '' }}
+        {% if q %}matching "<strong>{{ q }}</strong>"{% endif %}
+        {% if type_filter %}of type <strong>{{ type_filter }}</strong>{% endif %}
+    </span>
+</div>
+
+{% if skills %}
+<div class="row g-3">
+    {% for sk in skills %}
+    <div class="col-md-6 col-xl-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-start justify-content-between mb-2">
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <span class="badge
+                            {% if sk.type == 'Agent' %}bg-info text-dark
+                            {% elif sk.type == 'Human' %}bg-success
+                            {% else %}bg-warning text-dark
+                            {% endif %}">
+                            {{ sk.type }}
+                        </span>
+                        <span class="badge bg-outline border border-secondary text-muted" style="font-size:.65rem;">
+                            POC: {{ sk.poc_type }}
+                        </span>
+                    </div>
+                    <div class="d-flex gap-1 ms-2 flex-shrink-0">
+                        <a href="/skills/{{ sk.id }}/edit"
+                           class="btn btn-sm btn-outline-secondary py-0 px-2"
+                           style="font-size:.7rem;">Edit</a>
+                        <form method="POST" action="/skills/{{ sk.id }}/delete"
+                              onsubmit="return confirm('Delete skill \'{{ sk.name | e }}\'?');" class="d-inline">
+                            <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2"
+                                    style="font-size:.7rem;">Del</button>
+                        </form>
+                    </div>
+                </div>
+
+                <h6 class="fw-semibold mb-1">{{ sk.name }}</h6>
+
+                {% if sk.source %}
+                <p class="small text-muted mb-1">
+                    <i data-feather="link" style="width:11px;height:11px;" class="me-1"></i>
+                    {% if sk.source.startswith('http') %}
+                    <a href="{{ sk.source }}" target="_blank" rel="noopener noreferrer" class="text-muted">
+                        {{ sk.source[:60] }}{% if sk.source|length > 60 %}…{% endif %}
+                    </a>
+                    {% else %}
+                    {{ sk.source }}
+                    {% endif %}
+                </p>
+                {% endif %}
+
+                {% if sk.description %}
+                <div class="small text-muted description-text">
+                    <span class="description-short">{{ sk.description[:160] }}{% if sk.description|length > 160 %}…{% endif %}</span>
+                    {% if sk.description|length > 160 %}
+                    <span class="description-full d-none">{{ sk.description }}</span>
+                    <button class="btn btn-link btn-sm p-0 ms-1 toggle-desc" style="font-size:.75rem;">more</button>
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                {% if sk.files %}
+                <div class="mt-2 d-flex flex-wrap gap-1">
+                    {% for f in sk.files %}
+                    <a href="{{ url_for('static', filename='uploads/skills/' + f.stored_filename) }}"
+                       target="_blank" class="badge bg-secondary text-decoration-none"
+                       style="font-size:.65rem;">
+                        <i data-feather="file" style="width:10px;height:10px;" class="me-1"></i>{{ f.filename | e }}
+                    </a>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+            <div class="card-footer py-2 d-flex justify-content-between align-items-center"
+                 style="border-top:1px solid rgba(255,255,255,0.08);">
+                <span class="small text-muted">
+                    <i data-feather="calendar" style="width:12px;height:12px;" class="me-1"></i>
+                    {{ sk.created_at.strftime('%b %d, %Y') if sk.created_at else '—' }}
+                </span>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="text-center py-5">
+    <i data-feather="award" style="width:48px;height:48px;" class="text-muted mb-3 d-block mx-auto"></i>
+    <h5 class="text-muted">No skills found</h5>
+    {% if q or type_filter %}
+    <p class="text-muted small mb-3">Try adjusting your search or filters.</p>
+    <a href="/skills" class="btn btn-sm btn-outline-secondary">Clear filters</a>
+    {% else %}
+    <p class="text-muted small mb-3">Start building the skill registry.</p>
+    <a href="/skills/new" class="btn btn-sm btn-primary">Add First Skill</a>
+    {% endif %}
+</div>
+{% endif %}
+
+{% endif %}
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.toggle-desc').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var card = btn.closest('.description-text');
+            var s = card.querySelector('.description-short');
+            var f = card.querySelector('.description-full');
+            if (f.classList.contains('d-none')) {
+                s.classList.add('d-none');
+                f.classList.remove('d-none');
+                btn.textContent = 'less';
+            } else {
+                f.classList.add('d-none');
+                s.classList.remove('d-none');
+                btn.textContent = 'more';
+            }
+        });
+    });
+});
+</script>
+{% endblock %}
