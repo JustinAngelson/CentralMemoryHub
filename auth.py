@@ -17,7 +17,7 @@ from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.utils import secure_filename
 
 from app import db
-from models import User, InvitationToken, OrgProfile, Resource
+from models import User, InvitationToken, OrgProfile, Resource, Skill, UserSkill
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -199,7 +199,9 @@ def profile():
         flash("Profile updated successfully.", "success")
         return redirect(url_for("auth.profile"))
 
-    return render_template("profile.html")
+    all_skills = Skill.query.order_by(Skill.name).all()
+    my_skill_ids = {us.skill_id for us in UserSkill.query.filter_by(user_id=current_user.id).all()}
+    return render_template("profile.html", all_skills=all_skills, my_skill_ids=my_skill_ids)
 
 
 # ── Invitation system (admin only) ───────────────────────────────────────────

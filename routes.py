@@ -25,6 +25,8 @@ from models import (
     InvitationToken, OrgProfile,
     # Resources
     Resource,
+    # Skills
+    Skill, SkillFile, UserSkill, AgentSkill,
 )
 
 # Register auth blueprint
@@ -375,7 +377,18 @@ def agents_view():
     """Render the agents interface"""
     agents = AgentDirectory.query.order_by(AgentDirectory.name).all()
     agents_json = [a.to_dict() for a in agents]
-    return render_template('agent_view.html', agents=agents, agents_json=agents_json)
+    all_skills = Skill.query.order_by(Skill.name).all()
+    # Build agent → skill_ids map
+    agent_skill_map = {}
+    for ags in AgentSkill.query.all():
+        agent_skill_map.setdefault(ags.agent_id, []).append(ags.skill_id)
+    return render_template(
+        'agent_view.html',
+        agents=agents,
+        agents_json=agents_json,
+        all_skills=all_skills,
+        agent_skill_map=agent_skill_map,
+    )
 
 @app.route('/resources')
 @login_required
@@ -414,6 +427,225 @@ def resources_view():
         type_filter=type_filter,
         sort=sort,
     )
+
+
+SKILLS_UPLOAD_FOLDER = os.path.join('static', 'uploads', 'skills')
+SKILLS_ALLOWED_EXTENSIONS = {'md', 'txt', 'pdf', 'docx'}
+SKILLS_MAX_BYTES = 2 * 1024 * 1024  # 2 MB
+SKILLS_MAX_FILES = 5
+
+
+def _skills_save_file(file_obj, skill_id):
+    """Save an uploaded skill file; return (filename, stored_filename) or None."""
+    if not file_obj or not file_obj.filename:
+        return None
+    filename = file_obj.filename
+    ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+    if ext not in SKILLS_ALLOWED_EXTENSIONS:
+        return None
+    file_obj.seek(0, 2)
+    size = file_obj.tell()
+    file_obj.seek(0)
+    if size > SKILLS_MAX_BYTES:
+        return None
+    stored = f"{skill_id}_{uuid.uuid4().hex}.{ext}"
+    os.makedirs(SKILLS_UPLOAD_FOLDER, exist_ok=True)
+    file_obj.save(os.path.join(SKILLS_UPLOAD_FOLDER, stored))
+    return filename, stored
+
+
+@app.route('/skills')
+@login_required
+def skills_view():
+    """Skills directory — search, filter, sort."""
+    q = request.args.get('q', '').strip()
+    type_filter = request.args.get('type', '').strip()
+    sort = request.args.get('sort', 'name')
+
+    query = Skill.query
+    if q:
+        like = f"%{q}%"
+        query = query.filter(
+            db.or_(
+                Skill.name.ilike(like),
+                Skill.description.ilike(like),
+                Skill.source.ilike(like),
+            )
+        )
+    if type_filter and type_filter in Skill.TYPES:
+        query = query.filter(Skill.type == type_filter)
+
+    if sort == 'type':
+        query = query.order_by(Skill.type, Skill.name)
+    elif sort == 'date':
+        query = query.order_by(Skill.created_at.desc())
+    else:
+        query = query.order_by(Skill.name)
+
+    skills = query.all()
+    return render_template(
+        'skills.html',
+        skills=skills,
+        skill_types=Skill.TYPES,
+        poc_types=Skill.POC_TYPES,
+        q=q,
+        type_filter=type_filter,
+        sort=sort,
+        mode='directory',
+    )
+
+
+@app.route('/skills/new', methods=['GET', 'POST'])
+@login_required
+def skills_new():
+    """Create a new skill."""
+    from flask import flash, redirect
+    if request.method == 'POST':
+        name = request.form.get('name', '').strip()
+        if not name:
+            from flask import flash
+            flash('Skill name is required.', 'danger')
+            return redirect('/skills/new')
+
+        skill = Skill(
+            name=name,
+            type=request.form.get('type', 'Agent'),
+            source=request.form.get('source', '').strip() or None,
+            description=request.form.get('description', '').strip() or None,
+            poc_type=request.form.get('poc_type', 'Any'),
+            created_by=current_user.id,
+        )
+        db.session.add(skill)
+        db.session.flush()  # get skill.id
+
+        # Handle file uploads
+        files = request.files.getlist('files')
+        for f in files[:SKILLS_MAX_FILES]:
+            result = _skills_save_file(f, skill.id)
+            if result:
+                orig, stored = result
+                sf = SkillFile(skill_id=skill.id, filename=orig, stored_filename=stored)
+                db.session.add(sf)
+
+        db.session.commit()
+        from flask import flash
+        flash(f"Skill '{name}' created.", 'success')
+        return redirect('/skills')
+
+    return render_template(
+        'skills.html',
+        skill_types=Skill.TYPES,
+        poc_types=Skill.POC_TYPES,
+        mode='new',
+        skill=None,
+    )
+
+
+@app.route('/skills/<skill_id>/edit', methods=['GET', 'POST'])
+@login_required
+def skills_edit(skill_id):
+    """Edit an existing skill."""
+    from flask import flash, redirect
+    skill = Skill.query.get_or_404(skill_id)
+
+    if request.method == 'POST':
+        name = request.form.get('name', '').strip()
+        if not name:
+            flash('Skill name is required.', 'danger')
+            return redirect(f'/skills/{skill_id}/edit')
+
+        skill.name = name
+        skill.type = request.form.get('type', skill.type)
+        skill.source = request.form.get('source', '').strip() or None
+        skill.description = request.form.get('description', '').strip() or None
+        skill.poc_type = request.form.get('poc_type', skill.poc_type)
+
+        # Handle new file uploads (respecting the 5-file limit)
+        existing_count = len(skill.files)
+        slots = max(0, SKILLS_MAX_FILES - existing_count)
+        files = request.files.getlist('files')
+        for f in files[:slots]:
+            result = _skills_save_file(f, skill.id)
+            if result:
+                orig, stored = result
+                sf = SkillFile(skill_id=skill.id, filename=orig, stored_filename=stored)
+                db.session.add(sf)
+
+        db.session.commit()
+        flash(f"Skill '{name}' updated.", 'success')
+        return redirect('/skills')
+
+    return render_template(
+        'skills.html',
+        skill=skill,
+        skill_types=Skill.TYPES,
+        poc_types=Skill.POC_TYPES,
+        mode='edit',
+    )
+
+
+@app.route('/skills/<skill_id>/delete', methods=['POST'])
+@login_required
+def skills_delete(skill_id):
+    """Delete a skill and its files."""
+    from flask import flash, redirect
+    skill = Skill.query.get_or_404(skill_id)
+    # Remove stored files from disk
+    for sf in skill.files:
+        path = os.path.join(SKILLS_UPLOAD_FOLDER, sf.stored_filename)
+        try:
+            if os.path.exists(path):
+                os.remove(path)
+        except OSError:
+            pass
+    name = skill.name
+    db.session.delete(skill)
+    db.session.commit()
+    flash(f"Skill '{name}' deleted.", 'success')
+    return redirect('/skills')
+
+
+@app.route('/skills/<skill_id>/files/<file_id>/delete', methods=['POST'])
+@login_required
+def skills_file_delete(skill_id, file_id):
+    """Delete a single file attachment from a skill."""
+    from flask import flash, redirect
+    sf = SkillFile.query.filter_by(id=file_id, skill_id=skill_id).first_or_404()
+    path = os.path.join(SKILLS_UPLOAD_FOLDER, sf.stored_filename)
+    try:
+        if os.path.exists(path):
+            os.remove(path)
+    except OSError:
+        pass
+    db.session.delete(sf)
+    db.session.commit()
+    flash('File removed.', 'success')
+    return redirect(f'/skills/{skill_id}/edit')
+
+
+@app.route('/skills/<skill_id>/user-add', methods=['POST'])
+@login_required
+def skills_user_add(skill_id):
+    """Associate the current user with a skill."""
+    from flask import flash, redirect
+    Skill.query.get_or_404(skill_id)
+    existing = UserSkill.query.filter_by(user_id=current_user.id, skill_id=skill_id).first()
+    if not existing:
+        db.session.add(UserSkill(user_id=current_user.id, skill_id=skill_id))
+        db.session.commit()
+    return redirect('/profile#skills')
+
+
+@app.route('/skills/<skill_id>/user-remove', methods=['POST'])
+@login_required
+def skills_user_remove(skill_id):
+    """Remove the current user's association with a skill."""
+    from flask import flash, redirect
+    us = UserSkill.query.filter_by(user_id=current_user.id, skill_id=skill_id).first()
+    if us:
+        db.session.delete(us)
+        db.session.commit()
+    return redirect('/profile#skills')
 
 
 @app.route('/api-keys')
@@ -1014,6 +1246,14 @@ def create_agent():
         
         # Save to database
         db.session.add(agent)
+        db.session.flush()
+
+        # Handle skill associations
+        skill_ids = data.get('skill_ids', [])
+        for sid in skill_ids:
+            if Skill.query.get(sid):
+                db.session.add(AgentSkill(agent_id=agent.agent_id, skill_id=sid))
+
         db.session.commit()
         
         return jsonify({
@@ -1086,7 +1326,14 @@ def update_agent(agent_id):
             else:
                 agent.birth_date = None
         # join_date is server-authoritative (set on creation); ignored if supplied in PUT
-        
+
+        # Handle skill associations update
+        if 'skill_ids' in data:
+            AgentSkill.query.filter_by(agent_id=agent_id).delete()
+            for sid in data['skill_ids']:
+                if Skill.query.get(sid):
+                    db.session.add(AgentSkill(agent_id=agent_id, skill_id=sid))
+
         # Save changes
         db.session.commit()
         

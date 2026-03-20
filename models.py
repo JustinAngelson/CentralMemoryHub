@@ -138,6 +138,71 @@ class OrgProfile(db.Model):
         }
 
 
+class Skill(db.Model):
+    """Organisation-wide skill registry — agent, human, and hybrid skills."""
+    __tablename__ = 'skills'
+
+    TYPES = ['Agent', 'Human', 'Hybrid']
+    POC_TYPES = ['Any', 'Agents', 'Users']
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String(255), nullable=False)
+    type = Column(String(32), nullable=False, default='Agent')
+    source = Column(Text, nullable=True)
+    description = Column(Text, nullable=True)
+    poc_type = Column(String(32), nullable=False, default='Any')
+    created_by = Column(String(36), ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+
+    creator = relationship('User', foreign_keys=[created_by])
+    files = relationship('SkillFile', back_populates='skill', cascade='all, delete-orphan', lazy='joined')
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            'id': self.id,
+            'name': self.name,
+            'type': self.type,
+            'source': self.source,
+            'description': self.description,
+            'poc_type': self.poc_type,
+            'created_by': self.created_by,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+class SkillFile(db.Model):
+    """Files attached to a Skill (e.g. Skill.md documents)."""
+    __tablename__ = 'skill_files'
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    skill_id = Column(String(36), ForeignKey('skills.id', ondelete='CASCADE'), nullable=False, index=True)
+    filename = Column(String(255), nullable=False)
+    stored_filename = Column(String(255), nullable=False)
+    uploaded_at = Column(DateTime, default=func.now())
+
+    skill = relationship('Skill', back_populates='files')
+
+
+class UserSkill(db.Model):
+    """Many-to-many: User ↔ Skill associations."""
+    __tablename__ = 'user_skills'
+
+    user_id = Column(String(36), ForeignKey('users.id', ondelete='CASCADE'), primary_key=True)
+    skill_id = Column(String(36), ForeignKey('skills.id', ondelete='CASCADE'), primary_key=True)
+    created_at = Column(DateTime, default=func.now())
+
+
+class AgentSkill(db.Model):
+    """Many-to-many: AgentDirectory ↔ Skill associations."""
+    __tablename__ = 'agent_skills'
+
+    agent_id = Column(String(36), ForeignKey('agent_directory.agent_id', ondelete='CASCADE'), primary_key=True)
+    skill_id = Column(String(36), ForeignKey('skills.id', ondelete='CASCADE'), primary_key=True)
+    created_at = Column(DateTime, default=func.now())
+
+
 class Resource(db.Model):
     """Organisation resources — tools, assets, integrations, services, etc."""
     __tablename__ = 'resources'

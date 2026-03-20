@@ -8,12 +8,16 @@ load_dotenv()
 # Create database tables
 with app.app_context():
     # Import all models to register with SQLAlchemy
-    from models import ProjectDecision, UnstructuredData, SharedContext, InvitationToken, OrgProfile, Resource
+    from models import ProjectDecision, UnstructuredData, SharedContext, InvitationToken, OrgProfile, Resource, Skill, SkillFile, UserSkill, AgentSkill
     from api_keys import ApiKey, ApiRequestLog
     
-    # Create all tables
-    db.create_all()
-    print("PostgreSQL database tables created successfully")
+    # Create all tables (wrapped in try-except to handle gunicorn multi-worker race conditions)
+    try:
+        db.create_all()
+        print("PostgreSQL database tables created successfully")
+    except Exception as e:
+        print(f"db.create_all note (likely a race condition between workers): {e}")
+        db.session.rollback()
 
     # Add new columns to agent_directory if they don't exist yet (safe migration)
     try:
@@ -73,6 +77,48 @@ with app.app_context():
         print("Resources table columns migrated successfully")
     except Exception as e:
         print(f"Resources column migration note: {e}")
+
+    # Ensure skills system tables exist (safe migration)
+    try:
+        with db.engine.connect() as conn:
+            skills_migrations = [
+                """CREATE TABLE IF NOT EXISTS skills (
+                    id VARCHAR(36) PRIMARY KEY,
+                    name VARCHAR(255) NOT NULL,
+                    type VARCHAR(32) NOT NULL DEFAULT 'Agent',
+                    source TEXT,
+                    description TEXT,
+                    poc_type VARCHAR(32) NOT NULL DEFAULT 'Any',
+                    created_by VARCHAR(36) REFERENCES users(id) ON DELETE SET NULL,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                )""",
+                """CREATE TABLE IF NOT EXISTS skill_files (
+                    id VARCHAR(36) PRIMARY KEY,
+                    skill_id VARCHAR(36) NOT NULL REFERENCES skills(id) ON DELETE CASCADE,
+                    filename VARCHAR(255) NOT NULL,
+                    stored_filename VARCHAR(255) NOT NULL,
+                    uploaded_at TIMESTAMP DEFAULT NOW()
+                )""",
+                """CREATE TABLE IF NOT EXISTS user_skills (
+                    user_id VARCHAR(36) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    skill_id VARCHAR(36) NOT NULL REFERENCES skills(id) ON DELETE CASCADE,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    PRIMARY KEY (user_id, skill_id)
+                )""",
+                """CREATE TABLE IF NOT EXISTS agent_skills (
+                    agent_id VARCHAR(36) NOT NULL REFERENCES agent_directory(agent_id) ON DELETE CASCADE,
+                    skill_id VARCHAR(36) NOT NULL REFERENCES skills(id) ON DELETE CASCADE,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    PRIMARY KEY (agent_id, skill_id)
+                )""",
+            ]
+            for sql in skills_migrations:
+                conn.execute(db.text(sql))
+            conn.commit()
+        print("Skills system tables migrated successfully")
+    except Exception as e:
+        print(f"Skills migration note: {e}")
 
     # Initialize a default API key if none exists
     default_api_key = ApiKey.query.filter_by(name="Default API Key").first()
