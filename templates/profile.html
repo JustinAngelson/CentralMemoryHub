@@ -23,6 +23,9 @@
         </div>
 
         <form method="POST" action="{{ url_for('auth.profile') }}" enctype="multipart/form-data">
+            <!-- Sentinel so the profile POST knows to sync skill associations -->
+            <input type="hidden" name="skills_submitted" value="1">
+
             <!-- Identity -->
             <div class="card border-secondary mb-4">
                 <div class="card-header text-muted small fw-semibold">Identity</div>
@@ -106,7 +109,9 @@
 
             <!-- Change Password -->
             <div class="card border-secondary mb-4">
-                <div class="card-header text-muted small fw-semibold">Change Password <span class="text-muted fw-normal">(leave blank to keep current)</span></div>
+                <div class="card-header text-muted small fw-semibold">
+                    Change Password <span class="text-muted fw-normal">(leave blank to keep current)</span>
+                </div>
                 <div class="card-body">
                     <div class="row g-3">
                         <div class="col-md-6">
@@ -121,109 +126,153 @@
                 </div>
             </div>
 
-            <div class="d-flex justify-content-end gap-2">
-                <a href="/" class="btn btn-outline-secondary">Cancel</a>
-                <button type="submit" class="btn btn-primary">Save Changes</button>
-            </div>
-        </form>
-
-        <!-- My Skills -->
-        <div class="card border-secondary mt-4" id="skills">
-            <div class="card-header d-flex align-items-center justify-content-between">
-                <span class="text-muted small fw-semibold">My Skills</span>
-                <a href="/skills/new" class="btn btn-sm btn-outline-primary py-0 px-2" style="font-size:.75rem;">
-                    + New Skill
-                </a>
-            </div>
-            <div class="card-body">
-
-                <!-- Current skills -->
-                <p class="small text-muted fw-semibold mb-2">Linked skills</p>
-                <div class="d-flex flex-wrap gap-2 mb-3" id="linkedSkillBadges">
-                    {% for sk in all_skills if sk.id in my_skill_ids %}
-                    <span class="badge d-inline-flex align-items-center gap-1
-                        {% if sk.type == 'Agent' %}bg-info text-dark
-                        {% elif sk.type == 'Human' %}bg-success
-                        {% else %}bg-warning text-dark{% endif %}
-                        fs-7">
-                        {{ sk.name }}
-                        <form method="POST" action="/skills/{{ sk.id }}/user-remove" class="d-inline m-0 p-0">
-                            <button type="submit" class="btn-close btn-close-white ms-1"
-                                    style="width:.5rem;height:.5rem;font-size:.5rem;"
-                                    aria-label="Remove {{ sk.name }}"></button>
-                        </form>
+            <!-- My Skills — searchable multi-select checkbox list, embedded in form -->
+            <div class="card border-secondary mb-4" id="skills">
+                <div class="card-header d-flex align-items-center justify-content-between">
+                    <span class="text-muted small fw-semibold">My Skills</span>
+                    <span class="text-muted" style="font-size:.75rem;">
+                        Check to link · uncheck to remove · saves with the form
                     </span>
-                    {% else %}
-                    <span class="text-muted small" id="noSkillsMsg">No skills linked yet.</span>
-                    {% endfor %}
                 </div>
-
-                {% if not all_skills %}
-                <!-- Registry is empty -->
-                <p class="text-muted small">
-                    No skills in the registry yet.
-                    <a href="/skills/new">Create the first skill</a> to get started.
-                </p>
-                {% else %}
-                <!-- Searchable multi-select for adding skills -->
-                <div class="border-top pt-3">
-                    <p class="small text-muted fw-semibold mb-2">Add skills from registry</p>
+                <div class="card-body">
+                    {% if all_skills %}
                     <input type="text" id="skillSearch" class="form-control form-control-sm mb-2"
-                           placeholder="Search skills by name or type…"
-                           autocomplete="off">
+                           placeholder="Filter by name or type…" autocomplete="off">
                     <div id="skillPickerList"
-                         class="border rounded p-2 d-flex flex-wrap gap-2"
-                         style="max-height:180px;overflow-y:auto;">
-                        {% for sk in all_skills if sk.id not in my_skill_ids %}
-                        <form method="POST" action="/skills/{{ sk.id }}/user-add" class="d-inline skill-item"
-                              data-name="{{ sk.name | lower }}" data-type="{{ sk.type | lower }}">
-                            <button type="submit" class="btn btn-sm btn-outline-secondary py-0 px-2"
-                                    style="font-size:.75rem;">
-                                + {{ sk.name }}
-                                <span class="badge ms-1
+                         class="border rounded p-2"
+                         style="max-height:220px;overflow-y:auto;">
+                        {% for sk in all_skills %}
+                        <div class="form-check skill-item py-1"
+                             data-name="{{ sk.name | lower }}"
+                             data-type="{{ sk.type | lower }}">
+                            <input class="form-check-input" type="checkbox"
+                                   name="skill_ids" value="{{ sk.id }}"
+                                   id="sk_{{ sk.id }}"
+                                   {% if sk.id in my_skill_ids %}checked{% endif %}>
+                            <label class="form-check-label small d-inline-flex align-items-center gap-2"
+                                   for="sk_{{ sk.id }}">
+                                {{ sk.name }}
+                                <span class="badge
                                     {% if sk.type == 'Agent' %}bg-info text-dark
                                     {% elif sk.type == 'Human' %}bg-success
                                     {% else %}bg-warning text-dark{% endif %}"
-                                    style="font-size:.55rem;">{{ sk.type }}</span>
-                            </button>
-                        </form>
-                        {% else %}
-                        <span class="text-muted small" id="allLinkedMsg">All registry skills already linked.</span>
+                                    style="font-size:.6rem;">{{ sk.type }}</span>
+                                {% if sk.poc_type != 'Any' %}
+                                <span class="badge border border-secondary text-muted"
+                                      style="font-size:.6rem;background:transparent;">POC: {{ sk.poc_type }}</span>
+                                {% endif %}
+                            </label>
+                        </div>
                         {% endfor %}
                     </div>
                     <div class="mt-1 d-flex justify-content-between align-items-center">
                         <span class="text-muted" style="font-size:.75rem;" id="skillPickerCount"></span>
                         <a href="/skills" class="text-muted" style="font-size:.75rem;">Browse full registry →</a>
                     </div>
+                    {% else %}
+                    <p class="text-muted small mb-0">
+                        No skills in the registry yet.
+                        Use the form below to create your first skill.
+                    </p>
+                    {% endif %}
                 </div>
-                {% endif %}
+            </div>
+
+            <div class="d-flex justify-content-end gap-2 mb-4">
+                <a href="/" class="btn btn-outline-secondary">Cancel</a>
+                <button type="submit" class="btn btn-primary">Save Changes</button>
+            </div>
+        </form>
+
+        <!-- Inline Create & Link Skill (separate form, below main form) -->
+        <div class="card border-secondary mt-2 mb-4" id="create-skill">
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <span class="text-muted small fw-semibold">
+                    <i data-feather="plus-circle" style="width:13px;height:13px;" class="me-1"></i>
+                    Create &amp; Link New Skill
+                </span>
+                <button class="btn btn-link btn-sm py-0 text-muted" type="button"
+                        data-bs-toggle="collapse" data-bs-target="#inlineCreateSkillBody"
+                        aria-expanded="false">
+                    <i data-feather="chevron-down" style="width:14px;height:14px;"></i>
+                </button>
+            </div>
+            <div class="collapse" id="inlineCreateSkillBody">
+                <div class="card-body">
+                    <p class="text-muted small mb-3">
+                        Fill in the details below to add a new skill to the registry and automatically link it to your profile.
+                    </p>
+                    <form method="POST" action="{{ url_for('auth.profile_create_skill') }}">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold">
+                                    Name <span class="text-danger">*</span>
+                                </label>
+                                <input type="text" name="name" class="form-control form-control-sm"
+                                       placeholder="e.g. Python, RAG, Prompt Engineering" required>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small fw-semibold">Type</label>
+                                <select name="type" class="form-select form-select-sm">
+                                    {% for t in skill_types %}
+                                    <option value="{{ t }}" {% if t == 'Human' %}selected{% endif %}>{{ t }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small fw-semibold">POC</label>
+                                <select name="poc_type" class="form-select form-select-sm">
+                                    {% for p in poc_types %}
+                                    <option value="{{ p }}">{{ p }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label small fw-semibold">Source</label>
+                                <input type="text" name="source" class="form-control form-control-sm"
+                                       placeholder="URL or description of origin (optional)">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label small fw-semibold">Description</label>
+                                <textarea name="description" class="form-control form-control-sm" rows="2"
+                                          placeholder="Brief description (optional)"></textarea>
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-end mt-3">
+                            <button type="submit" class="btn btn-sm btn-primary">
+                                Create &amp; Link Skill
+                            </button>
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
 
-        <script>
-        (function() {
-            var input = document.getElementById('skillSearch');
-            if (!input) return;
-            var items = document.querySelectorAll('.skill-item');
-            var countEl = document.getElementById('skillPickerCount');
-
-            function updateCount(visible) {
-                if (countEl) countEl.textContent = visible + ' skill' + (visible !== 1 ? 's' : '') + ' shown';
-            }
-            updateCount(items.length);
-
-            input.addEventListener('input', function() {
-                var q = this.value.toLowerCase().trim();
-                var visible = 0;
-                items.forEach(function(item) {
-                    var match = !q || item.dataset.name.includes(q) || item.dataset.type.includes(q);
-                    item.style.display = match ? '' : 'none';
-                    if (match) visible++;
-                });
-                updateCount(visible);
-            });
-        })();
-        </script>
     </div>
 </div>
+
+<script>
+(function() {
+    var input = document.getElementById('skillSearch');
+    if (!input) return;
+    var items = document.querySelectorAll('.skill-item');
+    var countEl = document.getElementById('skillPickerCount');
+
+    function updateCount() {
+        var visible = 0;
+        items.forEach(function(item) { if (item.style.display !== 'none') visible++; });
+        if (countEl) countEl.textContent = visible + ' skill' + (visible !== 1 ? 's' : '') + ' shown';
+    }
+    updateCount();
+
+    input.addEventListener('input', function() {
+        var q = this.value.toLowerCase().trim();
+        items.forEach(function(item) {
+            var match = !q || item.dataset.name.includes(q) || item.dataset.type.includes(q);
+            item.style.display = match ? '' : 'none';
+        });
+        updateCount();
+    });
+})();
+</script>
 {% endblock %}

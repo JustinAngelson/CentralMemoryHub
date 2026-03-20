@@ -195,13 +195,72 @@ def profile():
                 return redirect(url_for("auth.profile"))
             current_user.set_password(new_password)
 
+        # Process skill association changes submitted with the profile form
+        # Only sync when the profile form includes the skills section (sentinel present)
+        if 'skills_submitted' in request.form:
+            submitted_skill_ids = set(request.form.getlist("skill_ids"))
+            existing = {us.skill_id for us in UserSkill.query.filter_by(user_id=current_user.id).all()}
+            for sid in submitted_skill_ids - existing:
+                if Skill.query.get(sid):
+                    db.session.add(UserSkill(user_id=current_user.id, skill_id=sid))
+            for sid in existing - submitted_skill_ids:
+                UserSkill.query.filter_by(user_id=current_user.id, skill_id=sid).delete()
+
         db.session.commit()
         flash("Profile updated successfully.", "success")
         return redirect(url_for("auth.profile"))
 
     all_skills = Skill.query.order_by(Skill.name).all()
     my_skill_ids = {us.skill_id for us in UserSkill.query.filter_by(user_id=current_user.id).all()}
-    return render_template("profile.html", all_skills=all_skills, my_skill_ids=my_skill_ids)
+    return render_template(
+        "profile.html",
+        all_skills=all_skills,
+        my_skill_ids=my_skill_ids,
+        skill_types=Skill.TYPES,
+        poc_types=Skill.POC_TYPES,
+    )
+
+
+@auth_bp.route("/profile/skill/create", methods=["POST"])
+@login_required
+def profile_create_skill():
+    """Inline skill creation from the profile page — creates the skill and links it."""
+    import uuid
+    from datetime import datetime
+    name = request.form.get("name", "").strip()
+    if not name:
+        flash("Skill name is required.", "danger")
+        return redirect(url_for("auth.profile") + "#skills")
+
+    sk_type = request.form.get("type", "Human")
+    if sk_type not in Skill.TYPES:
+        sk_type = "Human"
+    poc_type = request.form.get("poc_type", "Any")
+    if poc_type not in Skill.POC_TYPES:
+        poc_type = "Any"
+
+    skill = Skill(
+        id=str(uuid.uuid4()),
+        name=name,
+        type=sk_type,
+        poc_type=poc_type,
+        source=request.form.get("source", "").strip() or None,
+        description=request.form.get("description", "").strip() or None,
+        created_by=current_user.id,
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow(),
+    )
+    db.session.add(skill)
+    db.session.flush()
+
+    # Auto-link to the current user
+    existing = UserSkill.query.filter_by(user_id=current_user.id, skill_id=skill.id).first()
+    if not existing:
+        db.session.add(UserSkill(user_id=current_user.id, skill_id=skill.id))
+
+    db.session.commit()
+    flash(f"Skill '{name}' created and linked to your profile.", "success")
+    return redirect(url_for("auth.profile") + "#skills")
 
 
 # ── Invitation system (admin only) ───────────────────────────────────────────
