@@ -1,0 +1,131 @@
+{% extends 'layout.html' %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="d-flex align-items-center mb-4 gap-3">
+            {% if current_user.profile_image %}
+            <img src="{{ url_for('static', filename=current_user.profile_image) }}"
+                 alt="Profile photo" class="rounded-circle border border-secondary"
+                 style="width:72px;height:72px;object-fit:cover;">
+            {% else %}
+            <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center border border-secondary"
+                 style="width:72px;height:72px;font-size:2rem;color:#ccc;">
+                <i data-feather="user"></i>
+            </div>
+            {% endif %}
+            <div>
+                <h4 class="mb-0">{{ current_user.display_name }}</h4>
+                <span class="badge {{ 'bg-danger' if current_user.is_admin else 'bg-secondary' }}">
+                    {{ current_user.role }}
+                </span>
+                <div class="text-muted small">Member since {{ current_user.created_at.strftime('%B %Y') if current_user.created_at else '—' }}</div>
+            </div>
+        </div>
+
+        <form method="POST" action="{{ url_for('auth.profile') }}" enctype="multipart/form-data">
+            <!-- Identity -->
+            <div class="card border-secondary mb-4">
+                <div class="card-header text-muted small fw-semibold">Identity</div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Username <span class="text-danger">*</span></label>
+                            <input type="text" name="username" class="form-control"
+                                   value="{{ current_user.username }}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Email <span class="text-danger">*</span></label>
+                            <input type="email" name="email" class="form-control"
+                                   value="{{ current_user.email }}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">First Name</label>
+                            <input type="text" name="first_name" class="form-control"
+                                   value="{{ current_user.first_name or '' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Last Name</label>
+                            <input type="text" name="last_name" class="form-control"
+                                   value="{{ current_user.last_name or '' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Company Name</label>
+                            <input type="text" name="company_name" class="form-control"
+                                   value="{{ current_user.company_name or '' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Website</label>
+                            <input type="url" name="website" class="form-control"
+                                   placeholder="https://example.com"
+                                   value="{{ current_user.website or '' }}">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-semibold">Profile Photo</label>
+                            <input type="file" name="profile_image" class="form-control"
+                                   accept="image/png,image/jpeg,image/gif,image/webp">
+                            {% if current_user.profile_image %}
+                            <div class="form-text text-muted">Current photo shown above. Upload a new one to replace it.</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contact -->
+            <div class="card border-secondary mb-4">
+                <div class="card-header text-muted small fw-semibold">Contact &amp; Messaging</div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Phone</label>
+                            <input type="tel" name="phone" class="form-control"
+                                   placeholder="+1 555 000 0000"
+                                   value="{{ current_user.phone or '' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">WhatsApp</label>
+                            <input type="tel" name="whatsapp" class="form-control"
+                                   placeholder="+1 555 000 0000"
+                                   value="{{ current_user.whatsapp or '' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Signal</label>
+                            <input type="tel" name="signal" class="form-control"
+                                   placeholder="+1 555 000 0000"
+                                   value="{{ current_user.signal or '' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Telegram</label>
+                            <input type="text" name="telegram" class="form-control"
+                                   placeholder="@handle or phone"
+                                   value="{{ current_user.telegram or '' }}">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Change Password -->
+            <div class="card border-secondary mb-4">
+                <div class="card-header text-muted small fw-semibold">Change Password <span class="text-muted fw-normal">(leave blank to keep current)</span></div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">New Password</label>
+                            <input type="password" name="new_password" class="form-control" minlength="8">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Confirm New Password</label>
+                            <input type="password" name="confirm_password" class="form-control" minlength="8">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-end gap-2">
+                <a href="/" class="btn btn-outline-secondary">Cancel</a>
+                <button type="submit" class="btn btn-primary">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

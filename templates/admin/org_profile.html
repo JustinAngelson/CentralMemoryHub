@@ -1,0 +1,126 @@
+{% extends 'layout.html' %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="d-flex align-items-center mb-4 gap-3">
+            {% if org.logo %}
+            <img src="{{ url_for('static', filename=org.logo) }}"
+                 alt="Organisation logo" class="rounded border border-secondary"
+                 style="max-height:64px;max-width:160px;object-fit:contain;">
+            {% else %}
+            <div class="rounded bg-secondary d-flex align-items-center justify-content-center border border-secondary"
+                 style="width:64px;height:64px;font-size:1.75rem;color:#ccc;">
+                <i data-feather="briefcase"></i>
+            </div>
+            {% endif %}
+            <div>
+                <h4 class="mb-0">{{ org.org_name or 'Organisation Profile' }}</h4>
+                <div class="text-muted small">Admin-only — configure your organisation's public identity</div>
+            </div>
+        </div>
+
+        <form method="POST" action="{{ url_for('auth.org_profile') }}" enctype="multipart/form-data">
+
+            <!-- Identity -->
+            <div class="card border-secondary mb-4">
+                <div class="card-header text-muted small fw-semibold">Organisation Identity</div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Organisation Name</label>
+                            <input type="text" name="org_name" class="form-control"
+                                   value="{{ org.org_name or '' }}" placeholder="Acme Corp">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Contact Email</label>
+                            <input type="email" name="contact_email" class="form-control"
+                                   value="{{ org.contact_email or '' }}" placeholder="hello@acme.com">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Website</label>
+                            <input type="url" name="website" class="form-control"
+                                   value="{{ org.website or '' }}" placeholder="https://acme.com">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Phone</label>
+                            <input type="tel" name="phone" class="form-control"
+                                   value="{{ org.phone or '' }}" placeholder="+1 555 000 0000">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-semibold">Organisation Logo</label>
+                            <input type="file" name="logo" class="form-control"
+                                   accept="image/png,image/jpeg,image/gif,image/webp">
+                            {% if org.logo %}
+                            <div class="form-text text-muted">Current logo shown above. Upload a new one to replace it.</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-semibold">Description</label>
+                            <textarea name="description" class="form-control" rows="3"
+                                      placeholder="A short description of your organisation…">{{ org.description or '' }}</textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Location -->
+            <div class="card border-secondary mb-4">
+                <div class="card-header text-muted small fw-semibold">Location</div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">City</label>
+                            <input type="text" name="city" class="form-control"
+                                   value="{{ org.city or '' }}" placeholder="San Francisco">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">State / Province</label>
+                            <input type="text" name="state" class="form-control"
+                                   value="{{ org.state or '' }}" placeholder="California">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Country</label>
+                            <input type="text" name="country" class="form-control"
+                                   value="{{ org.country or '' }}" placeholder="USA">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Social Media -->
+            <div class="card border-secondary mb-4">
+                <div class="card-header text-muted small fw-semibold">Social Media</div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">LinkedIn</label>
+                            <input type="url" name="linkedin" class="form-control"
+                                   value="{{ org.linkedin or '' }}" placeholder="https://linkedin.com/company/acme">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Twitter / X</label>
+                            <input type="url" name="twitter" class="form-control"
+                                   value="{{ org.twitter or '' }}" placeholder="https://x.com/acme">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Facebook</label>
+                            <input type="url" name="facebook" class="form-control"
+                                   value="{{ org.facebook or '' }}" placeholder="https://facebook.com/acme">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Instagram</label>
+                            <input type="url" name="instagram" class="form-control"
+                                   value="{{ org.instagram or '' }}" placeholder="https://instagram.com/acme">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-end gap-2">
+                <a href="/" class="btn btn-outline-secondary">Cancel</a>
+                <button type="submit" class="btn btn-primary">Save Organisation Profile</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

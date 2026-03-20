@@ -20,7 +20,9 @@ from models import (
     ProjectDecision, UnstructuredData, SharedContext,
     # New models
     AgentDirectory, AgentSession, GPTMessage, OrgState, AgentTask, DecisionLog,
-    KnowledgeIndex, MemoryLink, Experiment, UserInsight
+    KnowledgeIndex, MemoryLink, Experiment, UserInsight,
+    # Profile/org models
+    InvitationToken, OrgProfile,
 )
 
 # Register auth blueprint

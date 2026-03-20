@@ -23,6 +23,17 @@ class User(UserMixin, db.Model):
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime, default=func.now())
 
+    # Extended profile fields
+    first_name = Column(String(64), nullable=True)
+    last_name = Column(String(64), nullable=True)
+    company_name = Column(String(128), nullable=True)
+    phone = Column(String(32), nullable=True)
+    whatsapp = Column(String(32), nullable=True)
+    signal = Column(String(32), nullable=True)
+    telegram = Column(String(64), nullable=True)
+    website = Column(String(255), nullable=True)
+    profile_image = Column(String(255), nullable=True)  # relative path under static/uploads/
+
     def set_password(self, password: str):
         self.password_hash = generate_password_hash(password)
 
@@ -33,6 +44,11 @@ class User(UserMixin, db.Model):
     def is_admin(self) -> bool:
         return self.role == 'admin'
 
+    @property
+    def display_name(self) -> str:
+        parts = [p for p in [self.first_name, self.last_name] if p]
+        return ' '.join(parts) if parts else self.username
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             'id': self.id,
@@ -41,6 +57,84 @@ class User(UserMixin, db.Model):
             'role': self.role,
             'is_active': self.is_active,
             'created_at': self.created_at.isoformat() if self.created_at else None,
+            'first_name': self.first_name,
+            'last_name': self.last_name,
+            'company_name': self.company_name,
+            'phone': self.phone,
+            'whatsapp': self.whatsapp,
+            'signal': self.signal,
+            'telegram': self.telegram,
+            'website': self.website,
+            'profile_image': self.profile_image,
+        }
+
+
+class InvitationToken(db.Model):
+    """Single-use invitation tokens allowing the admin to onboard new users."""
+    __tablename__ = 'invitation_tokens'
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    token = Column(String(64), unique=True, nullable=False, index=True)
+    email_hint = Column(String(120), nullable=True)       # optional pre-filled email
+    created_by = Column(String(36), ForeignKey('users.id'), nullable=False)
+    created_at = Column(DateTime, default=func.now())
+    expires_at = Column(DateTime, nullable=False)          # 72 h after creation
+    used_at = Column(DateTime, nullable=True)              # set when claimed
+    used_by = Column(String(36), ForeignKey('users.id'), nullable=True)
+
+    creator = relationship('User', foreign_keys=[created_by])
+    claimer = relationship('User', foreign_keys=[used_by])
+
+    @property
+    def is_expired(self) -> bool:
+        return datetime.utcnow() > self.expires_at
+
+    @property
+    def is_used(self) -> bool:
+        return self.used_at is not None
+
+    @property
+    def is_valid(self) -> bool:
+        return not self.is_expired and not self.is_used
+
+
+class OrgProfile(db.Model):
+    """Singleton organisation profile — one row per deployment (id=1)."""
+    __tablename__ = 'org_profile'
+
+    id = Column(Integer, primary_key=True, default=1)
+    org_name = Column(String(128), nullable=True)
+    logo = Column(String(255), nullable=True)              # relative path under static/uploads/
+    website = Column(String(255), nullable=True)
+    contact_email = Column(String(120), nullable=True)
+    phone = Column(String(32), nullable=True)
+    description = Column(Text, nullable=True)
+    city = Column(String(64), nullable=True)
+    state = Column(String(64), nullable=True)
+    country = Column(String(64), nullable=True)
+    linkedin = Column(String(255), nullable=True)
+    twitter = Column(String(255), nullable=True)
+    facebook = Column(String(255), nullable=True)
+    instagram = Column(String(255), nullable=True)
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            'id': self.id,
+            'org_name': self.org_name,
+            'logo': self.logo,
+            'website': self.website,
+            'contact_email': self.contact_email,
+            'phone': self.phone,
+            'description': self.description,
+            'city': self.city,
+            'state': self.state,
+            'country': self.country,
+            'linkedin': self.linkedin,
+            'twitter': self.twitter,
+            'facebook': self.facebook,
+            'instagram': self.instagram,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }
 
 
