@@ -595,6 +595,13 @@
                 })
                 .then(data => {
                     allAgents = data;
+                    // Rebuild agentSkillMap from authoritative API response
+                    agentSkillMap = {};
+                    data.forEach(function(agent) {
+                        if (agent.skill_ids && agent.skill_ids.length > 0) {
+                            agentSkillMap[agent.agent_id] = agent.skill_ids;
+                        }
+                    });
                     renderAgentTable(data);
                     populateAgentDropdowns(data);
                 })
