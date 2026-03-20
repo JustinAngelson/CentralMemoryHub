@@ -8,7 +8,7 @@ load_dotenv()
 # Create database tables
 with app.app_context():
     # Import all models to register with SQLAlchemy
-    from models import ProjectDecision, UnstructuredData, SharedContext, InvitationToken, OrgProfile
+    from models import ProjectDecision, UnstructuredData, SharedContext, InvitationToken, OrgProfile, Resource
     from api_keys import ApiKey, ApiRequestLog
     
     # Create all tables

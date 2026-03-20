@@ -138,6 +138,43 @@ class OrgProfile(db.Model):
         }
 
 
+class Resource(db.Model):
+    """Organisation resources — tools, assets, integrations, services, etc."""
+    __tablename__ = 'resources'
+
+    TYPES = ['Tool', 'Asset', 'Integration', 'Service', 'Document', 'Other']
+    POC_TYPES = ['N/A', 'Users', 'Agents', 'Both']
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String(255), nullable=False)
+    type = Column(String(32), nullable=False, default='Tool')
+    purpose = Column(Text, nullable=True)
+    url = Column(String(512), nullable=True)
+    poc_type = Column(String(32), nullable=False, default='N/A')
+    related_skills = Column(Text, nullable=True)
+    description = Column(Text, nullable=True)
+    created_by = Column(String(36), ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+
+    creator = relationship('User', foreign_keys=[created_by])
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            'id': self.id,
+            'name': self.name,
+            'type': self.type,
+            'purpose': self.purpose,
+            'url': self.url,
+            'poc_type': self.poc_type,
+            'related_skills': self.related_skills,
+            'description': self.description,
+            'created_by': self.created_by,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
 # Existing Models
 class ProjectDecision(db.Model):
     __tablename__ = 'project_decisions'

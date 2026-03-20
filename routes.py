@@ -23,6 +23,8 @@ from models import (
     KnowledgeIndex, MemoryLink, Experiment, UserInsight,
     # Profile/org models
     InvitationToken, OrgProfile,
+    # Resources
+    Resource,
 )
 
 # Register auth blueprint
@@ -374,6 +376,45 @@ def agents_view():
     agents = AgentDirectory.query.order_by(AgentDirectory.name).all()
     agents_json = [a.to_dict() for a in agents]
     return render_template('agent_view.html', agents=agents, agents_json=agents_json)
+
+@app.route('/resources')
+@login_required
+def resources_view():
+    """Render the Resources directory page"""
+    q = request.args.get('q', '').strip()
+    type_filter = request.args.get('type', '').strip()
+    sort = request.args.get('sort', 'name')
+
+    query = Resource.query
+    if q:
+        like = f"%{q}%"
+        query = query.filter(
+            db.or_(
+                Resource.name.ilike(like),
+                Resource.description.ilike(like),
+                Resource.purpose.ilike(like),
+            )
+        )
+    if type_filter and type_filter in Resource.TYPES:
+        query = query.filter(Resource.type == type_filter)
+
+    if sort == 'type':
+        query = query.order_by(Resource.type, Resource.name)
+    elif sort == 'date':
+        query = query.order_by(Resource.created_at.desc())
+    else:
+        query = query.order_by(Resource.name)
+
+    resources = query.all()
+    return render_template(
+        'resources.html',
+        resources=resources,
+        resource_types=Resource.TYPES,
+        q=q,
+        type_filter=type_filter,
+        sort=sort,
+    )
+
 
 @app.route('/api-keys')
 @login_required

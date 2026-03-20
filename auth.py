@@ -17,7 +17,7 @@ from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.utils import secure_filename
 
 from app import db
-from models import User, InvitationToken, OrgProfile
+from models import User, InvitationToken, OrgProfile, Resource
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -414,4 +414,67 @@ def org_profile():
         flash("Organisation profile updated.", "success")
         return redirect(url_for("auth.org_profile"))
 
-    return render_template("admin/org_profile.html", org=org)
+    resources = Resource.query.order_by(Resource.created_at.desc()).all()
+    return render_template("admin/org_profile.html", org=org, resources=resources,
+                           resource_types=Resource.TYPES, poc_types=Resource.POC_TYPES)
+
+
+# ── Organisation Resources (admin CRUD) ───────────────────────────────────────
+
+@auth_bp.route("/admin/resources/add", methods=["POST"])
+@login_required
+@admin_required
+def resource_add():
+    name = request.form.get("name", "").strip()
+    if not name:
+        flash("Resource name is required.", "danger")
+        return redirect(url_for("auth.org_profile") + "#resources")
+
+    r = Resource(
+        name=name,
+        type=request.form.get("type", "Tool"),
+        purpose=request.form.get("purpose", "").strip() or None,
+        url=request.form.get("url", "").strip() or None,
+        poc_type=request.form.get("poc_type", "N/A"),
+        related_skills=request.form.get("related_skills", "").strip() or None,
+        description=request.form.get("description", "").strip() or None,
+        created_by=current_user.id,
+    )
+    db.session.add(r)
+    db.session.commit()
+    flash(f"Resource '{name}' added.", "success")
+    return redirect(url_for("auth.org_profile") + "#resources")
+
+
+@auth_bp.route("/admin/resources/<resource_id>/edit", methods=["POST"])
+@login_required
+@admin_required
+def resource_edit(resource_id):
+    r = Resource.query.get_or_404(resource_id)
+    name = request.form.get("name", "").strip()
+    if not name:
+        flash("Resource name is required.", "danger")
+        return redirect(url_for("auth.org_profile") + "#resources")
+
+    r.name = name
+    r.type = request.form.get("type", r.type)
+    r.purpose = request.form.get("purpose", "").strip() or None
+    r.url = request.form.get("url", "").strip() or None
+    r.poc_type = request.form.get("poc_type", r.poc_type)
+    r.related_skills = request.form.get("related_skills", "").strip() or None
+    r.description = request.form.get("description", "").strip() or None
+    db.session.commit()
+    flash(f"Resource '{name}' updated.", "success")
+    return redirect(url_for("auth.org_profile") + "#resources")
+
+
+@auth_bp.route("/admin/resources/<resource_id>/delete", methods=["POST"])
+@login_required
+@admin_required
+def resource_delete(resource_id):
+    r = Resource.query.get_or_404(resource_id)
+    name = r.name
+    db.session.delete(r)
+    db.session.commit()
+    flash(f"Resource '{name}' deleted.", "success")
+    return redirect(url_for("auth.org_profile") + "#resources")

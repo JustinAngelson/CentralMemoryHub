@@ -22,7 +22,7 @@ A multi-agent organizational memory system built with Flask + PostgreSQL + Pinec
 |------|---------|
 | `app.py` | Flask app factory, SQLAlchemy setup |
 | `main.py` | Gunicorn entry point |
-| `models.py` | All 13 SQLAlchemy models |
+| `models.py` | All 14 SQLAlchemy models (incl. Resource) |
 | `routes.py` | Flask routes (UI + REST API + MCP proxy import) |
 | `mcp_server.py` | FastMCP server entry point (30 tools) |
 | `mcp_proxy.py` | Flask `/mcp` proxy route to internal FastMCP server |
