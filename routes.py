@@ -219,12 +219,20 @@ def add_security_headers(response):
 # Apply security headers to all responses
 app.after_request(add_security_headers)
 
-# Route for the home page
+# Route for the home page (CMH landing/dashboard)
 @app.route('/')
 @login_required
-def index():
-    """Render the home page"""
-    return render_template('index.html')
+def home():
+    """Render the CMH homepage"""
+    return render_template('home.html')
+
+
+# Route for the Memories page (memory dashboard)
+@app.route('/memories')
+@login_required
+def memories():
+    """Render the Memories page"""
+    return render_template('memories.html')
 
 # System Health endpoints for integration with OpenAI Custom GPTs
 @app.route('/sys/health', methods=['GET', 'POST'])

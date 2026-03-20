@@ -65,7 +65,7 @@ def admin_required(f):
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login():
     if current_user.is_authenticated:
-        return redirect(url_for("index"))
+        return redirect(url_for("home"))
 
     if request.method == "POST":
         username = request.form.get("username", "").strip()
@@ -76,7 +76,7 @@ def login():
         if user and user.is_active and user.check_password(password):
             login_user(user, remember=remember)
             next_page = request.args.get("next")
-            return redirect(next_page or url_for("index"))
+            return redirect(next_page or url_for("home"))
 
         flash("Invalid username or password.", "danger")
 
@@ -129,7 +129,7 @@ def setup():
             db.session.commit()
             login_user(admin)
             flash(f"Admin account '{username}' created. Welcome!", "success")
-            return redirect(url_for("index"))
+            return redirect(url_for("home"))
 
     return render_template("setup.html")
 
@@ -268,7 +268,7 @@ def register(token):
 
         login_user(new_user)
         flash("Account created! Welcome to the Central Memory Hub.", "success")
-        return redirect(url_for("index"))
+        return redirect(url_for("home"))
 
     return render_template("register.html", inv=inv, errors=[], username="",
                            email=inv.email_hint or "")
