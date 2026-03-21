@@ -1,0 +1,49 @@
+<nav class="navbar navbar-expand-lg mb-4">
+    <div class="container">
+        <a class="navbar-brand fw-bold" href="/">
+            Central Memory Hub
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            {% set path = request.path %}
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item">
+                    <a class="nav-link{{ ' active' if path == '/' else '' }}" href="/">Home</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link{{ ' active' if path.startswith('/memories') else '' }}" href="/memories">Memories</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link{{ ' active' if path.startswith('/agents') else '' }}" href="/agents">Agents</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link{{ ' active' if path.startswith('/resources') else '' }}" href="/resources">Resources</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link{{ ' active' if path.startswith('/skills') else '' }}" href="/skills">Skills</a>
+                </li>
+                {% if current_user.is_admin %}
+                <li class="nav-item">
+                    <a class="nav-link{{ ' active' if path.startswith('/api-keys') else '' }}" href="/api-keys">API Keys</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link{{ ' active' if path.startswith('/users') else '' }}" href="{{ url_for('auth.users') }}">Users</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link{{ ' active' if path.startswith('/admin/org-profile') else '' }}" href="{{ url_for('auth.org_profile') }}">Org Profile</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link{{ ' active' if path.startswith('/admin/settings') else '' }}" href="{{ url_for('get_settings_form') }}">Settings</a>
+                </li>
+                {% endif %}
+            </ul>
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item">
+                    <a class="nav-link text-danger" href="{{ url_for('auth.logout') }}">Sign out</a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
