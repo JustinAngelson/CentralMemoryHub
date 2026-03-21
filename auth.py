@@ -3,7 +3,6 @@ Authentication blueprint — login, logout, setup, user management,
 user profiles, invitation flow, and organisation profile.
 Decorators: login_required (any user), admin_required (admin only).
 """
-import io
 import logging
 import os
 import secrets
@@ -35,19 +34,27 @@ def _allowed_image(filename: str) -> bool:
 
 def _resize_avatar(path: str, max_px: int = AVATAR_MAX_PX) -> None:
     """Resize an image file in-place to fit within max_px × max_px, preserving aspect ratio.
-    GIF files are left untouched to preserve animation.
+
+    GIFs that exceed max_px in either dimension are rejected (RuntimeError)
+    because Pillow cannot resize animated GIFs without losing animation.
+    GIFs already within bounds are accepted as-is.
+
     Raises RuntimeError on failure so callers can reject the upload.
     """
     from PIL import Image  # guaranteed by pyproject.toml dependency
 
     ext = os.path.splitext(path)[1].lower()
-    if ext == '.gif':
-        return  # leave animated GIFs untouched
 
     try:
         with Image.open(path) as img:
             if img.width <= max_px and img.height <= max_px:
-                return
+                return  # already within bounds — no action needed
+            if ext == '.gif':
+                raise RuntimeError(
+                    f"GIF avatars must be at most {max_px}×{max_px} px "
+                    f"(uploaded: {img.width}×{img.height}). "
+                    "Please resize the image before uploading."
+                )
             img = img.convert('RGB') if img.mode not in ('RGB', 'RGBA') else img
             img.thumbnail((max_px, max_px), Image.LANCZOS)
             save_kwargs: dict = {}
@@ -58,6 +65,8 @@ def _resize_avatar(path: str, max_px: int = AVATAR_MAX_PX) -> None:
             elif ext == '.webp':
                 save_kwargs = {'format': 'WEBP', 'quality': 88}
             img.save(path, **save_kwargs)
+    except RuntimeError:
+        raise
     except Exception as exc:
         logging.error("Avatar resize failed for %s: %s", path, exc)
         raise RuntimeError(f"Could not process image: {exc}") from exc
@@ -216,7 +225,13 @@ def profile():
             if rel_path:
                 current_user.profile_image = rel_path
             else:
-                flash("Invalid image format. Allowed: png, jpg, jpeg, gif, webp.", "warning")
+                flash(
+                    "Profile photo could not be saved. "
+                    "Allowed formats: PNG, JPG, JPEG, WEBP, GIF. "
+                    f"Images larger than {AVATAR_MAX_PX}px must be JPG/PNG/WEBP "
+                    "(oversized GIFs cannot be resized automatically).",
+                    "warning",
+                )
 
         current_user.username = new_username
         current_user.email = new_email
