@@ -39,6 +39,9 @@
                     <a class="nav-link{{ ' active' if path.startswith('/admin/settings') else '' }}" href="{{ url_for('get_settings_form') }}">Settings</a>
                 </li>
                 {% endif %}
+                <li class="nav-item">
+                    <a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#apiDocsModal">API Docs</a>
+                </li>
             </ul>
             <ul class="navbar-nav ms-auto">
                 <li class="nav-item dropdown">
@@ -85,3 +88,45 @@
         </div>
     </div>
 </nav>
+
+<!-- API Documentation Modal — included with navbar on all protected pages -->
+<div class="modal fade" id="apiDocsModal" tabindex="-1" aria-labelledby="apiDocsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="apiDocsModalLabel">API Documentation</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <h6>Authentication</h6>
+                <p>All API endpoints require the <code>X-API-KEY</code> header with your API key.</p>
+
+                <h6>Structured Memory</h6>
+                <ul>
+                    <li><strong>POST /memory/structured</strong> - Add a new structured memory entry</li>
+                    <li><strong>GET /memory/structured/{id}</strong> - Retrieve a structured memory entry by ID</li>
+                </ul>
+
+                <h6>Unstructured Memory</h6>
+                <ul>
+                    <li><strong>POST /memory/unstructured</strong> - Add a new unstructured memory entry</li>
+                    <li><strong>GET /memory/unstructured/{id}</strong> - Retrieve an unstructured memory entry by ID</li>
+                </ul>
+
+                <h6>Search</h6>
+                <ul>
+                    <li><strong>POST /search</strong> - Search for similar unstructured data</li>
+                </ul>
+
+                <h6>Shared Contexts</h6>
+                <ul>
+                    <li><strong>POST /context</strong> - Add a new shared context</li>
+                    <li><strong>GET /context</strong> - Retrieve all shared contexts</li>
+                </ul>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
