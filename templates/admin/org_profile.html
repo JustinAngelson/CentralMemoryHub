@@ -4,15 +4,15 @@
     <div class="col-lg-8">
         <div class="d-flex align-items-center mb-4 gap-3">
             {% if org.logo %}
-            <span class="rounded border border-secondary"
+            <span class="rounded border"
                   style="display:inline-flex;max-height:64px;max-width:160px;overflow:hidden;position:relative;">
                 <img src="{{ url_for('static', filename=org.logo) }}"
                      alt="Organisation logo"
                      style="max-height:64px;max-width:160px;object-fit:contain;display:block;">
             </span>
             {% else %}
-            <div class="rounded bg-secondary d-flex align-items-center justify-content-center border border-secondary"
-                 style="width:64px;height:64px;font-size:1.75rem;color:#ccc;">
+            <div class="rounded d-flex align-items-center justify-content-center border"
+                 style="width:64px;height:64px;font-size:1.75rem;background:#EFE9E0;color:#1F1613;">
                 <i data-feather="briefcase"></i>
             </div>
             {% endif %}
@@ -25,7 +25,7 @@
         <form method="POST" action="{{ url_for('auth.org_profile') }}" enctype="multipart/form-data">
 
             <!-- Identity -->
-            <div class="card border-secondary mb-4">
+            <div class="card mb-4">
                 <div class="card-header text-muted small fw-semibold">Organisation Identity</div>
                 <div class="card-body">
                     <div class="row g-3">
@@ -73,7 +73,7 @@
             </div>
 
             <!-- Location -->
-            <div class="card border-secondary mb-4">
+            <div class="card mb-4">
                 <div class="card-header text-muted small fw-semibold">Location</div>
                 <div class="card-body">
                     <div class="row g-3">
@@ -97,7 +97,7 @@
             </div>
 
             <!-- Social Media -->
-            <div class="card border-secondary mb-4">
+            <div class="card mb-4">
                 <div class="card-header text-muted small fw-semibold">Social Media</div>
                 <div class="card-body">
                     <div class="row g-3">
@@ -170,7 +170,7 @@
                                 {% elif r.type == 'Integration' %}bg-info text-dark
                                 {% elif r.type == 'Service' %}bg-warning text-dark
                                 {% elif r.type == 'Document' %}bg-secondary
-                                {% else %}bg-dark border border-secondary
+                                {% else %}bg-secondary
                                 {% endif %}" style="font-size:.7rem;">{{ r.type }}</span>
                         </td>
                         <td class="small text-muted" style="max-width:200px;">

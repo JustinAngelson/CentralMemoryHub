@@ -76,11 +76,11 @@
                             {% elif r.type == 'Integration' %}bg-info text-dark
                             {% elif r.type == 'Service' %}bg-warning text-dark
                             {% elif r.type == 'Document' %}bg-secondary
-                            {% else %}bg-dark border border-secondary
+                            {% else %}bg-secondary
                             {% endif %}">
                             {{ r.type }}
                         </span>
-                        <span class="badge bg-outline border border-secondary text-muted small" style="font-size:.65rem;">
+                        <span class="badge border text-muted small" style="font-size:.65rem;">
                             POC: {{ r.poc_type or 'N/A' }}
                         </span>
                     </div>
@@ -115,7 +115,7 @@
                 </div>
                 {% endif %}
             </div>
-            <div class="card-footer d-flex align-items-center justify-content-between py-2" style="border-top:1px solid rgba(255,255,255,0.08);">
+            <div class="card-footer d-flex align-items-center justify-content-between py-2" style="border-top:1px solid #ECEDED;">
                 <span class="small text-muted">
                     <i data-feather="calendar" style="width:12px;height:12px;" class="me-1"></i>
                     {{ r.created_at.strftime('%b %d, %Y') if r.created_at else '—' }}
