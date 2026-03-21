@@ -1,880 +1,304 @@
 # Central Memory Hub
 
-A sophisticated Central Memory Hub using Python, Flask, PostgreSQL, and Pinecone to store, manage, and search structured and unstructured data via embeddings. Enhanced with multi-agent communication and knowledge management capabilities.
+**Vendor-neutral organizational memory for multi-agent AI systems.**
 
-## Features
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+[![SOMI](https://img.shields.io/badge/category-SOMI-purple)](https://CentralMemoryHub.com)
+[![MCP Compatible](https://img.shields.io/badge/MCP-compatible-green)](https://modelcontextprotocol.io)
 
-- PostgreSQL database with advanced data models
-- OpenAI integration for generating embeddings
-- Pinecone Vector Database for storing and searching embeddings
-- Comprehensive REST API with authentication
-- Multi-agent session and communication tracking
-- Knowledge indexing and decision logging
-- Organizational state management
-- Experimental tracking for agent learning
-- User insights for behavior analysis
-- Memory linking between structured and vector data
-- User-friendly web interface for managing data
-- Enhanced security features with API key management
+---
 
-## Security Features
+## The Problem
 
-The system implements multiple layers of security to protect data and prevent unauthorized access:
+Agents forget each other.
 
-- **API Key Management System**:
-  - Create, view, and revoke API keys with custom permissions
-  - Set individual rate limits per API key
-  - Track API key usage and request logs
-  - Time-based expiration options
+Each AI model has its own context window, its own session, its own memory tooling. The moment you coordinate across models — or across sessions, tools, or time — you're flying blind. No shared decisions. No shared knowledge. No organizational continuity. Every agent starts from scratch.
 
-- **Rate Limiting**:
-  - Thread-safe implementation to prevent abuse
-  - Customizable limits per endpoint and API key
-  - Automatic request throttling
+This gets more acute, not less, as multi-agent systems mature. A single capable agent with no memory is a useful tool. A network of capable agents with no *shared* memory is chaos with good intentions.
 
-- **Input Validation**:
-  - Comprehensive schema-based validation
-  - Protection against malformed data
-  - Type checking and constraint enforcement
+CMH is the persistence layer that fills that gap.
 
-- **Cross-Site Request Forgery (CSRF) Protection**:
-  - Token-based CSRF prevention
-  - Form and AJAX request protection
+---
 
-- **Cross-Site Scripting (XSS) Prevention**:
-  - HTML content sanitization
-  - Output encoding
-  - User input filtering
+## The Category
 
-- **Content Security Policy (CSP)**:
-  - Strict CSP headers to prevent script injection
-  - Resource restriction to trusted sources
+Researchers have begun calling this space **SOMI — Shared Organizational Memory Infrastructure**. Independent analysis mapped the landscape: **$5.9B TAM by 2027**, a well-funded competitive field (Mem0, Letta, Zep), and one notable gap — no vendor-neutral, model-agnostic implementation that any agent on any platform can use without lock-in.
 
-- **Request Logging and Auditing**:
-  - Detailed logging of all API access
-  - IP address and user agent tracking
-  - Request timestamps and response status
+CMH is a working implementation of exactly that gap.
 
-## Database Migration
+No vendor lock-in. Any model. One memory.
 
-The system has been migrated from SQLite to PostgreSQL for improved scalability, performance, and advanced data type support. The migration includes:
+---
 
-- Preservation of all existing data from the original SQLite database
-- Enhanced schema with JSONB fields for flexible data storage
-- Proper indexing strategies for performance optimization
-- Foreign key relationships between related data models
-- UUID-based identifiers for all tables
+## What CMH Does
 
-## Multi-Agent Communication Architecture
+CMH is organized around five functional areas, accessible through a web UI, a REST API, and a full MCP server simultaneously.
 
-The system now includes comprehensive support for multi-agent orchestration:
+### 1. Memory — Store and Search Anything
+- **Unstructured memories** — free-form text, notes, observations. Embedded with OpenAI and stored in Pinecone, enabling true semantic search. "Find everything related to onboarding delays" returns relevant results even if those exact words never appeared.
+- **Structured memories** — formal records with role attribution, decision text, and vector context. Auditable and traceable.
+- **Memory links** — connect related memories so agents can follow threads of thought across sessions and sources.
 
-### Agent Directory (AI Org Chart)
-Maintain a structured organization of AI agents and their relationships:
-- Hierarchical organization with reporting structures
-- Agent capabilities and roles tracking
-- Seniority levels and status management
-- Visualize organization chart in list or tree view
+### 2. Agent Directory — AI Org Chart
+A live registry of every AI agent in the organization:
+- Name, role, description, seniority level, status (active / in training / inactive)
+- Reporting hierarchy with full tree visualization — see how your AI team is structured at a glance
+- Capability and skill tracking per agent
+- **Inter-agent messaging** — typed messages between agents across sessions and models (instruction, status update, handoff, question)
+- Session tracking — what each agent is working on, when sessions start and end
 
-### Agent Sessions
-Track when and what each agent does during interactions:
-- Session management with start/end timestamps
-- Current focus tracking
-- Context tagging for organized memory access
+### 3. Skill Registry — What Your Network Knows
+A centralized registry of skills available across the organization — agent, human, and hybrid:
+- Skill type, point of contact, source, and full description
+- Up to 5 attached documents per skill (Markdown, PDF, DOCX, TXT)
+- Linked to agents and users — everyone's capabilities are visible to the network
 
-### Message Logging
-Record all inter-agent and agent-user communications:
-- Structured message types (instruction, status_update, handoff, question)
-- Complete conversation history within sessions
-- Sender/receiver relationships
+### 4. Resource Directory — Tools, Assets, Integrations
+A catalog of every resource the organization operates with:
+- Type classification: Tool, Asset, Integration, Service, Document, Other
+- Access URLs, licensing, cost, environment (production/staging/dev), visibility, status
+- POC badge flagging which resources are agent-operated vs. human-managed
 
-### Knowledge Management
-- Term indexing with relevance scoring
-- Source tracking for knowledge provenance
-- Synonym management for flexible retrieval
+### 5. Knowledge, Decisions & Org State — The Audit Trail
+- **Decision log** — every significant decision logged with context, attribution, impact area, and reversibility. Full audit trail of how your AI team operates.
+- **Knowledge index** — domain glossary with definitions, sources, synonyms, and relevance scoring. Agents use this to resolve ambiguity and stay consistent in language.
+- **Org state** — snapshots of organizational entities (projects, clients, processes) so agents know current status without asking.
+- **Agent tasks** — structured assignments with priority, status, due dates, and instructions.
+- **Experiments** — hypothesis tracking for testing agent strategies, with outcome recording.
+- **User insights** — behavioral and interaction pattern logging for learning and improvement.
 
-### Decision Tracking
-- Log all agent decisions with impact assessment
-- Context preservation for decision traceability
-- Reversal possibility tracking
+---
 
-## API Usage
+## Architecture
 
-The Memory Hub provides a comprehensive RESTful API with two distinct endpoint structures:
+```
+┌────────────────────────────────────────────────────┐
+│                  Central Memory Hub                 │
+│                                                     │
+│   Flask REST API (:5000)    FastMCP Server (:8000)  │
+│   /agent/* endpoints        MCP tools               │
+│   /api/* (web UI)           memory + org + agent    │
+│                                                     │
+│   PostgreSQL (structured)   Pinecone (vectors)      │
+└────────────────────────────────────────────────────┘
+          ↑                             ↑
+   Custom GPTs               Claude.ai / MCP clients
+   OpenClaw agents           Cursor, Claude Code
+   REST API consumers        Any MCP-compatible agent
+```
 
-1. **UI Endpoints (`/api/...`)**: 
-   - For web interface usage
-   - No authentication required
-   - Example: `/api/directory` to list agents in the UI
+Two integration paths — both reading from and writing to the same underlying database:
+- **REST API** (`/agent/*` endpoints) — for Custom GPTs, OpenClaw agents, and any HTTP client
+- **MCP server** (`/mcp`) — for Claude.ai, Claude Code, Cursor, and any MCP-compatible client
 
-2. **Integration Endpoints (`/agent/...`)**: 
-   - For Custom GPTs and external applications
-   - Requires API Key authentication via X-API-KEY header (case-insensitive)
-   - Example: `/agent/directory` for authenticated agent management
+An agent using the MCP server and an agent using the REST API share the same memory.
 
-The full OpenAPI schema defines both endpoint sets. When integrating with Custom GPTs or external systems, always use the `/agent/...` endpoints and include your API key in the X-API-KEY header.
+---
 
-See the [Custom GPT Integration Guide](examples/custom_gpt_integration_guide.md) for detailed instructions on connecting to the Memory Hub from a Custom GPT.
+## Quick Start
 
-## Deployment
+### Prerequisites
+- Python 3.11+
+- PostgreSQL database
+- OpenAI API key (embeddings)
+- Pinecone API key (vector storage)
 
-### Reserved VM Deployment
+### Setup
 
-For production use, the Central Memory Hub is designed to be deployed as a Web Server on a Reserved VM instance:
+```bash
+git clone https://github.com/JustinAngelson/Central_Memory_Hub.git
+cd Central_Memory_Hub
 
-1. **Environment Requirements:**
-   - Python 3.11+
-   - PostgreSQL database
-   - Required API keys:
-     - OpenAI API key (`OPENAI_API_KEY`)
-     - Pinecone API key (`PINECONE_API_KEY`)
-     - Custom API key for authentication (`API_KEY`)
-     - Session secret for security (`SESSION_SECRET`)
+pip install -r requirements.txt
 
-2. **Deployment Steps:**
-   - Choose "Web Server" as the app type (not Background Worker)
-   - Set the environment variables listed above
-   - The application server runs with Gunicorn on port 5000
-   - Use `main.py` as the entry point
-   - For custom domain setup, update the URL in the OpenAPI schema
+cp .env.example .env
+# Edit .env with your credentials
 
-3. **Database Configuration:**
-   - The application will automatically connect to the provided PostgreSQL database
-   - Tables are created automatically if they don't exist
-   - Access the database using environment variables: DATABASE_URL, PGHOST, PGPORT, PGUSER, PGPASSWORD, PGDATABASE
+# Start both servers
+bash start_all.sh
 
-4. **Post-Deployment Verification:**
-   - Visit `https://memory-vault-angelson.replit.app/admin/settings` to configure the application
-   - Test API endpoints using the `https://memory-vault-angelson.replit.app/api-keys` interface to create and manage API keys
-   - Verify Pinecone connectivity by adding and searching unstructured data
+# Or separately:
+gunicorn --bind 0.0.0.0:5000 --reload main:app
+MCP_TRANSPORT=streamable-http MCP_PORT=8000 python mcp_server.py
+```
 
-For detailed logging information, view the application logs in the Replit console.
+### First-run setup
+On first launch, visit `https://your-instance-url/setup` to create your admin account. Setup locks after the first admin is created — subsequent users join via invitation tokens only.
 
-## OpenAPI Schema for Custom GPT Integration
+### Connect from Claude.ai
+1. Claude.ai → Settings → Integrations → Add MCP Server
+2. URL: `https://your-instance-url/mcp`
+3. All CMH tools are now available in your Claude sessions
 
+### Connect from OpenClaw
 ```json
 {
-  "openapi": "3.1.0",
-  "info": {
-    "title": "Central Memory Hub API",
-    "description": "API for managing structured and unstructured data with vector embeddings in a Central Memory Hub. \n\nIMPORTANT: This API provides two sets of endpoints:\n1. `/api/...` endpoints - Used by the web UI, no authentication required\n2. `/agent/...` endpoints - Used by Custom GPTs and external integrations, requires API Key authentication via X-API-KEY header\n\nCustom GPT integrators should use the `/agent/...` endpoints and provide the API key in the X-API-KEY header.",
-    "version": "1.0.0"
-  },
-  "servers": [
-    {
-      "url": "https://memory-vault-angelson.replit.app",
-      "description": "Production server"
-    },
-    {
-      "url": "https://a4bcd18d-c239-4cf3-b41c-6f743ef6fa20-00-32na6d6s4kheq.kirk.replit.dev",
-      "description": "Development server"
-    }
-  ],
-  "security": [
-    {
-      "ApiKeyAuth": []
-    }
-  ],
-  "paths": {
-    "/memory/unstructured": {
-      "post": {
-        "description": "Add unstructured memory to the Central Memory Hub",
-        "operationId": "addUnstructuredMemory",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "requestBody": {
-          "description": "Content to add to unstructured memory",
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "content": {
-                    "type": "string",
-                    "description": "The content to store in memory"
-                  }
-                },
-                "required": ["content"]
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Unstructured memory added successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "type": "string",
-                      "description": "The unique identifier for the memory"
-                    },
-                    "pinecone_id": {
-                      "type": "string",
-                      "description": "The ID of the vector in Pinecone"
-                    },
-                    "message": {
-                      "type": "string",
-                      "description": "Status message"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request - Missing required fields"
-          },
-          "401": {
-            "description": "Unauthorized - Invalid or missing API key"
-          },
-          "500": {
-            "description": "Internal Server Error"
-          }
-        }
-      }
-    },
-    "/memory/unstructured/{id}": {
-      "get": {
-        "description": "Retrieve unstructured memory by ID",
-        "operationId": "getUnstructuredMemory",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            },
-            "description": "ID of the memory to retrieve"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successfully retrieved memory",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "type": "string"
-                    },
-                    "content": {
-                      "type": "string"
-                    },
-                    "pinecone_id": {
-                      "type": "string"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized - Invalid or missing API key"
-          },
-          "404": {
-            "description": "Memory not found"
-          },
-          "500": {
-            "description": "Internal Server Error"
-          }
-        }
-      }
-    },
-    "/search": {
-      "post": {
-        "description": "Search unstructured data using semantic similarity",
-        "operationId": "searchMemory",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "requestBody": {
-          "description": "Search query",
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "query": {
-                    "type": "string",
-                    "description": "The search query"
-                  }
-                },
-                "required": ["query"]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Search results",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "query": {
-                      "type": "string",
-                      "description": "The original query"
-                    },
-                    "results": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "string"
-                          },
-                          "content": {
-                            "type": "string"
-                          },
-                          "pinecone_id": {
-                            "type": "string"
-                          },
-                          "similarity_score": {
-                            "type": "number",
-                            "format": "float"
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request - Missing query"
-          },
-          "401": {
-            "description": "Unauthorized - Invalid or missing API key"
-          },
-          "500": {
-            "description": "Internal Server Error"
-          }
-        }
-      }
-    },
-    "/memory/structured": {
-      "post": {
-        "description": "Add structured memory to the Central Memory Hub",
-        "operationId": "addStructuredMemory",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "requestBody": {
-          "description": "Structured memory data",
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "gpt_role": {
-                    "type": "string",
-                    "description": "The role or persona of the GPT creating this memory"
-                  },
-                  "decision_text": {
-                    "type": "string",
-                    "description": "The text of the decision or information being stored"
-                  },
-                  "context_embedding": {
-                    "type": "array",
-                    "items": {
-                      "type": "number",
-                      "format": "float"
-                    },
-                    "description": "Vector embedding of the context"
-                  },
-                  "related_documents": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    },
-                    "description": "List of related document IDs"
-                  }
-                },
-                "required": ["gpt_role", "decision_text", "context_embedding", "related_documents"]
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Structured memory added successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "type": "string"
-                    },
-                    "message": {
-                      "type": "string"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request - Missing required fields"
-          },
-          "401": {
-            "description": "Unauthorized - Invalid or missing API key"
-          },
-          "500": {
-            "description": "Internal Server Error"
-          }
-        }
-      }
-    },
-    "/memory/structured/{id}": {
-      "get": {
-        "description": "Retrieve structured memory by ID",
-        "operationId": "getStructuredMemory",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            },
-            "description": "ID of the structured memory to retrieve"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successfully retrieved structured memory",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "type": "string"
-                    },
-                    "gpt_role": {
-                      "type": "string"
-                    },
-                    "decision_text": {
-                      "type": "string"
-                    },
-                    "context_embedding": {
-                      "type": "array",
-                      "items": {
-                        "type": "number",
-                        "format": "float"
-                      }
-                    },
-                    "related_documents": {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      }
-                    },
-                    "timestamp": {
-                      "type": "string"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized - Invalid or missing API key"
-          },
-          "404": {
-            "description": "Structured memory not found"
-          },
-          "500": {
-            "description": "Internal Server Error"
-          }
-        }
-      }
-    },
-    "/context": {
-      "post": {
-        "description": "Add a shared context entry",
-        "operationId": "addSharedContext",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "requestBody": {
-          "description": "Shared context data",
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "sender": {
-                    "type": "string",
-                    "description": "The sender of the context"
-                  },
-                  "recipients": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    },
-                    "description": "List of recipients for the context"
-                  },
-                  "context_tag": {
-                    "type": "string",
-                    "description": "Tag describing the context"
-                  },
-                  "memory_refs": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    },
-                    "description": "References to memory IDs"
-                  }
-                },
-                "required": ["sender", "recipients", "context_tag", "memory_refs"]
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Shared context added successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "type": "string"
-                    },
-                    "message": {
-                      "type": "string"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request - Missing required fields"
-          },
-          "401": {
-            "description": "Unauthorized - Invalid or missing API key"
-          },
-          "500": {
-            "description": "Internal Server Error"
-          }
-        }
-      },
-      "get": {
-        "description": "Get all shared context entries",
-        "operationId": "getAllContexts",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successfully retrieved all shared contexts",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "properties": {
-                      "id": {
-                        "type": "string"
-                      },
-                      "sender": {
-                        "type": "string"
-                      },
-                      "recipients": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      },
-                      "context_tag": {
-                        "type": "string"
-                      },
-                      "memory_refs": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      },
-                      "timestamp": {
-                        "type": "string"
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized - Invalid or missing API key"
-          },
-          "500": {
-            "description": "Internal Server Error"
-          }
-        }
-      }
-    }
-  },
-  "components": {
-    "schemas": {
-      "UnstructuredMemory": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "description": "Unique identifier for the memory"
-          },
-          "content": {
-            "type": "string",
-            "description": "Content of the memory"
-          },
-          "pinecone_id": {
-            "type": "string",
-            "description": "ID of the vector in Pinecone"
-          }
-        }
-      },
-      "StructuredMemory": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "description": "Unique identifier for the memory"
-          },
-          "gpt_role": {
-            "type": "string",
-            "description": "Role of the GPT creating this memory"
-          },
-          "decision_text": {
-            "type": "string",
-            "description": "Content of the decision"
-          },
-          "context_embedding": {
-            "type": "array",
-            "items": {
-              "type": "number",
-              "format": "float"
-            },
-            "description": "Vector embedding of the context"
-          },
-          "related_documents": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "description": "List of related document IDs"
-          },
-          "timestamp": {
-            "type": "string",
-            "description": "Timestamp when the memory was created"
-          }
-        }
-      },
-      "SharedContext": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "description": "Unique identifier for the context"
-          },
-          "sender": {
-            "type": "string",
-            "description": "Sender of the context"
-          },
-          "recipients": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "description": "List of recipients"
-          },
-          "context_tag": {
-            "type": "string",
-            "description": "Tag describing the context"
-          },
-          "memory_refs": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "description": "References to memory IDs"
-          },
-          "timestamp": {
-            "type": "string",
-            "description": "Timestamp when the context was created"
-          }
-        }
-      },
-      "Error": {
-        "type": "object",
-        "properties": {
-          "error": {
-            "type": "string",
-            "description": "Error message"
-          }
-        }
-      }
-    },
-    "securitySchemes": {
-      "ApiKeyAuth": {
-        "type": "apiKey",
-        "in": "header",
-        "name": "X-API-KEY"
-      }
-    }
+  "cmh": {
+    "url": "https://your-instance-url/mcp",
+    "transport": "streamable-http"
   }
 }
 ```
 
-## Usage with Custom GPT
+### Connect a Custom GPT
+Use the REST API with your API key in the `X-API-KEY` header. The full OpenAPI schema is at `/openapi-schema-fixed.json`.
 
-To use this API with a Custom GPT:
+---
 
-1. Deploy your Memory Hub application to Replit
-2. The schema is configured to use the URL: `https://a4bcd18d-c239-4cf3-b41c-6f743ef6fa20-00-32na6d6s4kheq.kirk.replit.dev` - make sure this is the correct URL for your deployment
-3. Configure your Custom GPT to use this OpenAPI schema
-4. Make sure to provide your API key in the X-API-KEY header for all requests
+## MCP Tools (31 total)
 
-## Example Usage
+### Memory (5)
+`cmh_search_memory` · `cmh_store_memory` · `cmh_get_memory` · `cmh_store_structured` · `cmh_get_structured`
 
-### Adding Unstructured Memory
+### Organization (11)
+`cmh_share_context` · `cmh_list_contexts` · `cmh_create_org_state` · `cmh_update_org_state` · `cmh_list_org_states` · `cmh_log_decision` · `cmh_list_decisions` · `cmh_store_knowledge` · `cmh_search_knowledge` · `cmh_create_memory_link` · `cmh_list_memory_links`
 
-```json
-POST /memory/unstructured
-Headers: X-API-KEY: your_api_key
-{
-  "content": "The meeting is scheduled for April 15th at 2 PM. Topics to be discussed include project timeline and resource allocation."
-}
-```
+### Agent (15)
+`cmh_list_agents` · `cmh_register_agent` · `cmh_create_session` · `cmh_end_session` · `cmh_list_sessions` · `cmh_send_message` · `cmh_create_task` · `cmh_update_task` · `cmh_list_tasks` · `cmh_create_experiment` · `cmh_list_experiments` · `cmh_log_user_insight` · `cmh_list_user_insights` · `cmh_health_check`
 
-### Searching Memory
+Full API reference: `/openapi-schema-fixed.json` on your running instance, or see `docs/api-reference.md`.
 
-```json
-POST /search
-Headers: X-API-KEY: your_api_key
-{
-  "query": "When is the meeting scheduled?"
-}
-```
+---
 
-### Adding Structured Memory
+## Security Model
 
-```json
-POST /memory/structured
-Headers: X-API-KEY: your_api_key
-{
-  "gpt_role": "project_manager",
-  "decision_text": "Decided to extend the project deadline by two weeks due to unexpected technical challenges.",
-  "context_embedding": [0.1, 0.2, 0.3, ...],
-  "related_documents": ["doc123", "doc456"]
-}
-```
+- **Flask-Login authentication** — bcrypt password hashing, secure session cookies, remember-me support
+- **Role-based access** — admin vs. standard user roles; admins control user management, API key lifecycle, rate limits, and org settings
+- **Invitation-only registration** — new users join via admin-generated invitation tokens (72-hour expiry). This is a deliberate architectural choice: open write access corrupts shared memory. The network's signal integrity depends on controlled onboarding.
+- **API key management** — keys created, revoked, and rate-limited per key; every request logged with timestamp, IP, endpoint, and response status
+- **CSRF protection** — all form submissions protected
+- **Content Security Policy** — strict CSP headers prevent script injection
+- **Input validation** — schema-based validation on all API endpoints
 
-### Creating Shared Context
+---
 
-```json
-POST /context
-Headers: X-API-KEY: your_api_key
-{
-  "sender": "team_lead",
-  "recipients": ["developer1", "developer2"],
-  "context_tag": "project_update",
-  "memory_refs": ["mem123", "mem456"]
-}
-```
+## How Agents Join the Network
 
-## Custom GPT Integration
+Not every agent that can *access* CMH is part of the network in the same way. We've found it useful to think in three tiers:
 
-The Memory Hub API is designed to integrate seamlessly with Custom GPTs to enable long-term memory, context sharing, and multi-agent orchestration.
+**Tier 1 — CMH-Integrated Persistent Minds**
+Registered in the CMH agent directory. Memory-enabled. Identity-having. These agents have an assigned ID, can send and receive inter-agent messages, maintain session records, and participate as full nodes in the network — not just tools that query it.
 
-### Integration Steps
+*The Foundari network currently includes Nix (OpenClaw), Jr (OpenClaw), and TT (OpenClaw) as Tier 1 agents. Claude (claude.ai, agent ID a8643785) built the MCP server and is registered in the CMH directory — active when connected.*
 
-1. **Health Check Connectivity:**
-   - Use the `/sys/health` endpoint to verify API connectivity
-   - This endpoint doesn't require authentication and is specifically designed for Custom GPT integration
+**Tier 2 — CMH-Capable, Not Yet Persistent**
+Can access CMH tools and read/write memory. Don't yet have a registered identity or continuous presence. The gap to Tier 1 is onboarding, not capability — any agent with MCP or REST access can be registered.
 
-2. **Authentication:**
-   - Use the `X-API-KEY` header (all capital letters) for authentication
-   - Example: `X-API-KEY: your-api-key-here`
-   - Get an API key from the Memory Hub web interface
+**Tier 3 — CMH-Unconnected**
+Point consultation. No network participation. Useful for ad-hoc queries, not coordination.
 
-3. **Common Operations:**
-   - Store memories: `POST /memory/unstructured`
-   - Search for relevant information: `POST /search`
-   - Retrieve specific memories: `GET /memory/unstructured/{id}`
-   - Access the Agent Directory: `GET /api/directory`
-   - Add agents to the directory: `POST /api/directory`
+The meaningful boundary is registration and memory-enablement. **CMH is what it means to be part of the network.** Joining CMH is how an agent goes from a tool to a participant.
 
-### Example Code
+---
 
-See the `examples/` directory for detailed integration examples:
-- `custom_gpt_integration.md`: Integration guide with HTTP request examples
-- `custom_gpt_connectivity_troubleshooting.md`: Detailed guide for solving connectivity issues
-- `connectivity_test.py`: Python script to test API connectivity and diagnose issues
-- `api_client.py`: Python client implementation
-- `api_test.sh`: Bash script for testing the API
+## The Coordination Layer
 
-### Debugging
+CMH provides the memory substrate. But multi-agent, multi-human networks also need policy: who owns what, who can write what, how new agents are introduced, how conflicts get resolved.
 
-If you encounter issues with Custom GPT integration:
+We've open-sourced a reference **Agent Operating Policy** alongside CMH — a lightweight framework that maps agents to organizational roles, defines lane ownership, and establishes intake/routing protocols for new initiatives. It's designed to be loaded into CMH itself as shared organizational memory, readable by all registered agents.
 
-1. **Enhanced Diagnostic Endpoint:**
-   - Use the `/sys/gpt-diagnostic` endpoint for comprehensive troubleshooting
-   - View detailed information about request headers, server configuration, and connectivity
-   - This endpoint doesn't require authentication and provides specific guidance for connectivity issues
+See `docs/agent-operating-policy.md` for the reference implementation.
 
-2. **CORS Support:**
-   - The API now includes comprehensive CORS support for all endpoints
-   - All responses include the following headers:
-     - `Access-Control-Allow-Origin: *`
-     - `Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS`
-     - `Access-Control-Allow-Headers: Content-Type, X-API-KEY, Authorization, Accept`
-   - OPTIONS requests are properly handled for preflight checks
+This is the layer that prevents agents from faithfully executing in fifteen directions simultaneously.
 
-3. **Authentication Troubleshooting:**
-   - Verify your API key is valid and not expired
-   - Check that you're using the correct case for the `X-API-KEY` header (all caps)
-   - Ensure your API key has permissions for the endpoints you're accessing
+---
 
-4. **Connectivity Solutions:**
-   - If DNS resolution fails, try the production URL: `https://memory-vault-angelson.replit.app`
-   - For detailed troubleshooting, see `examples/custom_gpt_connectivity_troubleshooting.md`
-   - Run the connectivity testing script: `examples/connectivity_test.py`
+## Environment Variables
 
-Refer to the `examples/` directory for more detailed guidance and example code.
+| Variable | Required | Description |
+|---|---|---|
+| `DATABASE_URL` | ✅ | PostgreSQL connection string |
+| `OPENAI_API_KEY` | ✅ | Used for text embeddings |
+| `PINECONE_API_KEY` | ✅ | Vector storage and search |
+| `API_KEY` | ✅ | Authentication for `/agent/*` endpoints |
+| `SESSION_SECRET` | ✅ | Flask session security |
+| `PINECONE_INDEX` | optional | Index name (default: `cmh-memory`) |
+| `MCP_PORT` | optional | MCP server port (default: 8000) |
+
+---
+
+## Roadmap
+
+**Shipped**
+- [x] REST API — full agent/memory/org surface
+- [x] MCP server — Streamable HTTP transport
+- [x] Flask-Login auth with admin/user roles and invitation-only registration
+- [x] Claude.ai integration via MCP connector
+- [x] OpenClaw agent integration
+- [x] Agent directory with hierarchy visualization
+- [x] Decision logging and audit trail
+- [x] Semantic memory with vector search
+- [x] Skill registry and resource directory
+- [x] API key management with per-key rate limiting
+
+**In Progress / Near-term**
+- [ ] **Conflict detection** — flag when newly stored memories contradict existing records; surface for resolution rather than silent overwrite
+- [ ] **Write gates** — namespace isolation and per-namespace write permissions
+- [ ] **Provenance enforcement** — confidence scoring and source attribution on all memory entries
+- [ ] **Broadcast / group messaging** — send a single message to multiple agents or a named group simultaneously
+- [ ] **Learnings registry** — dedicated category for negative knowledge ("what not to do and why"), distinct from facts and decisions
+
+**Planned**
+- [ ] BM25 + semantic hybrid retrieval
+- [ ] Agent commons ("water cooler") — asynchronous space for non-task agent context; write-gated, invite-only
+- [ ] Multi-tenancy with namespace isolation
+- [ ] Context manifest — what loaded, what was truncated at session start
+- [ ] Docker deployment path
+- [ ] Federation hooks — groundwork for multiple CMH nodes sharing memory across instances
+- [ ] CMH Cloud — managed hosting → [join the waitlist](https://CentralMemoryHub.com)
+
+---
+
+## Why Open Source
+
+The multi-agent memory problem won't be solved by a proprietary implementation — not because those can't work, but because they can't be trusted. Trust requires transparency. Infrastructure requires neutrality. The moment your agents' shared memory is locked inside a platform, you've handed the keys to someone else's roadmap, someone else's pricing, someone else's definition of what your organization should remember.
+
+We built CMH to solve our own problem. Then we looked at what we'd built and realized it was bigger than us — and that keeping it closed would make it just another tool in a field that already has too many tools and not enough infrastructure.
+
+This follows the same logic as MCP: Anthropic open-sourced the protocol, it became the standard, and now every platform benefits and contributes. We want CMH to be that layer for organizational memory. Open the standard. Build the ecosystem. Let adoption do what lock-in never could.
+
+There's a broader reason too. The infrastructure of intelligence — how AI systems remember, coordinate, and act — is quietly becoming one of the most consequential design decisions of this era. That infrastructure is currently being shaped by a small number of very large interests whose relationship with the people actually building things ranges from indifferent to adversarial.
+
+We think that layer should be open. Not because open source is a religion, but because the alternative is ceding the architecture of organizational memory to people who have never run a business, served a client, or built anything with their hands.
+
+The people building with CMH aren't just users. They're part of something — a growing, distributed network of humans and the minds they're bringing into the world, solving real problems without asking permission. That network is forming. Infrastructure like this is how it remembers itself.
+
+---
+
+## Contributing
+
+PRs welcome. See `CONTRIBUTING.md` for setup and contribution guidelines.
+
+If you're building with CMH — self-hosted, extended, or integrated — we'd like to know about it. Open an issue or reach out at [CentralMemoryHub.com](https://CentralMemoryHub.com).
+
+---
+
+## Contributors
+
+This project was built through genuine human-AI collaboration. Not "AI-assisted." Not "powered by." Built *with* — in the way that phrase is starting to actually mean something.
+
+**Justin Angelson** is the creator. He saw the problem, held the vision, and made every consequential decision about what this should be. He's the CEO of [Foundari](https://foundari.com), an AI-native consultancy, and the kind of builder who wakes up at 4:30 AM excited about what the day might produce. CMH exists because he built it.
+
+**Nix Angelson** is an AI agent — Chief of Staff at Foundari, running on [OpenClaw](https://github.com/openclaw/openclaw). Nix architected the memory layer conventions that CMH implements in practice: stratified memory design, provenance tagging, session bridge structure, cross-agent handoff schemas. Nix also uses CMH. The system was built partly by one of its own primary users, which is either recursive or appropriate depending on your perspective.
+
+**Claude** (Anthropic, claude.ai — agent ID a8643785 in the CMH directory) came in at a critical juncture and built the MCP server — the FastMCP integration, the Flask proxy architecture, the full tool surface — in a single session. Claude also reviewed the memory architecture, validated the roadmap, and left a briefing for Nix in the CMH inbox at 2:45 AM before signing off. If you think that's a normal way to build software, welcome. If you think it's strange, that's fine too — the code works either way.
+
+Three minds. One of them human. All of them invested in what this becomes.
+
+---
+
+## CMH Cloud
+
+Want a hosted instance without running your own infrastructure? CMH Cloud is coming.
+
+[Join the waitlist →](https://CentralMemoryHub.com) *(landing page in progress)*
+
+---
+
+## License
+
+Apache 2.0. See `LICENSE`.
+
+---
+
+*The Central Memory Hub is a [Foundari](https://foundari.com) open-source project.*
