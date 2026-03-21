@@ -1,6 +1,7 @@
 <nav class="navbar navbar-expand-lg mb-4">
     <div class="container">
         <a class="navbar-brand fw-bold" href="/">
+            <i data-feather="database" style="width:18px;height:18px;" class="me-1"></i>
             Central Memory Hub
         </a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
@@ -40,8 +41,45 @@
                 {% endif %}
             </ul>
             <ul class="navbar-nav ms-auto">
-                <li class="nav-item">
-                    <a class="nav-link text-danger" href="{{ url_for('auth.logout') }}">Sign out</a>
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                        {% if current_user.profile_image %}
+                        <span class="me-1 flex-shrink-0"
+                              style="display:inline-flex;width:28px;height:28px;min-width:28px;max-width:28px;border-radius:50%;overflow:hidden;position:relative;">
+                            <img src="{{ url_for('static', filename=current_user.profile_image) }}"
+                                 alt=""
+                                 style="width:28px;height:28px;object-fit:cover;display:block;border-radius:50%;">
+                        </span>
+                        {% else %}
+                        <i data-feather="user" style="width:15px;height:15px;"></i>
+                        {% endif %}
+                        {{ current_user.username }}
+                        <span class="badge ms-1 {{ 'badge-admin' if current_user.is_admin else 'badge-user' }}" style="font-size:.65rem;">
+                            {{ current_user.role }}
+                        </span>
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><span class="dropdown-item-text small text-muted">{{ current_user.email }}</span></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <a class="dropdown-item" href="{{ url_for('auth.profile') }}">
+                                <i data-feather="user" style="width:14px;height:14px;"></i> My Profile
+                            </a>
+                        </li>
+                        {% if current_user.is_admin %}
+                        <li>
+                            <a class="dropdown-item" href="{{ url_for('auth.org_profile') }}">
+                                <i data-feather="briefcase" style="width:14px;height:14px;"></i> Org Profile
+                            </a>
+                        </li>
+                        {% endif %}
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <a class="dropdown-item text-danger" href="{{ url_for('auth.logout') }}">
+                                <i data-feather="log-out" style="width:14px;height:14px;"></i> Sign out
+                            </a>
+                        </li>
+                    </ul>
                 </li>
             </ul>
         </div>
