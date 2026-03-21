@@ -51,10 +51,10 @@
                         <a class="nav-link{{ ' active' if path.startswith('/users') else '' }}" href="{{ url_for('auth.users') }}">Users</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link{{ ' active' if path.startswith('/org-profile') else '' }}" href="{{ url_for('auth.org_profile') }}">Org Profile</a>
+                        <a class="nav-link{{ ' active' if path.startswith('/admin/org-profile') else '' }}" href="{{ url_for('auth.org_profile') }}">Org Profile</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link{{ ' active' if path.startswith('/settings') else '' }}" href="{{ url_for('get_settings_form') }}">Settings</a>
+                        <a class="nav-link{{ ' active' if path.startswith('/admin/settings') else '' }}" href="{{ url_for('get_settings_form') }}">Settings</a>
                     </li>
                     {% endif %}
                     <li class="nav-item">
