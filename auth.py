@@ -218,9 +218,21 @@ def profile():
                 flash(e, "danger")
             return redirect(url_for("auth.profile"))
 
+        # Remove existing photo if requested
+        if request.form.get("remove_photo") and current_user.profile_image:
+            old_path = os.path.join(
+                os.path.dirname(os.path.abspath(__file__)), 'static', current_user.profile_image
+            )
+            try:
+                if os.path.isfile(old_path):
+                    os.remove(old_path)
+            except OSError as exc:
+                logging.warning("Could not delete avatar file %s: %s", old_path, exc)
+            current_user.profile_image = None
+
         # Save profile image if provided (resized to max 512px to prevent oversized display)
         img_file = request.files.get("profile_image")
-        if img_file and img_file.filename:
+        if img_file and img_file.filename and not request.form.get("remove_photo"):
             rel_path = _save_upload(img_file, subfolder='avatars', resize_avatar=True)
             if rel_path:
                 current_user.profile_image = rel_path

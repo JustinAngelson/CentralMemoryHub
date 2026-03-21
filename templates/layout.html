@@ -60,9 +60,12 @@
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
                             {% if current_user.profile_image %}
-                            <img src="{{ url_for('static', filename=current_user.profile_image) }}"
-                                 alt="" class="rounded-circle me-1"
-                                 style="width:28px;height:28px;min-width:28px;max-width:28px;min-height:28px;max-height:28px;object-fit:cover;flex-shrink:0;">
+                            <span class="rounded-circle me-1 flex-shrink-0"
+                                  style="display:inline-block;width:28px;height:28px;min-width:28px;max-width:28px;overflow:hidden;">
+                                <img src="{{ url_for('static', filename=current_user.profile_image) }}"
+                                     alt=""
+                                     style="width:28px;height:28px;object-fit:cover;display:block;">
+                            </span>
                             {% else %}
                             <i data-feather="user" style="width:15px;height:15px;"></i>
                             {% endif %}
