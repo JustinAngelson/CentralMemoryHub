@@ -4,21 +4,21 @@
     <div class="col-lg-8">
         <div class="d-flex align-items-center mb-4 gap-3">
             {% if current_user.profile_image %}
-            <span class="border border-secondary flex-shrink-0"
+            <span class="border flex-shrink-0"
                   style="display:inline-flex;width:80px;height:80px;min-width:80px;max-width:80px;border-radius:50%;overflow:hidden;position:relative;">
                 <img src="{{ url_for('static', filename=current_user.profile_image) }}"
                      alt="Profile photo"
                      style="width:80px;height:80px;object-fit:cover;display:block;border-radius:50%;">
             </span>
             {% else %}
-            <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center border border-secondary flex-shrink-0"
-                 style="width:80px;height:80px;min-width:80px;max-width:80px;font-size:2rem;color:#ccc;">
+            <div class="rounded-circle d-flex align-items-center justify-content-center border flex-shrink-0"
+                 style="width:80px;height:80px;min-width:80px;max-width:80px;font-size:2rem;background:#EFE9E0;color:#1F1613;">
                 <i data-feather="user"></i>
             </div>
             {% endif %}
             <div>
                 <h4 class="mb-0">{{ current_user.display_name }}</h4>
-                <span class="badge {{ 'bg-danger' if current_user.is_admin else 'bg-secondary' }}">
+                <span class="badge {{ 'badge-admin' if current_user.is_admin else 'badge-user' }}">
                     {{ current_user.role }}
                 </span>
                 <div class="text-muted small">Member since {{ current_user.created_at.strftime('%B %Y') if current_user.created_at else '—' }}</div>
