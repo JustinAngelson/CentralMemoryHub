@@ -523,8 +523,20 @@ def org_profile():
         db.session.commit()
 
     if request.method == "POST":
+        # Remove existing logo if requested
+        if request.form.get("remove_logo") and org.logo:
+            old_logo_path = os.path.join(
+                os.path.dirname(os.path.abspath(__file__)), 'static', org.logo
+            )
+            try:
+                if os.path.isfile(old_logo_path):
+                    os.remove(old_logo_path)
+            except OSError as exc:
+                logging.warning("Could not delete logo file %s: %s", old_logo_path, exc)
+            org.logo = None
+
         logo_file = request.files.get("logo")
-        if logo_file and logo_file.filename:
+        if logo_file and logo_file.filename and not request.form.get("remove_logo"):
             rel_path = _save_upload(logo_file, subfolder='org')
             if rel_path:
                 org.logo = rel_path

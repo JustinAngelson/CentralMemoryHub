@@ -4,9 +4,12 @@
     <div class="col-lg-8">
         <div class="d-flex align-items-center mb-4 gap-3">
             {% if org.logo %}
-            <img src="{{ url_for('static', filename=org.logo) }}"
-                 alt="Organisation logo" class="rounded border border-secondary"
-                 style="max-height:64px;max-width:160px;object-fit:contain;">
+            <span class="rounded border border-secondary"
+                  style="display:inline-flex;max-height:64px;max-width:160px;overflow:hidden;position:relative;">
+                <img src="{{ url_for('static', filename=org.logo) }}"
+                     alt="Organisation logo"
+                     style="max-height:64px;max-width:160px;object-fit:contain;display:block;">
+            </span>
             {% else %}
             <div class="rounded bg-secondary d-flex align-items-center justify-content-center border border-secondary"
                  style="width:64px;height:64px;font-size:1.75rem;color:#ccc;">
@@ -52,6 +55,12 @@
                                    accept="image/png,image/jpeg,image/gif,image/webp">
                             {% if org.logo %}
                             <div class="form-text text-muted">Current logo shown above. Upload a new one to replace it.</div>
+                            <div class="form-check mt-2">
+                                <input class="form-check-input" type="checkbox" name="remove_logo" id="remove_logo" value="1">
+                                <label class="form-check-label small text-danger" for="remove_logo">
+                                    Remove current logo
+                                </label>
+                            </div>
                             {% endif %}
                         </div>
                         <div class="col-12">
