@@ -4,11 +4,11 @@
     <div class="col-lg-8">
         <div class="d-flex align-items-center mb-4 gap-3">
             {% if current_user.profile_image %}
-            <span class="rounded-circle border border-secondary flex-shrink-0"
-                  style="display:inline-block;width:80px;height:80px;min-width:80px;max-width:80px;overflow:hidden;">
+            <span class="border border-secondary flex-shrink-0"
+                  style="display:inline-flex;width:80px;height:80px;min-width:80px;max-width:80px;border-radius:50%;overflow:hidden;position:relative;">
                 <img src="{{ url_for('static', filename=current_user.profile_image) }}"
                      alt="Profile photo"
-                     style="width:80px;height:80px;object-fit:cover;display:block;">
+                     style="width:80px;height:80px;object-fit:cover;display:block;border-radius:50%;">
             </span>
             {% else %}
             <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center border border-secondary flex-shrink-0"
