@@ -4,12 +4,15 @@
     <div class="col-lg-8">
         <div class="d-flex align-items-center mb-4 gap-3">
             {% if current_user.profile_image %}
-            <img src="{{ url_for('static', filename=current_user.profile_image) }}"
-                 alt="Profile photo" class="rounded-circle border border-secondary"
-                 style="width:80px;height:80px;min-width:80px;max-width:80px;min-height:80px;max-height:80px;object-fit:cover;flex-shrink:0;">
+            <span class="rounded-circle border border-secondary flex-shrink-0"
+                  style="display:inline-block;width:80px;height:80px;min-width:80px;max-width:80px;overflow:hidden;">
+                <img src="{{ url_for('static', filename=current_user.profile_image) }}"
+                     alt="Profile photo"
+                     style="width:80px;height:80px;object-fit:cover;display:block;">
+            </span>
             {% else %}
-            <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center border border-secondary"
-                 style="width:80px;height:80px;min-width:80px;max-width:80px;min-height:80px;max-height:80px;font-size:2rem;color:#ccc;flex-shrink:0;">
+            <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center border border-secondary flex-shrink-0"
+                 style="width:80px;height:80px;min-width:80px;max-width:80px;font-size:2rem;color:#ccc;">
                 <i data-feather="user"></i>
             </div>
             {% endif %}
@@ -67,7 +70,13 @@
                             <input type="file" name="profile_image" class="form-control"
                                    accept="image/png,image/jpeg,image/gif,image/webp">
                             {% if current_user.profile_image %}
-                            <div class="form-text text-muted">Current photo shown above. Upload a new one to replace it.</div>
+                            <div class="form-text text-muted mb-1">Current photo shown above. Upload a new one to replace it.</div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="remove_photo" id="removePhoto" value="1">
+                                <label class="form-check-label text-danger small" for="removePhoto">
+                                    Remove current photo
+                                </label>
+                            </div>
                             {% endif %}
                         </div>
                     </div>
