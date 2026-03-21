@@ -1,87 +1,373 @@
-/* Custom styles for the Memory Hub application */
+/* ═══════════════════════════════════════════════════════
+   Foundari Brand Style Guide — Central Memory Hub
+   Primary: Linen #EFE9E0 · Espresso #1F1613 · Teal #008F8C
+   Secondary: Aqua #2FBEBE · Slate #BEBEBE · Mist #CDE9E2 · Frost #ECEDED
+   Typography: DM Sans (Google Fonts)
+   ═══════════════════════════════════════════════════════ */
 
-/* Card styling */
+/* ── Brand tokens ── */
+:root {
+  --cmh-linen:     #EFE9E0;
+  --cmh-espresso:  #1F1613;
+  --cmh-teal:      #008F8C;
+  --cmh-white:     #FFFFFF;
+  --cmh-aqua:      #2FBEBE;
+  --cmh-slate:     #BEBEBE;
+  --cmh-mist:      #CDE9E2;
+  --cmh-frost:     #ECEDED;
+
+  /* Bootstrap 5 root overrides */
+  --bs-body-bg:               var(--cmh-linen);
+  --bs-body-color:            var(--cmh-espresso);
+  --bs-body-font-family:      'DM Sans', system-ui, sans-serif;
+  --bs-link-color:            var(--cmh-teal);
+  --bs-link-hover-color:      var(--cmh-aqua);
+  --bs-border-color:          var(--cmh-frost);
+  --bs-secondary-color:       #6b6360;
+  --bs-secondary-bg:          var(--cmh-frost);
+  --bs-tertiary-bg:           var(--cmh-linen);
+  --bs-code-color:            var(--cmh-espresso);
+  --bs-emphasis-color:        var(--cmh-espresso);
+}
+
+/* ── Base ── */
+body {
+  background-color: var(--cmh-linen);
+  color: var(--cmh-espresso);
+  font-family: 'DM Sans', system-ui, sans-serif;
+}
+
+h1, h2, h3 { font-weight: 400; }
+h4, h5, h6, .fw-bold { font-weight: 700; }
+
+a { color: var(--cmh-teal); }
+a:hover { color: var(--cmh-aqua); }
+
+/* ── Navbar ── */
+.navbar {
+  background-color: var(--cmh-espresso) !important;
+}
+
+.navbar-brand,
+.navbar .nav-link {
+  color: rgba(255,255,255,.85) !important;
+}
+
+.navbar-brand:hover,
+.navbar .nav-link:hover {
+  color: var(--cmh-mist) !important;
+}
+
+.navbar .nav-link.active {
+  color: var(--cmh-teal) !important;
+  font-weight: 600;
+}
+
+.navbar-toggler {
+  border-color: rgba(255,255,255,.25);
+}
+
+.navbar-toggler-icon {
+  filter: invert(1);
+}
+
+.navbar .dropdown-menu {
+  background-color: var(--cmh-white);
+  border: 1px solid var(--cmh-frost);
+  box-shadow: 0 4px 16px rgba(31,22,19,0.12);
+}
+
+.navbar .dropdown-item {
+  color: var(--cmh-espresso);
+}
+
+.navbar .dropdown-item:hover {
+  background-color: var(--cmh-mist);
+  color: var(--cmh-espresso);
+}
+
+.navbar .dropdown-divider { border-color: var(--cmh-frost); }
+.navbar .dropdown-item-text { color: var(--bs-secondary-color); }
+
+/* ── Cards ── */
 .card {
-    border-radius: 0.5rem;
-    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
-    margin-bottom: 1.5rem;
-    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+  background-color: var(--cmh-white);
+  border: 1px solid var(--cmh-frost);
+  border-radius: 0.6rem;
+  box-shadow: 0 1px 4px rgba(31,22,19,0.06);
+  margin-bottom: 1.5rem;
+  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
 }
 
 .card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 14px rgba(31,22,19,0.10);
 }
 
-/* Form styling */
-.form-control {
-    border-radius: 0.25rem;
+.card-header {
+  background-color: var(--cmh-frost);
+  border-bottom: 1px solid var(--cmh-frost);
+  color: var(--cmh-espresso);
 }
 
-.form-control:focus {
-    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+.card-footer {
+  background-color: transparent;
+  border-top: 1px solid var(--cmh-frost);
 }
 
-/* Button styling */
+/* ── Buttons ── */
 .btn {
-    border-radius: 0.25rem;
-    font-weight: 500;
-    padding: 0.5rem 1rem;
+  border-radius: 0.35rem;
+  font-weight: 500;
+  padding: 0.45rem 1rem;
 }
 
-/* Icon styling */
-[data-feather] {
-    width: 1.25rem;
-    height: 1.25rem;
-    stroke: currentColor;
-    stroke-width: 2;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-    fill: none;
+.btn-primary {
+  background-color: var(--cmh-teal);
+  border-color: var(--cmh-teal);
+  color: var(--cmh-white);
 }
 
-/* Result list styling */
+.btn-primary:hover, .btn-primary:focus {
+  background-color: #007775;
+  border-color: #007775;
+  color: var(--cmh-white);
+}
+
+.btn-primary:active {
+  background-color: #006665;
+  border-color: #006665;
+}
+
+.btn-outline-primary {
+  color: var(--cmh-teal);
+  border-color: var(--cmh-teal);
+}
+
+.btn-outline-primary:hover {
+  background-color: var(--cmh-teal);
+  border-color: var(--cmh-teal);
+  color: var(--cmh-white);
+}
+
+.btn-secondary {
+  background-color: var(--cmh-slate);
+  border-color: var(--cmh-slate);
+  color: var(--cmh-espresso);
+}
+
+.btn-secondary:hover {
+  background-color: #a8a8a8;
+  border-color: #a8a8a8;
+  color: var(--cmh-espresso);
+}
+
+.btn-outline-secondary {
+  color: #6b6360;
+  border-color: var(--cmh-slate);
+}
+
+.btn-outline-secondary:hover {
+  background-color: var(--cmh-frost);
+  border-color: var(--cmh-slate);
+  color: var(--cmh-espresso);
+}
+
+.btn-success {
+  background-color: #2d7d4f;
+  border-color: #2d7d4f;
+}
+
+.btn-outline-info {
+  color: var(--cmh-teal);
+  border-color: var(--cmh-teal);
+}
+
+.btn-outline-info:hover {
+  background-color: var(--cmh-teal);
+  border-color: var(--cmh-teal);
+  color: var(--cmh-white);
+}
+
+.btn-info {
+  background-color: var(--cmh-aqua);
+  border-color: var(--cmh-aqua);
+  color: var(--cmh-espresso);
+}
+
+/* ── Forms ── */
+.form-control,
+.form-select {
+  background-color: var(--cmh-frost);
+  border-color: var(--cmh-slate);
+  color: var(--cmh-espresso);
+  border-radius: 0.35rem;
+}
+
+.form-control:focus,
+.form-select:focus {
+  background-color: var(--cmh-white);
+  border-color: var(--cmh-teal);
+  box-shadow: 0 0 0 0.2rem rgba(0,143,140,0.2);
+  color: var(--cmh-espresso);
+}
+
+.form-control::placeholder { color: var(--cmh-slate); }
+.form-control:disabled { background-color: var(--cmh-frost); opacity: .65; }
+
+.form-label { color: var(--cmh-espresso); font-weight: 500; }
+.form-text { color: #6b6360; }
+
+.form-check-input:checked {
+  background-color: var(--cmh-teal);
+  border-color: var(--cmh-teal);
+}
+
+.form-check-input:focus {
+  border-color: var(--cmh-teal);
+  box-shadow: 0 0 0 0.2rem rgba(0,143,140,0.2);
+}
+
+/* ── Badges ── */
+.badge.bg-primary   { background-color: var(--cmh-teal) !important; }
+.badge.bg-secondary { background-color: var(--cmh-slate) !important; color: var(--cmh-espresso) !important; }
+.badge.bg-info      { background-color: var(--cmh-mist) !important; color: var(--cmh-espresso) !important; }
+.badge.bg-success   { background-color: #2d7d4f !important; }
+.badge.bg-danger    { background-color: #c0392b !important; }
+.badge.bg-warning   { background-color: #e09c24 !important; }
+
+/* Role badges */
+.badge-admin { background-color: var(--cmh-teal); color: var(--cmh-white); }
+.badge-user  { background-color: var(--cmh-slate); color: var(--cmh-espresso); }
+
+/* ── Tables ── */
+.table {
+  --bs-table-bg: var(--cmh-white);
+  --bs-table-hover-bg: var(--cmh-mist);
+  --bs-table-striped-bg: var(--cmh-frost);
+  color: var(--cmh-espresso);
+  border-color: var(--cmh-frost);
+}
+
+.table thead th {
+  background-color: var(--cmh-frost);
+  border-bottom: 2px solid var(--cmh-slate);
+  color: var(--cmh-espresso);
+  font-weight: 600;
+}
+
+.table td, .table th {
+  border-color: var(--cmh-frost);
+}
+
+/* ── List groups ── */
 .list-group-item {
-    border-left: 0;
-    border-right: 0;
-    padding: 1rem;
+  background-color: var(--cmh-white);
+  border-color: var(--cmh-frost);
+  color: var(--cmh-espresso);
+  padding: 1rem;
 }
 
-.similarity-score {
-    font-size: 0.875rem;
-    padding: 0.25rem 0.5rem;
-    border-radius: 1rem;
+.list-group-item:hover {
+  background-color: var(--cmh-frost);
 }
 
-/* API Key input styling */
-#apiKeyInput {
-    font-family: monospace;
+/* ── Modals ── */
+.modal-content {
+  background-color: var(--cmh-white);
+  border: 1px solid var(--cmh-frost);
+  color: var(--cmh-espresso);
 }
 
-/* Toast styling */
-.toast {
-    min-width: 350px;
+.modal-header {
+  background-color: var(--cmh-frost);
+  border-bottom: 1px solid var(--cmh-slate);
 }
 
-/* Code styling */
+.modal-footer {
+  background-color: var(--cmh-frost);
+  border-top: 1px solid var(--cmh-slate);
+}
+
+.btn-close { filter: none; }
+
+/* ── Alerts ── */
+.alert-danger  { background-color: #fde8e8; border-color: #f5c6c6; color: #7b1d1d; }
+.alert-success { background-color: #e6f4ed; border-color: #c3e6d4; color: #1a4731; }
+.alert-warning { background-color: #fef9e7; border-color: #f9e5a5; color: #5a3e05; }
+.alert-info    { background-color: var(--cmh-mist); border-color: var(--cmh-aqua); color: #1a4646; }
+
+/* ── Code ── */
 pre, code {
-    background-color: var(--bs-dark);
-    border-radius: 0.25rem;
-    font-family: monospace;
-    padding: 0.25rem;
+  background-color: var(--cmh-espresso);
+  color: var(--cmh-mist);
+  border-radius: 0.35rem;
+  font-family: 'Courier New', Courier, monospace;
+  padding: 0.2rem 0.4rem;
+  font-size: .875em;
 }
 
 pre {
-    padding: 1rem;
+  padding: 1rem;
 }
 
-/* Loading spinner */
+.font-monospace,
+.code-block {
+  background-color: var(--cmh-espresso);
+  color: var(--cmh-mist);
+  border: 1px solid rgba(205,233,226,.15);
+  border-radius: 0.35rem;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: .85em;
+  padding: .75rem;
+}
+
+.code-block .text-info    { color: var(--cmh-aqua) !important; }
+.code-block .text-warning { color: #e8c063 !important; }
+
+/* ── Misc UI ── */
+[data-feather] {
+  width: 1.2rem;
+  height: 1.2rem;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+  vertical-align: -0.15em;
+}
+
+.text-muted { color: #6b6360 !important; }
+
+.similarity-score {
+  font-size: 0.875rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 1rem;
+}
+
+.toast { min-width: 350px; }
+
 .spinner-border {
-    width: 1.5rem;
-    height: 1.5rem;
+  width: 1.5rem;
+  height: 1.5rem;
 }
 
-/* Card header icons */
-.card-header i {
-    margin-right: 0.5rem;
+.card-header i { margin-right: 0.5rem; }
+
+/* ── Skill picker scroll ── */
+#skillPickerList {
+  background: var(--cmh-white);
+  border-color: var(--cmh-frost) !important;
+}
+
+/* ── Section divider ── */
+.section-divider {
+  border-color: var(--cmh-slate);
+  opacity: .5;
+}
+
+/* ── Org chart lines ── */
+.subordinates::before,
+.subordinates > .org-node::before {
+  border-color: var(--cmh-slate) !important;
 }

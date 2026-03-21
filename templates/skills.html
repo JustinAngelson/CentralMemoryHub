@@ -242,7 +242,7 @@
                             {% endif %}">
                             {{ sk.type }}
                         </span>
-                        <span class="badge bg-outline border border-secondary text-muted" style="font-size:.65rem;">
+                        <span class="badge border text-muted" style="font-size:.65rem;">
                             POC: {{ sk.poc_type }}
                         </span>
                     </div>
@@ -296,7 +296,7 @@
                 {% endif %}
             </div>
             <div class="card-footer py-2 d-flex justify-content-between align-items-center"
-                 style="border-top:1px solid rgba(255,255,255,0.08);">
+                 style="border-top:1px solid #ECEDED;">
                 <span class="small text-muted">
                     <i data-feather="calendar" style="width:12px;height:12px;" class="me-1"></i>
                     {{ sk.created_at.strftime('%b %d, %Y') if sk.created_at else '—' }}
