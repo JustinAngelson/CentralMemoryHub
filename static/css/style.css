@@ -16,6 +16,25 @@
   --cmh-mist:      #CDE9E2;
   --cmh-frost:     #ECEDED;
 
+  /* Bootstrap 5 — primary → Teal */
+  --bs-primary:               #008F8C;
+  --bs-primary-rgb:           0,143,140;
+  --bs-primary-text-emphasis: #006b69;
+  --bs-primary-bg-subtle:     var(--cmh-mist);
+  --bs-primary-border-subtle: #7dcfcd;
+
+  /* Bootstrap 5 — secondary → Slate */
+  --bs-secondary:             #BEBEBE;
+  --bs-secondary-rgb:         190,190,190;
+  --bs-secondary-text-emphasis: #6b6360;
+  --bs-secondary-bg-subtle:   var(--cmh-frost);
+
+  /* Bootstrap 5 — info → Aqua */
+  --bs-info:                  #2FBEBE;
+  --bs-info-rgb:              47,190,190;
+  --bs-info-text-emphasis:    #1a8080;
+  --bs-info-bg-subtle:        var(--cmh-mist);
+
   /* Bootstrap 5 root overrides */
   --bs-body-bg:               var(--cmh-linen);
   --bs-body-color:            var(--cmh-espresso);
