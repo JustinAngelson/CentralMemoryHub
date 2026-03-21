@@ -36,18 +36,21 @@ def _allowed_image(filename: str) -> bool:
 def _resize_avatar(path: str, max_px: int = AVATAR_MAX_PX) -> None:
     """Resize an image file in-place to fit within max_px × max_px, preserving aspect ratio.
     GIF files are left untouched to preserve animation.
+    Raises RuntimeError on failure so callers can reject the upload.
     """
+    from PIL import Image  # guaranteed by pyproject.toml dependency
+
+    ext = os.path.splitext(path)[1].lower()
+    if ext == '.gif':
+        return  # leave animated GIFs untouched
+
     try:
-        from PIL import Image
-        ext = os.path.splitext(path)[1].lower()
-        if ext == '.gif':
-            return
         with Image.open(path) as img:
             if img.width <= max_px and img.height <= max_px:
                 return
             img = img.convert('RGB') if img.mode not in ('RGB', 'RGBA') else img
             img.thumbnail((max_px, max_px), Image.LANCZOS)
-            save_kwargs = {}
+            save_kwargs: dict = {}
             if ext in ('.jpg', '.jpeg'):
                 save_kwargs = {'format': 'JPEG', 'quality': 88, 'optimize': True}
             elif ext == '.png':
@@ -56,7 +59,8 @@ def _resize_avatar(path: str, max_px: int = AVATAR_MAX_PX) -> None:
                 save_kwargs = {'format': 'WEBP', 'quality': 88}
             img.save(path, **save_kwargs)
     except Exception as exc:
-        logging.warning("Avatar resize failed for %s: %s", path, exc)
+        logging.error("Avatar resize failed for %s: %s", path, exc)
+        raise RuntimeError(f"Could not process image: {exc}") from exc
 
 
 def _save_upload(file_storage, subfolder: str = '', resize_avatar: bool = False) -> str | None:
@@ -64,7 +68,7 @@ def _save_upload(file_storage, subfolder: str = '', resize_avatar: bool = False)
 
     If resize_avatar is True, the saved image is resized to at most
     AVATAR_MAX_PX × AVATAR_MAX_PX to prevent oversized uploads from
-    breaking the UI.
+    breaking the UI.  Returns None (and removes the file) if resizing fails.
     """
     if not file_storage or file_storage.filename == '':
         return None
@@ -76,7 +80,14 @@ def _save_upload(file_storage, subfolder: str = '', resize_avatar: bool = False)
     dest = os.path.join(UPLOAD_FOLDER, subfolder, unique_name)
     file_storage.save(dest)
     if resize_avatar:
-        _resize_avatar(dest)
+        try:
+            _resize_avatar(dest)
+        except RuntimeError:
+            try:
+                os.remove(dest)
+            except OSError:
+                pass
+            return None
     rel = f"uploads/{subfolder + '/' if subfolder else ''}{unique_name}"
     return rel
 
