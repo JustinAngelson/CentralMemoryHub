@@ -27,33 +27,34 @@
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
+                    {% set path = request.path %}
                     <li class="nav-item">
-                        <a class="nav-link" href="/">Home</a>
+                        <a class="nav-link{{ ' active' if path == '/' else '' }}" href="/">Home</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="/memories">Memories</a>
+                        <a class="nav-link{{ ' active' if path.startswith('/memories') else '' }}" href="/memories">Memories</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="/agents">Agents</a>
+                        <a class="nav-link{{ ' active' if path.startswith('/agents') else '' }}" href="/agents">Agents</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="/resources">Resources</a>
+                        <a class="nav-link{{ ' active' if path.startswith('/resources') else '' }}" href="/resources">Resources</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="/skills">Skills</a>
+                        <a class="nav-link{{ ' active' if path.startswith('/skills') else '' }}" href="/skills">Skills</a>
                     </li>
                     {% if current_user.is_admin %}
                     <li class="nav-item">
-                        <a class="nav-link" href="/api-keys">API Keys</a>
+                        <a class="nav-link{{ ' active' if path.startswith('/api-keys') else '' }}" href="/api-keys">API Keys</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('auth.users') }}">Users</a>
+                        <a class="nav-link{{ ' active' if path.startswith('/users') else '' }}" href="{{ url_for('auth.users') }}">Users</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('auth.org_profile') }}">Org Profile</a>
+                        <a class="nav-link{{ ' active' if path.startswith('/org-profile') else '' }}" href="{{ url_for('auth.org_profile') }}">Org Profile</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('get_settings_form') }}">Settings</a>
+                        <a class="nav-link{{ ' active' if path.startswith('/settings') else '' }}" href="{{ url_for('get_settings_form') }}">Settings</a>
                     </li>
                     {% endif %}
                     <li class="nav-item">
