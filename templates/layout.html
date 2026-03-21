@@ -62,7 +62,7 @@
                             {% if current_user.profile_image %}
                             <img src="{{ url_for('static', filename=current_user.profile_image) }}"
                                  alt="" class="rounded-circle me-1"
-                                 style="width:20px;height:20px;object-fit:cover;">
+                                 style="width:28px;height:28px;min-width:28px;max-width:28px;min-height:28px;max-height:28px;object-fit:cover;flex-shrink:0;">
                             {% else %}
                             <i data-feather="user" style="width:15px;height:15px;"></i>
                             {% endif %}

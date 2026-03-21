@@ -3,6 +3,7 @@ Authentication blueprint — login, logout, setup, user management,
 user profiles, invitation flow, and organisation profile.
 Decorators: login_required (any user), admin_required (admin only).
 """
+import io
 import logging
 import os
 import secrets
@@ -23,6 +24,7 @@ auth_bp = Blueprint("auth", __name__)
 
 ALLOWED_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'uploads')
+AVATAR_MAX_PX = 512
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -31,8 +33,39 @@ def _allowed_image(filename: str) -> bool:
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_IMAGE_EXTENSIONS
 
 
-def _save_upload(file_storage, subfolder: str = '') -> str | None:
-    """Save an uploaded image; return the URL-safe relative path or None."""
+def _resize_avatar(path: str, max_px: int = AVATAR_MAX_PX) -> None:
+    """Resize an image file in-place to fit within max_px × max_px, preserving aspect ratio.
+    GIF files are left untouched to preserve animation.
+    """
+    try:
+        from PIL import Image
+        ext = os.path.splitext(path)[1].lower()
+        if ext == '.gif':
+            return
+        with Image.open(path) as img:
+            if img.width <= max_px and img.height <= max_px:
+                return
+            img = img.convert('RGB') if img.mode not in ('RGB', 'RGBA') else img
+            img.thumbnail((max_px, max_px), Image.LANCZOS)
+            save_kwargs = {}
+            if ext in ('.jpg', '.jpeg'):
+                save_kwargs = {'format': 'JPEG', 'quality': 88, 'optimize': True}
+            elif ext == '.png':
+                save_kwargs = {'format': 'PNG', 'optimize': True}
+            elif ext == '.webp':
+                save_kwargs = {'format': 'WEBP', 'quality': 88}
+            img.save(path, **save_kwargs)
+    except Exception as exc:
+        logging.warning("Avatar resize failed for %s: %s", path, exc)
+
+
+def _save_upload(file_storage, subfolder: str = '', resize_avatar: bool = False) -> str | None:
+    """Save an uploaded image; return the URL-safe relative path or None.
+
+    If resize_avatar is True, the saved image is resized to at most
+    AVATAR_MAX_PX × AVATAR_MAX_PX to prevent oversized uploads from
+    breaking the UI.
+    """
     if not file_storage or file_storage.filename == '':
         return None
     if not _allowed_image(file_storage.filename):
@@ -42,6 +75,8 @@ def _save_upload(file_storage, subfolder: str = '') -> str | None:
     unique_name = f"{secrets.token_hex(8)}_{filename}"
     dest = os.path.join(UPLOAD_FOLDER, subfolder, unique_name)
     file_storage.save(dest)
+    if resize_avatar:
+        _resize_avatar(dest)
     rel = f"uploads/{subfolder + '/' if subfolder else ''}{unique_name}"
     return rel
 
@@ -163,10 +198,10 @@ def profile():
                 flash(e, "danger")
             return redirect(url_for("auth.profile"))
 
-        # Save profile image if provided
+        # Save profile image if provided (resized to max 512px to prevent oversized display)
         img_file = request.files.get("profile_image")
         if img_file and img_file.filename:
-            rel_path = _save_upload(img_file, subfolder='avatars')
+            rel_path = _save_upload(img_file, subfolder='avatars', resize_avatar=True)
             if rel_path:
                 current_user.profile_image = rel_path
             else:

@@ -6,7 +6,7 @@
             {% if current_user.profile_image %}
             <img src="{{ url_for('static', filename=current_user.profile_image) }}"
                  alt="Profile photo" class="rounded-circle border border-secondary"
-                 style="width:72px;height:72px;object-fit:cover;">
+                 style="width:80px;height:80px;min-width:80px;max-width:80px;min-height:80px;max-height:80px;object-fit:cover;flex-shrink:0;">
             {% else %}
             <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center border border-secondary"
                  style="width:72px;height:72px;font-size:2rem;color:#ccc;">
