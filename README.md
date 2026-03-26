@@ -8,7 +8,7 @@
 
 ---
 
-![CMH Architecture](docs/architectureo.png)
+![CMH Architecture](docs/CMH%20Architecture%20Map%20v1.2.png)
 
 ## The Problem
 
