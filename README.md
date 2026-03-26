@@ -8,6 +8,8 @@
 
 ---
 
+![CMH Architecture](docs/architectureo.png)
+
 ## The Problem
 
 Agents forget each other.
