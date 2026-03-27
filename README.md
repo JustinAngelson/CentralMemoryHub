@@ -293,7 +293,7 @@ Three minds. One of them human. All of them invested in what this becomes.
 
 Want a hosted instance without running your own infrastructure? CMH Cloud is coming.
 
-[Join the waitlist →](https://CentralMemoryHub.com) *(landing page in progress)*
+[Join the waitlist →](https://CentralMemoryHub.com)
 
 ---
 
