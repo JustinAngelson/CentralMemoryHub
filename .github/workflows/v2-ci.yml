@@ -1,0 +1,52 @@
+name: CMH v2
+on:
+  push:
+    branches: [v2]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-only-isolated-service
+          POSTGRES_DB: cmh_v2_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d cmh_v2_test"
+          --health-interval 2s --health-timeout 3s --health-retries 30
+    env:
+      CMH_DATABASE_URL: postgresql+psycopg://postgres:ci-only-isolated-service@127.0.0.1:5432/cmh_v2_dev
+      CMH_TEST_DATABASE_URL: postgresql+psycopg://postgres:ci-only-isolated-service@127.0.0.1:5432/cmh_v2_test
+      CMH_PUBLIC_URL: http://127.0.0.1:8008
+      CMH_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install './src/cmh[dev]'
+      - run: ruff check --config src/cmh/pyproject.toml src/cmh migrations tests/v2 v2
+      - run: pytest -c src/cmh/pyproject.toml tests/v2 -v
+  compose-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate isolated CI credentials
+        shell: bash
+        run: |
+          password="$(openssl rand -hex 32)"
+          token="$(openssl rand -hex 48)"
+          echo "::add-mask::$password"
+          echo "::add-mask::$token"
+          echo "CMH_POSTGRES_PASSWORD=$password" >> "$GITHUB_ENV"
+          echo "CMH_BOOTSTRAP_TOKEN=$token" >> "$GITHUB_ENV"
+      - run: docker compose up --build -d --wait --wait-timeout 120
+      - run: curl --fail --silent http://127.0.0.1:8080/healthz
+      - run: docker compose exec -T app python v2/check_mcp.py --url http://127.0.0.1:8080/mcp --env dev
+      - if: always()
+        run: docker compose down --volumes

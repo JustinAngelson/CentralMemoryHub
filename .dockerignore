@@ -1,0 +1,10 @@
+*
+!src/
+!src/cmh/
+!src/cmh/**
+!migrations/
+!migrations/**
+!v2/
+!v2/alembic.ini
+!v2/check_mcp.py
+**/__pycache__/
