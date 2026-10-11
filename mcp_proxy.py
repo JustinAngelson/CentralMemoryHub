@@ -9,11 +9,14 @@ rejects 'mcp-session-id' when processed as a Flask route.
 
 Applied in app.py:  app.wsgi_app = MCPProxyMiddleware(app.wsgi_app)
 """
+import hmac
+import json
 import logging
+import os
 import urllib.request
 import urllib.error
 
-MCP_INTERNAL_URL = "http://localhost:8000/mcp"
+MCP_INTERNAL_URL = "http://127.0.0.1:8000/mcp"
 
 # Headers forwarded from client → MCP server
 REQUEST_PASSTHROUGH = {
@@ -34,7 +37,7 @@ RESPONSE_PASSTHROUGH = {
 CORS_HEADERS = [
     ("Access-Control-Allow-Origin", "*"),
     ("Access-Control-Allow-Methods", "POST, GET, DELETE, OPTIONS"),
-    ("Access-Control-Allow-Headers", "Content-Type, Accept, mcp-session-id, Last-Event-ID"),
+    ("Access-Control-Allow-Headers", "Authorization, Content-Type, Accept, mcp-session-id, Last-Event-ID"),
     ("Access-Control-Expose-Headers", "mcp-session-id"),
 ]
 
@@ -45,11 +48,29 @@ class MCPProxyMiddleware:
     def __init__(self, wsgi_app):
         self.wsgi_app = wsgi_app
 
+    @staticmethod
+    def _deny(start_response, status, message):
+        body = json.dumps({"error": message}).encode("utf-8")
+        headers = list(CORS_HEADERS) + [
+            ("Content-Type", "application/json"),
+            ("Content-Length", str(len(body))),
+            ("Cache-Control", "no-store"),
+        ]
+        if status.startswith("401"):
+            headers.append(("WWW-Authenticate", 'Bearer realm="cmh-mcp"'))
+        start_response(status, headers)
+        return [body]
+
     def __call__(self, environ, start_response):
         path = environ.get("PATH_INFO", "")
 
-        if path != "/mcp":
+        if path != "/mcp" and not path.startswith("/mcp/"):
             return self.wsgi_app(environ, start_response)
+
+        # Only the canonical MCP endpoint exists; unknown subpaths must not
+        # become authenticated aliases for the upstream endpoint.
+        if path not in ("/mcp", "/mcp/"):
+            return self._deny(start_response, "404 Not Found", "Not found.")
 
         method = environ.get("REQUEST_METHOD", "GET")
 
@@ -58,6 +79,26 @@ class MCPProxyMiddleware:
             headers = list(CORS_HEADERS) + [("Content-Length", "0")]
             start_response("204 No Content", headers)
             return [b""]
+
+        # Fail closed. Sessions, REST API keys and query parameters cannot
+        # substitute for the dedicated MCP bearer credential.
+        authorization = environ.get("HTTP_AUTHORIZATION", "")
+        parts = authorization.split()
+        if len(parts) != 2 or parts[0].lower() != "bearer":
+            return self._deny(
+                start_response, "401 Unauthorized", "A valid MCP bearer token is required."
+            )
+        expected_token = os.environ.get("MCP_BEARER_TOKEN", "").strip()
+        if not expected_token:
+            return self._deny(
+                start_response, "503 Service Unavailable", "MCP access is not configured."
+            )
+        if not hmac.compare_digest(
+            parts[1].encode("utf-8"), expected_token.encode("utf-8")
+        ):
+            return self._deny(
+                start_response, "401 Unauthorized", "A valid MCP bearer token is required."
+            )
 
         # Build forwarded headers from WSGI environ
         forward_headers = {}

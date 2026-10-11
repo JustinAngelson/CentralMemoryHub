@@ -353,6 +353,7 @@ class AgentDirectory(db.Model):
     skills = Column(JSONB, nullable=True)          # known skills, e.g. Skills.md entries
     usual_model = Column(String(100), nullable=True)  # e.g. "Claude Sonnet 4", "GPT-4o"
     reports_to = Column(String(36), ForeignKey('agent_directory.agent_id'), nullable=True)
+    agent_type = Column(String(50), default="AI Agent", nullable=True)  # AI Agent, Human, Hybrid
     seniority_level = Column(Integer, default=1)  # 1=entry level, 10=executive
     status = Column(String(20), default="active")  # active, inactive, in_training
     join_date = Column(DateTime, nullable=True)    # when the agent registered on CMH
@@ -379,6 +380,7 @@ class AgentDirectory(db.Model):
             'skills': self.skills,
             'skill_ids': [sl.skill_id for sl in self.skill_links] if self.skill_links else [],
             'usual_model': self.usual_model,
+            'agent_type': self.agent_type,
             'reports_to': self.reports_to,
             'seniority_level': self.seniority_level,
             'status': self.status,
@@ -433,7 +435,7 @@ class GPTMessage(db.Model):
     timestamp = Column(DateTime, default=func.now(), index=True)
     message_type = Column(String(50), nullable=False)  # instruction, status_update, handoff, question
     content = Column(Text, nullable=False)
-    session_id = Column(String(36), ForeignKey('agent_sessions.session_id'), nullable=False)
+    session_id = Column(String(36), ForeignKey('agent_sessions.session_id'), nullable=True)
     
     # Relationships
     session = relationship("AgentSession", back_populates="messages")
@@ -448,6 +450,16 @@ class GPTMessage(db.Model):
             'content': self.content,
             'session_id': self.session_id
         }
+
+
+class Waitlist(db.Model):
+    """Public waitlist submissions from the landing page."""
+    __tablename__ = 'waitlist'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    first_name = Column(String(100), nullable=False)
+    email = Column(String(120), nullable=False)
+    created_at = Column(DateTime, default=func.now())
 
 
 class OrgState(db.Model):

@@ -390,3 +390,18 @@ pre {
 .subordinates > .org-node::before {
   border-color: var(--cmh-slate) !important;
 }
+
+
+/* ── Agent type badges ── */
+.badge-agent-ai {
+  background-color: var(--cmh-teal);
+  color: #fff;
+}
+.badge-agent-human {
+  background-color: var(--cmh-slate);
+  color: var(--cmh-espresso);
+}
+.badge-agent-hybrid {
+  background-color: #7c5cbf;
+  color: #fff;
+}

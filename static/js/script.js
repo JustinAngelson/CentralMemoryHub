@@ -165,8 +165,15 @@ if (contextForm) {
     contextForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const sender = document.getElementById('sender').value.trim();
-        const recipients = document.getElementById('recipients').value
-            .split(',').map(r => r.trim()).filter(r => r);
+        const recipientsEl = document.getElementById('recipients');
+        let selectedValues = Array.from(recipientsEl.selectedOptions).map(o => o.value);
+        // If "All Agents" chosen, expand to all agent options (skip the __all_agents__ sentinel)
+        if (selectedValues.includes('__all_agents__')) {
+            selectedValues = Array.from(recipientsEl.options)
+                .filter(o => o.value !== '__all_agents__')
+                .map(o => o.value);
+        }
+        const recipients = selectedValues.filter(r => r);
         const contextTag = document.getElementById('contextTag').value.trim();
         const memoryRefs = document.getElementById('memoryRefs').value
             .split(',').map(m => m.trim()).filter(m => m);

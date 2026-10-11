@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multi-Agent Communication Hub</title>
+    <title>Agent Directory</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -103,7 +103,7 @@
     <div class="container mt-4">
         <div class="row">
             <div class="col-12">
-                <h1 class="mb-4">Multi-Agent Communication Hub</h1>
+                <h1 class="mb-4">Agent Directory</h1>
                 
                 <div class="card mb-4">
                     <div class="card-header d-flex justify-content-between align-items-center">
@@ -134,6 +134,7 @@
                                         <th>Name</th>
                                         <th>Role</th>
                                         <th>Status</th>
+                                        <th>Type</th>
                                         <th>Seniority</th>
                                         <th>Reports To</th>
                                         <th>Actions</th>
@@ -142,20 +143,24 @@
                                 <tbody id="agentTableBody">
                                     {% for agent in agents %}
                                     {% set badge = 'bg-success' if agent.status == 'active' else ('bg-danger' if agent.status == 'inactive' else 'bg-warning text-dark') %}
+                                    {% set type_badge = 'badge-agent-ai' if agent.agent_type == 'AI Agent' else ('badge-agent-human' if agent.agent_type == 'Human' else 'badge-agent-hybrid') %}
                                     <tr>
                                         <td>{{ agent.name }}</td>
                                         <td>{{ agent.role }}</td>
                                         <td><span class="badge {{ badge }}">{{ agent.status }}</span></td>
+                                        <td><span class="badge {{ type_badge }}">{{ agent.agent_type or 'AI Agent' }}</span></td>
                                         <td>{{ agent.seniority_level }}</td>
-                                        <td>{{ agent.reports_to or 'None' }}</td>
+                                        <td>{{ reports_to_names.get(agent.reports_to, '—') if agent.reports_to else '—' }}</td>
                                         <td class="text-nowrap">
-                                            <button class="btn btn-sm btn-outline-info view-agent me-1" data-agent-id="{{ agent.agent_id }}">View</button>
-                                            <button class="btn btn-sm btn-outline-primary edit-agent me-1" data-agent-id="{{ agent.agent_id }}">Edit</button>
-                                            <button class="btn btn-sm btn-outline-danger delete-agent" data-agent-id="{{ agent.agent_id }}">Delete</button>
+                                            <button class="btn btn-sm btn-outline-info me-1" onclick="handleViewAgent('{{ agent.agent_id }}')">View</button>
+                                            <button class="btn btn-sm btn-outline-primary me-1" onclick="handleEditAgent('{{ agent.agent_id }}')">Edit</button>
+                                            {% if current_user.is_admin %}
+                                            <button class="btn btn-sm btn-outline-danger" onclick="handleDeleteAgent('{{ agent.agent_id }}')">Delete</button>
+                                            {% endif %}
                                         </td>
                                     </tr>
                                     {% else %}
-                                    <tr><td colspan="6" class="text-center text-muted">No agents found. Add your first agent to get started.</td></tr>
+                                    <tr><td colspan="7" class="text-center text-muted">No agents found. Add your first agent to get started.</td></tr>
                                     {% endfor %}
                                 </tbody>
                             </table>
@@ -177,28 +182,22 @@
                     </div>
                     <div class="card-body">
                         <div class="row" id="sessionCards">
-                            <!-- Sessions populated dynamically by fetchAgentSessions() -->
+                            <div class="col-12"><p class="text-muted small mb-0">No active sessions. Sessions are created automatically when agents begin working.</p></div>
                         </div>
                     </div>
                 </div>
                 
                 <div class="card mb-4">
                     <div class="card-header">
-                        <h5 class="mb-0">Message Exchange</h5>
+                        <h5 class="mb-0">Send Inter-Agent Message</h5>
                     </div>
                     <div class="card-body">
-                        <div class="message-container" id="messageContainer">
-                            <p class="text-muted p-3 mb-0">Select a session above to view its messages.</p>
-                        </div>
+                        <p class="text-muted small mb-3">Send a typed message from one registered agent to another. Messages are stored in CMH and available to the receiving agent at next session.</p>
                         
                         <form class="mt-3" id="newMessageForm">
                             <div class="mb-3">
-                                <label for="senderSelect" class="form-label">From (Agent)</label>
-                                <select class="form-select" id="senderSelect">
-                                    {% for agent in agents %}
-                                    <option value="{{ agent.agent_id }}">{{ agent.name }}</option>
-                                    {% endfor %}
-                                </select>
+                                <label class="form-label">From</label>
+                                <div class="form-control bg-light text-muted" style="cursor:default;">{{ current_user.display_name }}</div>
                             </div>
                             <div class="mb-3">
                                 <label for="receiverSelect" class="form-label">To (Agent)</label>
@@ -216,6 +215,12 @@
                                     <option value="handoff">Handoff</option>
                                     <option value="question">Question</option>
                                 </select>
+                                <small class="text-muted mt-1 d-block">
+                                    <strong>Instruction:</strong> Direct task or directive &nbsp;·&nbsp;
+                                    <strong>Status Update:</strong> Progress report or state change &nbsp;·&nbsp;
+                                    <strong>Handoff:</strong> Transfer of context or responsibility &nbsp;·&nbsp;
+                                    <strong>Question:</strong> Request for information
+                                </small>
                             </div>
                             <div class="mb-3">
                                 <label for="messageContent" class="form-label">Message Content</label>
@@ -326,6 +331,14 @@
                             <input type="number" class="form-control" id="agentSeniority" min="1" max="10" value="1">
                         </div>
                         <div class="mb-3">
+                            <label for="agentType" class="form-label">Agent Type</label>
+                            <select class="form-select" id="agentType">
+                                <option value="AI Agent">AI Agent</option>
+                                <option value="Human">Human</option>
+                                <option value="Hybrid">Hybrid</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
                             <label for="agentStatus" class="form-label">Status</label>
                             <select class="form-select" id="agentStatus">
                                 <option value="active">Active</option>
@@ -419,6 +432,14 @@
                             <input type="number" class="form-control" id="editAgentSeniority" min="1" max="10" value="1">
                         </div>
                         <div class="mb-3">
+                            <label for="editAgentType" class="form-label">Agent Type</label>
+                            <select class="form-select" id="editAgentType">
+                                <option value="AI Agent">AI Agent</option>
+                                <option value="Human">Human</option>
+                                <option value="Hybrid">Hybrid</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
                             <label for="editAgentStatus" class="form-label">Status</label>
                             <select class="form-select" id="editAgentStatus">
                                 <option value="active">Active</option>
@@ -459,33 +480,22 @@
         // Global variables — seeded server-side, kept in sync on refresh
         let allAgents = {{ agents_json | tojson }};
         let agentSkillMap = {{ agent_skill_map | tojson }};
+        const IS_ADMIN = {{ current_user.is_admin | tojson }};
 
         // Fetch agents data when page loads
         document.addEventListener('DOMContentLoaded', function() {
             populateAgentDropdowns(allAgents);
-            attachDirectoryButtonListeners();
             fetchAgentSessions();
         });
-        
-        // Attach view/edit/delete listeners to table rows (server-rendered or JS-rendered)
-        function attachDirectoryButtonListeners() {
-            document.querySelectorAll('.view-agent').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    openViewAgentModal(this.getAttribute('data-agent-id'));
-                });
-            });
-            document.querySelectorAll('.edit-agent').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    openEditAgentModal(this.getAttribute('data-agent-id'));
-                });
-            });
-            document.querySelectorAll('.delete-agent').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const id = this.getAttribute('data-agent-id');
-                    if (confirm('Are you sure you want to delete this agent?')) deleteAgent(id);
-                });
-            });
-        }
+
+        // Global button handlers — explicitly on window so onclick attributes can reach them
+        window.handleViewAgent = function(agentId) { openViewAgentModal(agentId); };
+        window.handleEditAgent = function(agentId) { openEditAgentModal(agentId); };
+        window.handleDeleteAgent = function(agentId) {
+            if (confirm('Permanently delete this agent?\n\nThis will remove the agent from the directory along with all associated session records and messages. This action cannot be undone.')) {
+                deleteAgent(agentId);
+            }
+        };
 
         function fmt(val) { return val || '<span class="text-muted">—</span>'; }
         function fmtDate(iso) {
@@ -522,6 +532,10 @@
                         <p class="mb-1 text-muted small">Seniority Level</p>
                         <p class="fw-semibold">${fmt(agent.seniority_level)}</p>
                     </div>
+                    <div class="col-md-3">
+                        <p class="mb-1 text-muted small">Type</p>
+                        <p>${fmt(agent.agent_type || 'AI Agent')}</p>
+                    </div>
                     <div class="col-12">
                         <p class="mb-1 text-muted small">Description</p>
                         <p>${fmt(agent.description)}</p>
@@ -555,7 +569,7 @@
                         <p>${fmtDate(agent.updated_at)}</p>
                     </div>
                 </div>`;
-            new bootstrap.Modal(document.getElementById('viewAgentModal')).show();
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('viewAgentModal')).show();
         }
 
         // Agent Directory functions — used for Refresh button
@@ -591,7 +605,7 @@
             if (agents.length === 0) {
                 // Show empty state
                 const emptyRow = document.createElement('tr');
-                emptyRow.innerHTML = '<td colspan="6" class="text-center">No agents found. Add your first agent to get started.</td>';
+                emptyRow.innerHTML = '<td colspan="7" class="text-center">No agents found. Add your first agent to get started.</td>';
                 tableBody.appendChild(emptyRow);
                 return;
             }
@@ -611,34 +625,43 @@
                 if (agent.status === 'inactive') statusBadgeClass = 'bg-danger';
                 if (agent.status === 'in_training') statusBadgeClass = 'bg-warning text-dark';
                 
+                // Type badge class
+                let typeBadgeClass = 'badge-agent-ai';
+                if (agent.agent_type === 'Human') typeBadgeClass = 'badge-agent-human';
+                else if (agent.agent_type === 'Hybrid') typeBadgeClass = 'badge-agent-hybrid';
+                const agentType = agent.agent_type || 'AI Agent';
+
                 row.innerHTML = `
                     <td>${agent.name}</td>
                     <td>${agent.role}</td>
                     <td><span class="badge ${statusBadgeClass}">${agent.status}</span></td>
+                    <td><span class="badge ${typeBadgeClass}">${agentType}</span></td>
                     <td>${agent.seniority_level}</td>
-                    <td>${agent.reports_to ? agentNameMap[agent.reports_to] || 'Unknown' : 'None'}</td>
+                    <td>${agent.reports_to ? agentNameMap[agent.reports_to] || agent.reports_to : '—'}</td>
                     <td class="text-nowrap">
-                        <button class="btn btn-sm btn-outline-info view-agent me-1" data-agent-id="${agent.agent_id}">View</button>
-                        <button class="btn btn-sm btn-outline-primary edit-agent me-1" data-agent-id="${agent.agent_id}">Edit</button>
-                        <button class="btn btn-sm btn-outline-danger delete-agent" data-agent-id="${agent.agent_id}">Delete</button>
+                        <button class="btn btn-sm btn-outline-info me-1" onclick="handleViewAgent('${agent.agent_id}')">View</button>
+                        <button class="btn btn-sm btn-outline-primary me-1" onclick="handleEditAgent('${agent.agent_id}')">Edit</button>
+                        ${IS_ADMIN ? `<button class="btn btn-sm btn-outline-danger" onclick="handleDeleteAgent('${agent.agent_id}')">Delete</button>` : ''}
                     </td>
                 `;
                 tableBody.appendChild(row);
             });
-            
-            // Re-attach all button listeners after re-render
-            attachDirectoryButtonListeners();
         }
         
         function fetchAgentHierarchy() {
-            fetch('/api/directory/hierarchy')
-                .then(response => response.json())
+            const container = document.getElementById('orgTreeContainer');
+            container.innerHTML = '<p class="text-muted small">Loading hierarchy…</p>';
+            fetch('/api/directory/hierarchy', { credentials: 'same-origin' })
+                .then(response => {
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    return response.json();
+                })
                 .then(data => {
-                    renderAgentHierarchy(data);
+                    renderAgentHierarchy(Array.isArray(data) ? data : []);
                 })
                 .catch(error => {
                     console.error('Error fetching agent hierarchy:', error);
-                    alert('Failed to load agent hierarchy. Please try again later.');
+                    container.innerHTML = '<p class="text-danger small">Failed to load hierarchy. Please try again.</p>';
                 });
         }
         
@@ -728,6 +751,7 @@
             document.getElementById('editAgentJoinDate').value = agent.join_date ? new Date(agent.join_date).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }) : '—';
             document.getElementById('editAgentReportsTo').value = agent.reports_to || '';
             document.getElementById('editAgentSeniority').value = agent.seniority_level || 1;
+            document.getElementById('editAgentType').value = agent.agent_type || 'AI Agent';
             document.getElementById('editAgentStatus').value = agent.status || 'active';
             document.getElementById('editAgentError').classList.add('d-none');
 
@@ -738,8 +762,7 @@
             });
             
             // Show the modal
-            const modal = new bootstrap.Modal(document.getElementById('editAgentModal'));
-            modal.show();
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('editAgentModal')).show();
         }
         
         function splitList(val) {
@@ -772,6 +795,7 @@
                 birth_date: document.getElementById('agentBirthDate').value || null,
                 reports_to: document.getElementById('agentReportsTo').value || null,
                 seniority_level: parseInt(document.getElementById('agentSeniority').value) || 1,
+                agent_type: document.getElementById('agentType').value,
                 status: document.getElementById('agentStatus').value
             };
 
@@ -809,6 +833,7 @@
                 birth_date: document.getElementById('editAgentBirthDate').value || null,
                 reports_to: document.getElementById('editAgentReportsTo').value || null,
                 seniority_level: parseInt(document.getElementById('editAgentSeniority').value) || 1,
+                agent_type: document.getElementById('editAgentType').value,
                 status: document.getElementById('editAgentStatus').value
             };
 
@@ -886,7 +911,7 @@
             container.innerHTML = '';
 
             if (!sessions || sessions.length === 0) {
-                container.innerHTML = '<div class="col-12"><p class="text-muted">No active sessions.</p></div>';
+                container.innerHTML = '<div class="col-12"><p class="text-muted small mb-0">No active sessions. Sessions are created automatically when agents begin working.</p></div>';
                 return;
             }
 
@@ -907,7 +932,7 @@
                             <p class="card-text small mb-1"><strong>Focus:</strong> ${focus}</p>
                             <p class="card-text"><small class="text-muted">Active since: ${since}</small></p>
                             <div class="d-flex justify-content-between mt-2">
-                                <button class="btn btn-outline-primary btn-sm view-messages" data-session-id="${s.session_id}">Messages</button>
+                                <button class="btn btn-outline-primary btn-sm view-messages" data-session-id="${s.session_id}" data-agent-name="${agentName}">Messages</button>
                             </div>
                         </div>
                     </div>`;
@@ -917,30 +942,33 @@
             container.querySelectorAll('.view-messages').forEach(btn => {
                 btn.addEventListener('click', function() {
                     const sid = this.getAttribute('data-session-id');
+                    const agentName = this.getAttribute('data-agent-name') || sid;
+                    const modalLabel = document.getElementById('sessionMessagesModalLabel');
+                    const modalBody = document.getElementById('sessionMessagesBody');
+                    modalLabel.textContent = `Session Messages — ${agentName}`;
+                    modalBody.innerHTML = '<p class="text-muted">Loading…</p>';
+                    bootstrap.Modal.getOrCreateInstance(document.getElementById('sessionMessagesModal')).show();
                     fetch(`/api/agents/messages/${sid}`, { credentials: 'same-origin' })
                         .then(r => r.json())
                         .then(msgs => {
-                            const msgContainer = document.getElementById('messageContainer');
-                            msgContainer.innerHTML = '';
-                            if (!msgs.messages || msgs.messages.length === 0) {
-                                msgContainer.innerHTML = '<p class="text-muted p-3">No messages in this session.</p>';
+                            if (!Array.isArray(msgs) || msgs.length === 0) {
+                                modalBody.innerHTML = '<p class="text-muted">No messages recorded for this session.</p>';
                                 return;
                             }
-                            msgs.messages.forEach(m => {
-                                const div = document.createElement('div');
-                                div.className = 'message sent-message';
-                                div.innerHTML = `
-                                    <div class="message-content">${m.content}</div>
-                                    <div class="message-meta">
-                                        <span>From: ${m.sender_agent}</span> •
-                                        <span>To: ${m.receiver_agent || 'broadcast'}</span> •
-                                        <span>${m.message_type}</span> •
-                                        <span>${new Date(m.timestamp).toLocaleTimeString()}</span>
-                                    </div>`;
-                                msgContainer.appendChild(div);
-                            });
+                            const badgeClass = { instruction: 'bg-primary', status_update: 'bg-secondary', handoff: 'bg-warning text-dark', question: 'bg-info text-dark' };
+                            modalBody.innerHTML = msgs.map(m => `
+                                <div class="card mb-2">
+                                    <div class="card-body py-2 px-3">
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <span class="small"><strong>${m.sender_agent}</strong> → <strong>${m.receiver_agent || 'broadcast'}</strong></span>
+                                            <span class="badge ${badgeClass[m.message_type] || 'bg-secondary'}">${m.message_type}</span>
+                                        </div>
+                                        <p class="mb-1 small">${m.content}</p>
+                                        <span class="text-muted" style="font-size:.75rem;">${new Date(m.timestamp).toLocaleString()}</span>
+                                    </div>
+                                </div>`).join('');
                         })
-                        .catch(err => console.error('Error loading messages:', err));
+                        .catch(err => { modalBody.innerHTML = '<p class="text-danger">Failed to load messages.</p>'; console.error(err); });
                 });
             });
         }
@@ -948,17 +976,51 @@
         document.getElementById('newMessageForm').addEventListener('submit', function(e) {
             e.preventDefault();
             
-            const sender = document.getElementById('senderSelect').value;
             const receiver = document.getElementById('receiverSelect').value;
             const messageType = document.getElementById('messageTypeSelect').value;
-            const content = document.getElementById('messageContent').value;
-            
-            alert(`In a real implementation, this would send a message from ${sender} to ${receiver} of type ${messageType}`);
-            
-            // Clear the message input
-            document.getElementById('messageContent').value = '';
+            const content = document.getElementById('messageContent').value.trim();
+
+            if (!receiver || !content) {
+                alert('Please select a recipient and enter a message.');
+                return;
+            }
+
+            fetch('/api/ui/send_message', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify({ receiver_agent: receiver, message_type: messageType, content: content })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.message_id) {
+                    document.getElementById('messageContent').value = '';
+                    alert('Message sent successfully.');
+                } else {
+                    alert('Error: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(err => alert('Failed to send message: ' + err));
         });
     </script>
     <script>feather.replace();</script>
+
+    <!-- Session Messages Modal -->
+    <div class="modal fade" id="sessionMessagesModal" tabindex="-1" aria-labelledby="sessionMessagesModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="sessionMessagesModalLabel">Session Messages</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="sessionMessagesBody">
+                    <p class="text-muted">Loading...</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
