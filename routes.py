@@ -253,7 +253,7 @@ def join_waitlist():
         db.session.commit()
         webhook_url = os.environ.get('WAITLIST_WEBHOOK_URL')
         if webhook_url:
-            payload = {"first_name": first_name, "email": email, "source": "example-mechanical"}
+            payload = {"first_name": first_name, "email": email, "source": "CentralMemoryHub.com"}
             def fire_webhook():
                 try:
                     import urllib.request, json as _json
