@@ -2,6 +2,8 @@ name: CMH v2
 on:
   push:
     branches: [v2]
+  pull_request:
+    branches: [v2]
   workflow_dispatch:
 permissions:
   contents: read
