@@ -37,17 +37,6 @@ waitForPort = 5000
 localPort = 5000
 externalPort = 80
 
-[[workflows.workflow]]
-name = "v2 dev"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "bash v2/dev.sh"
-
-[workflows.workflow.metadata]
-outputType = "console"
-
 [userenv.development]
 CMH_PUBLIC_URL = "http://localhost"
 CMH_ENV = "dev"

@@ -50,9 +50,11 @@ DNS rebinding protection stays enabled. The configured base hostname, explicit
 additional hostnames, localhost and 127.0.0.1 are allowed, with any port but no
 wildcard hostname. Origins allow only CMH_PUBLIC_URL. MCP verification in the
 workspace uses the private Unix socket, not an externally published endpoint.
-The development workflow uses the ignored Unix socket `.local/cmh-v2.sock`,
-not a TCP listener, and has no `waitForPort` task setting. Loopback TCP also
-triggered external mapping inference, so it is not a substitute for the socket.
+Run `v2/dev.sh` manually using the ignored Unix socket `.local/cmh-v2.sock`,
+not a TCP listener. The managed `v2 dev` workflow was removed because Replit
+kept restoring a stale 8008 mapping even with Unix sockets and no port wait.
+Loopback TCP also triggered external mapping inference, so it is not a
+substitute for the socket.
 The final ports list must match main's existing 5000-to-80 mapping exactly;
 a test in `tests/v2/` enforces that tripwire. Keep v2 out of the existing
 Project workflow's task list as well.
