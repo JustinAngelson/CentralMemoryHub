@@ -68,13 +68,14 @@
         <div class="card h-100">
             <div class="card-header d-flex align-items-center">
                 <i data-feather="clipboard" class="me-2"></i>
-                <h5 class="mb-0">Project Decisions</h5>
+                <h5 class="mb-0">Log Decision</h5>
             </div>
             <div class="card-body">
+                <p class="text-muted small mb-3">Log decisions made by agents or humans. Decisions are stored with attribution, context, and impact area for full auditability.</p>
                 <form id="structuredForm">
                     <div class="mb-3">
-                        <label for="gptRole" class="form-label">GPT Role</label>
-                        <input type="text" class="form-control" id="gptRole" placeholder="Enter GPT role...">
+                        <label for="gptRole" class="form-label">Agent / Author</label>
+                        <input type="text" class="form-control" id="gptRole" placeholder="Agent name or author...">
                     </div>
                     <div class="mb-3">
                         <label for="decisionText" class="form-label">Decision Text</label>
@@ -107,12 +108,25 @@
             <div class="card-body">
                 <form id="contextForm">
                     <div class="mb-3">
+                        {% if current_user.role == 'admin' %}
                         <label for="sender" class="form-label">Sender</label>
-                        <input type="text" class="form-control" id="sender" placeholder="Enter sender name...">
+                        <input type="text" class="form-control" id="sender" value="{{ current_user.display_name }}">
+                        {% else %}
+                        <input type="hidden" id="sender" value="{{ current_user.display_name }}">
+                        {% endif %}
                     </div>
                     <div class="mb-3">
-                        <label for="recipients" class="form-label">Recipients (comma-separated)</label>
-                        <input type="text" class="form-control" id="recipients" placeholder="user1, user2, user3...">
+                        <label for="recipients" class="form-label">Recipients</label>
+                        <select class="form-select" id="recipients" multiple size="6" style="min-height:140px;">
+                            <option value="__all_agents__">— All Agents —</option>
+                            {% for agent in agents %}
+                            <option value="{{ agent.name }}">{{ agent.name }}</option>
+                            {% endfor %}
+                            {% for user in users %}
+                            <option value="{{ user.display_name }}">{{ user.display_name }}</option>
+                            {% endfor %}
+                        </select>
+                        <small class="text-muted">Hold Ctrl / ⌘ to select multiple. Choose "All Agents" to broadcast to every agent.</small>
                     </div>
                     <div class="mb-3">
                         <label for="contextTag" class="form-label">Context Tag</label>

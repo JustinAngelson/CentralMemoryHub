@@ -25,23 +25,6 @@
                 <li class="nav-item">
                     <a class="nav-link{{ ' active' if path.startswith('/skills') else '' }}" href="/skills">Skills</a>
                 </li>
-                {% if current_user.is_admin %}
-                <li class="nav-item">
-                    <a class="nav-link{{ ' active' if path.startswith('/api-keys') else '' }}" href="/api-keys">API Keys</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link{{ ' active' if path.startswith('/users') else '' }}" href="{{ url_for('auth.users') }}">Users</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link{{ ' active' if path.startswith('/admin/org-profile') else '' }}" href="{{ url_for('auth.org_profile') }}">Org Profile</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link{{ ' active' if path.startswith('/admin/settings') else '' }}" href="{{ url_for('get_settings_form') }}">Settings</a>
-                </li>
-                {% endif %}
-                <li class="nav-item">
-                    <a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#apiDocsModal">API Docs</a>
-                </li>
             </ul>
             <ul class="navbar-nav ms-auto">
                 <li class="nav-item dropdown">
@@ -70,12 +53,35 @@
                             </a>
                         </li>
                         {% if current_user.is_admin %}
+                        <li><hr class="dropdown-divider"></li>
+                        <li><span class="dropdown-item-text small text-muted fw-semibold" style="letter-spacing:.04em;">ADMIN</span></li>
+                        <li>
+                            <a class="dropdown-item" href="/api-keys">
+                                <i data-feather="key" style="width:14px;height:14px;"></i> API Keys
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="{{ url_for('auth.users') }}">
+                                <i data-feather="users" style="width:14px;height:14px;"></i> Users
+                            </a>
+                        </li>
                         <li>
                             <a class="dropdown-item" href="{{ url_for('auth.org_profile') }}">
                                 <i data-feather="briefcase" style="width:14px;height:14px;"></i> Org Profile
                             </a>
                         </li>
+                        <li>
+                            <a class="dropdown-item" href="{{ url_for('get_settings_form') }}">
+                                <i data-feather="settings" style="width:14px;height:14px;"></i> Settings
+                            </a>
+                        </li>
                         {% endif %}
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#apiDocsModal">
+                                <i data-feather="book-open" style="width:14px;height:14px;"></i> API Docs
+                            </a>
+                        </li>
                         <li><hr class="dropdown-divider"></li>
                         <li>
                             <a class="dropdown-item text-danger" href="{{ url_for('auth.logout') }}">

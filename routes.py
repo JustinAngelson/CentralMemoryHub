@@ -10,7 +10,7 @@ import uuid
 import platform
 import socket
 
-from flask import request, jsonify, render_template, Blueprint, current_app, make_response, after_this_request
+from flask import request, jsonify, render_template, redirect, Blueprint, current_app, make_response, after_this_request
 from flask_login import login_required, current_user
 from app import app, db
 import pinecone_client as pc
@@ -22,7 +22,7 @@ from models import (
     AgentDirectory, AgentSession, GPTMessage, OrgState, AgentTask, DecisionLog,
     KnowledgeIndex, MemoryLink, Experiment, UserInsight,
     # Profile/org models
-    InvitationToken, OrgProfile,
+    User, InvitationToken, OrgProfile, Waitlist,
     # Resources
     Resource,
     # Skills
@@ -200,21 +200,21 @@ def require_api_key(f):
 def add_security_headers(response):
     """Add security headers to the response."""
     # Content Security Policy
+    # 'unsafe-inline' is required for Jinja2 templates that embed JS data and
+    # inline event handlers. All other sources are restricted to known CDNs.
     response.headers['Content-Security-Policy'] = (
         "default-src 'self'; "
-        "script-src 'self' https://cdn.jsdelivr.net; "
-        "style-src 'self' https://cdn.replit.com https://cdn.jsdelivr.net; "
+        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+        "style-src 'self' 'unsafe-inline' https://cdn.replit.com https://cdn.jsdelivr.net https://fonts.googleapis.com; "
         "img-src 'self' data:; "
         "connect-src 'self'; "
-        "font-src 'self'; "
+        "font-src 'self' https://fonts.gstatic.com; "
         "object-src 'none'; "
         "media-src 'self'; "
-        "frame-src 'none'; "
-        "frame-ancestors 'none';"
+        "frame-src 'self'; "
     )
     # Other security headers
     response.headers['X-Content-Type-Options'] = 'nosniff'
-    response.headers['X-Frame-Options'] = 'DENY'
     response.headers['X-XSS-Protection'] = '1; mode=block'
     response.headers['Referrer-Policy'] = 'no-referrer-when-downgrade'
     response.headers['Cache-Control'] = 'no-store, max-age=0'
@@ -225,10 +225,53 @@ app.after_request(add_security_headers)
 
 # Route for the home page (CMH landing/dashboard)
 @app.route('/')
-@login_required
 def home():
-    """Render the CMH homepage"""
-    return render_template('home.html')
+    """Render the CMH homepage or redirect guests to the landing page"""
+    if current_user.is_authenticated:
+        return render_template('home.html')
+    return redirect('/landing')
+
+
+@app.route('/landing')
+def landing():
+    """Public marketing landing page — no login required, no user/agent data exposed"""
+    return render_template('landing.html')
+
+
+@app.route('/api/waitlist', methods=['POST'])
+def join_waitlist():
+    """Public waitlist endpoint — stores submission and optionally fires a webhook"""
+    import threading, os
+    try:
+        data = request.get_json() or {}
+        first_name = (data.get('first_name') or '').strip()
+        email = (data.get('email') or '').strip()
+        if not first_name or not email:
+            return jsonify({"ok": False, "error": "first_name and email are required"}), 200
+        entry = Waitlist(first_name=first_name, email=email)
+        db.session.add(entry)
+        db.session.commit()
+        webhook_url = os.environ.get('WAITLIST_WEBHOOK_URL')
+        if webhook_url:
+            payload = {"first_name": first_name, "email": email, "source": "example-mechanical"}
+            def fire_webhook():
+                try:
+                    import urllib.request, json as _json
+                    req = urllib.request.Request(
+                        webhook_url,
+                        data=_json.dumps(payload).encode(),
+                        headers={"Content-Type": "application/json"},
+                        method="POST"
+                    )
+                    urllib.request.urlopen(req, timeout=5)
+                except Exception as wh_err:
+                    logging.warning(f"Waitlist webhook failed (non-blocking): {wh_err}")
+            threading.Thread(target=fire_webhook, daemon=True).start()
+        return jsonify({"ok": True}), 200
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Waitlist submission error: {e}")
+        return jsonify({"ok": False, "error": "Server error"}), 500
 
 
 # Route for the Memories page (memory dashboard)
@@ -236,7 +279,12 @@ def home():
 @login_required
 def memories():
     """Render the Memories page"""
-    return render_template('memories.html')
+    agents = AgentDirectory.query.filter(
+        AgentDirectory.name != None,
+        AgentDirectory.name != ''
+    ).order_by(AgentDirectory.name).all()
+    users = User.query.filter_by(is_active=True).order_by(User.username).all()
+    return render_template('memories.html', agents=agents, users=users)
 
 # System Health endpoints for integration with OpenAI Custom GPTs
 @app.route('/sys/health', methods=['GET', 'POST'])
@@ -375,19 +423,25 @@ def gpt_diagnostic():
 @login_required
 def agents_view():
     """Render the agents interface"""
-    agents = AgentDirectory.query.order_by(AgentDirectory.name).all()
+    agents = AgentDirectory.query.filter(
+        AgentDirectory.name != None,
+        AgentDirectory.name != ''
+    ).order_by(AgentDirectory.name).all()
     agents_json = [a.to_dict() for a in agents]
     all_skills = Skill.query.order_by(Skill.name).all()
     # Build agent → skill_ids map
     agent_skill_map = {}
     for ags in AgentSkill.query.all():
         agent_skill_map.setdefault(ags.agent_id, []).append(ags.skill_id)
+    # Build reports_to UUID → name map for server-rendered table
+    reports_to_names = {a.agent_id: a.name for a in agents}
     return render_template(
         'agent_view.html',
         agents=agents,
         agents_json=agents_json,
         all_skills=all_skills,
         agent_skill_map=agent_skill_map,
+        reports_to_names=reports_to_names,
     )
 
 @app.route('/resources')
@@ -831,6 +885,38 @@ def get_session_messages_for_ui(session_id):
         logging.error(f"Error getting session messages: {e}")
         return jsonify({"error": str(e)}), 500
 
+@app.route('/api/ui/send_message', methods=['POST'])
+@login_required
+def ui_send_message():
+    """Send an inter-agent message from the UI (sender is the logged-in user)"""
+    try:
+        data = request.get_json() or {}
+        receiver_agent_id = data.get('receiver_agent')
+        message_type = data.get('message_type', 'instruction')
+        content = data.get('content', '').strip()
+
+        if not receiver_agent_id or not content:
+            return jsonify({"error": "receiver_agent and content are required"}), 400
+
+        receiver = AgentDirectory.query.get(receiver_agent_id)
+        receiver_name = receiver.name if receiver else receiver_agent_id
+
+        message = GPTMessage(
+            message_id=str(uuid.uuid4()),
+            sender_agent=current_user.display_name,
+            receiver_agent=receiver_name,
+            message_type=message_type,
+            content=content,
+            session_id=None
+        )
+        db.session.add(message)
+        db.session.commit()
+        return jsonify({"message_id": message.message_id, "message": "Message sent successfully"}), 201
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error sending UI message: {e}")
+        return jsonify({"error": str(e)}), 500
+
 # API endpoints for structured memory
 @app.route('/memory/structured', methods=['POST'])
 @require_api_key
@@ -1112,7 +1198,10 @@ def get_all_contexts():
 def get_agent_directory_for_ui():
     """Get agent directory for UI (login required)"""
     try:
-        agents = AgentDirectory.query.all()
+        agents = AgentDirectory.query.filter(
+            AgentDirectory.name != None,
+            AgentDirectory.name != ''
+        ).order_by(AgentDirectory.name).all()
         return jsonify([agent.to_dict() for agent in agents])
     except Exception as e:
         logging.error(f"Error getting agent directory: {e}")
@@ -1216,6 +1305,11 @@ agent_directory_schema = {
     'skill_ids': {
         'type': 'list',
         'required': False
+    },
+    'agent_type': {
+        'type': 'string',
+        'required': False,
+        'allowed': ['AI Agent', 'Human', 'Hybrid']
     }
 }
 
@@ -1250,6 +1344,7 @@ def create_agent():
             capabilities=data.get('capabilities', []),
             skills=data.get('skills', []),
             usual_model=data.get('usual_model'),
+            agent_type=data.get('agent_type', 'AI Agent'),
             reports_to=data.get('reports_to'),
             seniority_level=data.get('seniority_level', 1),
             status=data.get('status', 'active'),
@@ -1324,6 +1419,8 @@ def update_agent(agent_id):
             agent.skills = data['skills']
         if 'usual_model' in data:
             agent.usual_model = data['usual_model']
+        if 'agent_type' in data:
+            agent.agent_type = data['agent_type']
         if 'reports_to' in data:
             agent.reports_to = data['reports_to']
         if 'seniority_level' in data:
@@ -1362,7 +1459,10 @@ def update_agent(agent_id):
 @app.route('/agent/directory/<agent_id>', methods=['DELETE'])
 @require_api_key
 def delete_agent(agent_id):
-    """Delete an agent"""
+    """Delete an agent — session users must be admin"""
+    # Web UI session users must be admin; API key callers are trusted
+    if current_user.is_authenticated and not current_user.is_admin:
+        return jsonify({"error": "Admin access required to delete agents"}), 403
     try:
         agent = AgentDirectory.query.get(agent_id)
         

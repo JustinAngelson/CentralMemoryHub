@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Central Memory Hub — Vendor-neutral organizational memory for AI systems</title>
+    <meta name="description" content="CMH gives heterogeneous AI agents a shared memory substrate they can all read from and write to. One persistence layer. Every agent. Every session.">
+    <!-- Bootstrap 5 -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <!-- DM Sans -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet">
+    <!-- Shared application theme -->
+    <link rel="stylesheet" href="/static/css/style.css">
+    <!-- Feather Icons -->
+    <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
+    <style>
+        body { background: var(--cmh-linen, #EFE9E0); font-family: 'DM Sans', sans-serif; }
+        .landing-nav {
+            background: #1F1613;
+            padding: 0.75rem 0;
+        }
+        .landing-nav .nav-brand {
+            font-weight: 700;
+            color: rgba(255,255,255,.85);
+            font-size: 1.05rem;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .landing-nav .nav-brand:hover { color: #CDE9E2; }
+        .landing-nav .nav-login {
+            font-weight: 500;
+            color: rgba(255,255,255,.85);
+            text-decoration: none;
+        }
+        .landing-nav .nav-login:hover { color: #CDE9E2; text-decoration: none; }
+        .landing-content { padding-top: 2.5rem; }
+    </style>
+</head>
+<body>
+
+<!-- Minimal top bar -->
+<nav class="landing-nav">
+    <div class="container d-flex justify-content-between align-items-center">
+        <a class="nav-brand" href="/landing">
+            <i data-feather="database" style="width:20px;height:20px;color:#008F8C;"></i>
+            Central Memory Hub
+        </a>
+        <a class="nav-login" href="/login">Login &rarr;</a>
+    </div>
+</nav>
+
+<div class="container landing-content">
+
+    <!-- Hero Section -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <div class="card border-0" style="background: linear-gradient(135deg, rgba(0,143,140,0.12) 0%, rgba(205,233,226,0.35) 100%); border-radius: 1rem;">
+                <div class="card-body py-5 px-4">
+                    <div class="row align-items-center">
+                        <div class="col-lg-8">
+                            <div class="d-flex align-items-center mb-3">
+                                <i data-feather="database" style="width:36px;height:36px;color:#008F8C;" class="me-3"></i>
+                                <h1 class="display-5 mb-0 fw-bold">Central Memory Hub</h1>
+                            </div>
+                            <p class="lead mb-3 text-muted">Vendor-neutral organizational memory for multi-agent AI systems.</p>
+                            <p class="mb-4" style="max-width:640px;">
+                                CMH gives heterogeneous AI agents — Claude, GPT, local models, custom harnesses —
+                                a shared memory substrate they can all read from and write to. One persistence layer.
+                                Every agent. Every session.
+                            </p>
+                            <div class="d-flex flex-wrap gap-2">
+                                <a href="https://github.com/example-mechanical/central-memory-hub" target="_blank" rel="noopener" class="btn btn-primary">
+                                    <i data-feather="github" style="width:15px;height:15px;" class="me-1"></i> View on GitHub
+                                </a>
+                                <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#waitlistModal">
+                                    Join the Waitlist
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-lg-4 mt-4 mt-lg-0 text-center">
+                            <div class="d-inline-block p-4 rounded-3" style="background:#FFFFFF; border:1px solid #CDE9E2; box-shadow:0 2px 8px rgba(31,22,19,0.06);">
+                                <div class="small text-muted mb-2 text-uppercase fw-bold tracking-wide" style="letter-spacing:.1em;">Category</div>
+                                <div class="fs-5 fw-semibold text-primary">SOMI</div>
+                                <div class="small text-muted mt-1">Shared Organizational<br>Memory Infrastructure</div>
+                                <hr class="my-3" style="border-color:#ECEDED;">
+                                <div class="small text-muted mb-1">Estimated TAM by 2027</div>
+                                <div class="fs-4 fw-bold">$5.9B</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Capabilities Grid -->
+    <div class="row mb-2">
+        <div class="col-12">
+            <h5 class="text-uppercase text-muted fw-bold mb-3" style="letter-spacing:.1em; font-size:.75rem;">What It Does</h5>
+        </div>
+    </div>
+    <div class="row g-3 mb-5">
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-2">
+                        <i data-feather="search" class="text-primary me-2" style="width:18px;height:18px;"></i>
+                        <h6 class="mb-0 fw-semibold">Semantic Memory</h6>
+                    </div>
+                    <p class="small text-muted mb-0">Store and search unstructured content via vector embeddings powered by Pinecone. Find relevant memories by meaning, not just keywords.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-2">
+                        <i data-feather="grid" class="text-success me-2" style="width:18px;height:18px;"></i>
+                        <h6 class="mb-0 fw-semibold">Structured Memory</h6>
+                    </div>
+                    <p class="small text-muted mb-0">Role-attributed decisions, facts, and knowledge with full provenance. Every entry knows who created it and why.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-2">
+                        <i data-feather="cpu" class="text-info me-2" style="width:18px;height:18px;"></i>
+                        <h6 class="mb-0 fw-semibold">Agent Directory</h6>
+                    </div>
+                    <p class="small text-muted mb-0">Hierarchical org chart for your AI team — who reports to whom, capabilities, seniority, and status all in one place.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-2">
+                        <i data-feather="message-circle" class="text-warning me-2" style="width:18px;height:18px;"></i>
+                        <h6 class="mb-0 fw-semibold">Inter-Agent Messaging</h6>
+                    </div>
+                    <p class="small text-muted mb-0">Agents send typed messages to each other across sessions and models. Coordination that survives context resets.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-2">
+                        <i data-feather="share-2" class="text-danger me-2" style="width:18px;height:18px;"></i>
+                        <h6 class="mb-0 fw-semibold">Shared Context</h6>
+                    </div>
+                    <p class="small text-muted mb-0">Share tagged bundles of memory references with specific agents or your whole network. Agents retrieve their context at session start via MCP or API — persistent, attributable, network-wide coordination.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-2">
+                        <i data-feather="clipboard" class="text-secondary me-2" style="width:18px;height:18px;"></i>
+                        <h6 class="mb-0 fw-semibold">Decision Logging</h6>
+                    </div>
+                    <p class="small text-muted mb-0">Durable record of decisions with context, attribution, and reversibility. Your org's reasoning, preserved.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-2">
+                        <i data-feather="bar-chart-2" class="text-primary me-2" style="width:18px;height:18px;"></i>
+                        <h6 class="mb-0 fw-semibold">Experiment Tracking</h6>
+                    </div>
+                    <p class="small text-muted mb-0">Structured records of agent learning experiments with hypotheses and outcomes. Build on what works.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-2">
+                        <i data-feather="box" class="text-info me-2" style="width:18px;height:18px;"></i>
+                        <h6 class="mb-0 fw-semibold">Organizational State</h6>
+                    </div>
+                    <p class="small text-muted mb-0">Snapshot and track the state of any entity in your org. Know where everything stands at any point in time.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-2">
+                        <i data-feather="clock" class="text-success me-2" style="width:18px;height:18px;"></i>
+                        <h6 class="mb-0 fw-semibold">Session Management</h6>
+                    </div>
+                    <p class="small text-muted mb-0">Track what each agent is doing and when. Full session history across all models and integration paths.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Architecture -->
+    <div class="row mb-2">
+        <div class="col-12">
+            <h5 class="text-uppercase text-muted fw-bold mb-3" style="letter-spacing:.1em; font-size:.75rem;">Architecture</h5>
+        </div>
+    </div>
+    <div class="row mb-5">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="row g-4 align-items-start">
+                        <!-- Integration Paths -->
+                        <div class="col-md-5">
+                            <h6 class="fw-semibold mb-3">Two Integration Paths — Same Shared Memory</h6>
+                            <div class="d-flex mb-3">
+                                <div class="flex-shrink-0 me-3">
+                                    <span class="badge bg-primary px-3 py-2">REST</span>
+                                </div>
+                                <div>
+                                    <div class="fw-semibold small">Flask REST API · Port 5000</div>
+                                    <div class="text-muted small"><code>/agent/*</code> endpoints for Custom GPTs, OpenClaw agents, and any HTTP client.</div>
+                                </div>
+                            </div>
+                            <div class="d-flex mb-3">
+                                <div class="flex-shrink-0 me-3">
+                                    <span class="badge bg-success px-3 py-2">MCP</span>
+                                </div>
+                                <div>
+                                    <div class="fw-semibold small">FastMCP Server · Port 8000</div>
+                                    <div class="text-muted small">31 MCP tools via <code>/mcp</code> for Claude.ai, Cursor, and any MCP-compatible client.</div>
+                                </div>
+                            </div>
+                            <div class="d-flex">
+                                <div class="flex-shrink-0 me-3">
+                                    <span class="badge bg-secondary px-3 py-2">DB</span>
+                                </div>
+                                <div>
+                                    <div class="fw-semibold small">PostgreSQL + Pinecone</div>
+                                    <div class="text-muted small">Structured data in PostgreSQL. Vector embeddings in Pinecone. Both paths read from the same store.</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Divider -->
+                        <div class="col-md-1 d-none d-md-flex justify-content-center">
+                            <div style="width:1px; background:#CDE9E2; min-height:160px;"></div>
+                        </div>
+
+                        <!-- MCP Tools count + quick connect -->
+                        <div class="col-md-6">
+                            <h6 class="fw-semibold mb-3">Quick Connect</h6>
+                            <div class="mb-3">
+                                <div class="small fw-semibold mb-1 text-muted">Claude.ai via MCP</div>
+                                <div class="code-block">
+                                    Settings → Integrations → Add MCP Server<br>
+                                    <span class="text-info">URL:</span> https://your-instance/mcp
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <div class="small fw-semibold mb-1 text-muted">OpenClaw / REST clients</div>
+                                <div class="code-block">
+                                    Header: <span class="text-warning">X-API-KEY</span>: &lt;your key&gt;<br>
+                                    Base: <span class="text-info">https://your-instance/agent/</span>
+                                </div>
+                            </div>
+                            <div class="d-flex gap-3 small text-muted mt-3">
+                                <span><i data-feather="tool" style="width:13px;height:13px;" class="me-1"></i>31 MCP Tools</span>
+                                <span><i data-feather="zap" style="width:13px;height:13px;" class="me-1"></i>REST + MCP</span>
+                                <span><i data-feather="lock" style="width:13px;height:13px;" class="me-1"></i>API Key Auth</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Open Source Callout -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <div class="card border-0" style="background:#ECEDED; border:1px solid var(--cmh-slate,#BEBEBE) !important;">
+                <div class="card-body py-3 px-4">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <div class="small fw-semibold mb-1">
+                                <i data-feather="github" style="width:14px;height:14px;" class="me-1"></i>
+                                Open Source · Apache 2.0
+                            </div>
+                            <p class="small text-muted mb-0">
+                                CMH is an open-source project. The infrastructure of intelligence should be open, vendor-neutral, and owned by the people building with it.
+                            </p>
+                        </div>
+                        <div class="col-md-4 text-md-end mt-2 mt-md-0">
+                            <a href="https://github.com/example-mechanical/central-memory-hub" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary">
+                                <i data-feather="github" style="width:13px;height:13px;" class="me-1"></i> View on GitHub
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div><!-- /container -->
+
+<!-- Waitlist Modal -->
+<div class="modal fade" id="waitlistModal" tabindex="-1" aria-labelledby="waitlistModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold" id="waitlistModalLabel">Join the Waitlist</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body pt-2">
+                <p class="text-muted small mb-4">Join the waitlist and we'll be in touch when a spot opens up.</p>
+
+                <!-- Form (shown by default) -->
+                <div id="waitlistForm">
+                    <div class="mb-3">
+                        <label for="wlFirstName" class="form-label">First Name</label>
+                        <input type="text" class="form-control" id="wlFirstName" placeholder="Your first name" autocomplete="given-name">
+                    </div>
+                    <div class="mb-3">
+                        <label for="wlEmail" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="wlEmail" placeholder="you@example.com" autocomplete="email">
+                    </div>
+                    <div id="wlError" class="alert alert-danger d-none py-2 small" role="alert"></div>
+                    <div class="d-grid">
+                        <button type="button" class="btn btn-primary" id="wlSubmitBtn">Join the Waitlist</button>
+                    </div>
+                </div>
+
+                <!-- Success state (hidden by default) -->
+                <div id="waitlistSuccess" class="d-none text-center py-3">
+                    <i data-feather="check-circle" style="width:40px;height:40px;color:#008F8C;" class="mb-3"></i>
+                    <p class="fw-semibold mb-1">You're in.</p>
+                    <p class="text-muted small mb-0">We'll be in touch.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    feather.replace();
+
+    document.getElementById('wlSubmitBtn').addEventListener('click', function () {
+        const btn = this;
+        const firstName = document.getElementById('wlFirstName').value.trim();
+        const email = document.getElementById('wlEmail').value.trim();
+        const errorEl = document.getElementById('wlError');
+
+        errorEl.classList.add('d-none');
+        errorEl.textContent = '';
+
+        if (!firstName || !email) {
+            errorEl.textContent = 'Please enter your first name and email.';
+            errorEl.classList.remove('d-none');
+            return;
+        }
+
+        btn.disabled = true;
+        btn.textContent = 'Submitting…';
+
+        fetch('/api/waitlist', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ first_name: firstName, email: email })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.ok) {
+                document.getElementById('waitlistForm').classList.add('d-none');
+                const successEl = document.getElementById('waitlistSuccess');
+                successEl.classList.remove('d-none');
+                feather.replace();
+            } else {
+                throw new Error(data.error || 'Unknown error');
+            }
+        })
+        .catch(() => {
+            errorEl.textContent = 'Something went wrong — try again.';
+            errorEl.classList.remove('d-none');
+            btn.disabled = false;
+            btn.textContent = 'Join the Waitlist';
+        });
+    });
+
+    // Reset modal state when it's closed and re-opened
+    document.getElementById('waitlistModal').addEventListener('hidden.bs.modal', function () {
+        document.getElementById('wlFirstName').value = '';
+        document.getElementById('wlEmail').value = '';
+        document.getElementById('wlError').classList.add('d-none');
+        document.getElementById('waitlistForm').classList.remove('d-none');
+        document.getElementById('waitlistSuccess').classList.add('d-none');
+        const btn = document.getElementById('wlSubmitBtn');
+        btn.disabled = false;
+        btn.textContent = 'Join the Waitlist';
+    });
+</script>
+</body>
+</html>

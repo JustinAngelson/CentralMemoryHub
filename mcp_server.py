@@ -20,7 +20,7 @@ port = int(os.environ.get("MCP_PORT", "8000"))
 
 mcp = FastMCP(
     "cmh_mcp",
-    host="0.0.0.0",
+    host="127.0.0.1",
     port=port,
 )
 
