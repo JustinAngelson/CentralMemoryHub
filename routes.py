@@ -9,6 +9,9 @@ from functools import wraps
 import uuid
 import platform
 import socket
+import re
+import unicodedata
+from sqlalchemy import func, text
 
 from flask import request, jsonify, render_template, redirect, Blueprint, current_app, make_response, after_this_request
 from flask_login import login_required, current_user
@@ -70,7 +73,7 @@ class RateLimiter:
         self.request_counts = {}  # {key_id: {timestamp: count}}
         self.lock = threading.Lock()
     
-    def is_rate_limited(self, key_id: str, limit: int) -> bool:
+    def is_rate_limited(self, key_id: str, limit: int, window_seconds: int = 60) -> bool:
         """Check if the request should be rate limited.
         
         Args:
@@ -82,7 +85,7 @@ class RateLimiter:
         """
         with self.lock:
             now = datetime.now()
-            minute_ago = now - timedelta(minutes=1)
+            minute_ago = now - timedelta(seconds=window_seconds)
             
             # Initialize if this is the first request for this key
             if key_id not in self.request_counts:
@@ -102,7 +105,7 @@ class RateLimiter:
                 return True
             
             # Increment the count
-            timestamp = now.replace(second=0, microsecond=0)  # Round to minute
+            timestamp = now
             if timestamp not in self.request_counts[key_id]:
                 self.request_counts[key_id][timestamp] = 0
             self.request_counts[key_id][timestamp] += 1
@@ -111,6 +114,14 @@ class RateLimiter:
 
 # Create a rate limiter instance
 rate_limiter = RateLimiter()
+waitlist_rate_limiter = RateLimiter()
+waitlist_write_lock = threading.Lock()
+# A single transaction lock serializes duplicate/cap checks across PG workers.
+WAITLIST_LOCK_KEY = 0x434D4857
+WAITLIST_EMAIL = re.compile(
+    r"[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*@"
+    r"(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}"
+)
 
 def require_api_key(f):
     """Decorator to require API key for API endpoints with rate limiting and logging.
@@ -212,7 +223,11 @@ def add_security_headers(response):
         "object-src 'none'; "
         "media-src 'self'; "
         "frame-src 'self'; "
+        + ("frame-ancestors 'none'; " if os.environ.get("REPLIT_DEPLOYMENT")
+           else "frame-ancestors https://replit.com https://*.replit.com; ")
     )
+    if os.environ.get("REPLIT_DEPLOYMENT"):
+        response.headers['X-Frame-Options'] = 'DENY'
     # Other security headers
     response.headers['X-Content-Type-Options'] = 'nosniff'
     response.headers['X-XSS-Protection'] = '1; mode=block'
@@ -240,17 +255,45 @@ def landing():
 
 @app.route('/api/waitlist', methods=['POST'])
 def join_waitlist():
-    """Public waitlist endpoint — stores submission and optionally fires a webhook"""
-    import threading, os
+    """Bounded, validated admissions; no personal data in error logs."""
+    ip_key = "waitlist:" + (request.remote_addr or "unknown")
+    if waitlist_rate_limiter.is_rate_limited(ip_key, 5, window_seconds=3600):
+        return jsonify({"ok": False, "error": "Please try again later"}), 429
+    if not request.is_json or (request.content_length or 0) > 2048:
+        return jsonify({"ok": False, "error": "A JSON body of at most 2 KB is required"}), 400
     try:
-        data = request.get_json() or {}
-        first_name = (data.get('first_name') or '').strip()
-        email = (data.get('email') or '').strip()
-        if not first_name or not email:
-            return jsonify({"ok": False, "error": "first_name and email are required"}), 200
-        entry = Waitlist(first_name=first_name, email=email)
-        db.session.add(entry)
-        db.session.commit()
+        body = request.stream.read(2049)
+        if len(body) > 2048:
+            raise ValueError()
+        data = json.loads(body)
+        if not isinstance(data, dict):
+            raise ValueError()
+        name, email = data.get("first_name"), data.get("email")
+        if not isinstance(name, str) or not isinstance(email, str):
+            raise ValueError()
+        if any(unicodedata.category(char) in {"Cc", "Cf", "Cs"} for char in name + email):
+            raise ValueError()
+        first_name, email = name.strip(), email.strip().casefold()
+        if not 1 <= len(first_name) <= 100 or not 1 <= len(email) <= 120:
+            raise ValueError()
+        if not WAITLIST_EMAIL.fullmatch(email) or len(email.split("@")[0]) > 64:
+            raise ValueError()
+    except (ValueError, UnicodeError):
+        return jsonify({"ok": False, "error": "Enter a valid name and email (maximum 120 characters)"}), 400
+    try:
+        with waitlist_write_lock:
+            if db.session.get_bind().dialect.name == "postgresql":
+                db.session.execute(text("SELECT pg_advisory_xact_lock(:key)"),
+                                   {"key": WAITLIST_LOCK_KEY})
+            if Waitlist.query.filter(func.lower(Waitlist.email) == email).first():
+                db.session.rollback()
+                return jsonify({"ok": True}), 200
+            cutoff = datetime.utcnow() - timedelta(hours=24)
+            if Waitlist.query.filter(Waitlist.created_at >= cutoff).count() >= 200:
+                db.session.rollback()
+                return jsonify({"ok": False, "error": "Please try again later"}), 429
+            db.session.add(Waitlist(first_name=first_name, email=email))
+            db.session.commit()
         webhook_url = os.environ.get('WAITLIST_WEBHOOK_URL')
         if webhook_url:
             payload = {"first_name": first_name, "email": email, "source": "CentralMemoryHub.com"}
@@ -263,14 +306,16 @@ def join_waitlist():
                         headers={"Content-Type": "application/json"},
                         method="POST"
                     )
-                    urllib.request.urlopen(req, timeout=5)
+                    with urllib.request.urlopen(req, timeout=5):
+                        pass
                 except Exception as wh_err:
-                    logging.warning(f"Waitlist webhook failed (non-blocking): {wh_err}")
+                    logging.warning("waitlist_webhook_failed error_type=%s",
+                                    type(wh_err).__name__)
             threading.Thread(target=fire_webhook, daemon=True).start()
         return jsonify({"ok": True}), 200
     except Exception as e:
         db.session.rollback()
-        logging.error(f"Waitlist submission error: {e}")
+        logging.error("waitlist_submission_failed error_type=%s", type(e).__name__)
         return jsonify({"ok": False, "error": "Server error"}), 500
 
 
@@ -334,6 +379,8 @@ def serve_openapi_schema():
         schema_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'openapi-schema-fixed.json')
         with open(schema_path, 'r') as f:
             schema = json.load(f)
+        public_url = os.environ.get("CMH_PUBLIC_URL") or request.host_url
+        schema["servers"] = [{"url": public_url.rstrip("/")}]
             
         # Set CORS headers for the OpenAPI schema
         response = make_response(jsonify(schema))
