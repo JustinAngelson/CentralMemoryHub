@@ -90,7 +90,7 @@ def test_2A_7_partner_template_creates_principal_credential_and_notification(ide
     assert principal["kind"] == "agent"
     assert created["credential"]["template_id"]
     assert identity.sql(
-        "SELECT id FROM namespaces WHERE path=:path",
+        "SELECT id FROM namespaces WHERE path::text=:path",
         path="agents." + principal["slug"] + ".private",
     )
     assert identity.sql(
@@ -187,6 +187,7 @@ def test_2A_14_partner_cannot_make_ad_hoc_org_or_other_agent_grants(identity, ot
 
 def test_2A_15_sync_service_owner_only(identity):
     payload = registration(identity, kind="service", role=None, tier=None,
+                           sponsor_id=str(identity.owner["id"]),
                            template="service-integration", scopes=["bundle:sync"])
     response = identity.request(identity.owner_client, "POST", "/admin/api/principals", json=payload)
     assert response.status_code == 201
