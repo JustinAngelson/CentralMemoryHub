@@ -108,6 +108,23 @@ def test_credential_template_must_match_target_kind_and_role(identity, target_ki
     assert identity.sql("SELECT id FROM credentials WHERE principal_id=:id", id=target["id"]) == before
 
 
+def test_personal_template_name_cannot_bypass_declared_target_role(identity):
+    identity.tamper("""
+      UPDATE credential_templates SET target_role='external' WHERE name='personal-ai-client'
+    """)
+    try:
+        response = identity.request(identity.owner_client, "POST", "/admin/api/credentials", json={
+            "principal_id": str(identity.owner["id"]), "template": "personal-ai-client",
+            "name": "wrong-personal-role",
+        })
+        denied(response, "TIER_FORBIDDEN", step=3)
+        assert not identity.sql("SELECT id FROM credentials WHERE name='wrong-personal-role'")
+    finally:
+        identity.tamper("""
+          UPDATE credential_templates SET target_role=NULL WHERE name='personal-ai-client'
+        """)
+
+
 @pytest.mark.parametrize("scopes", [["bundle:sync", "bundle:observer"], ["bundle:observer"]])
 def test_service_scope_overrides_are_owner_only_and_sync_cannot_be_combined(identity, scopes):
     target = service(identity)
