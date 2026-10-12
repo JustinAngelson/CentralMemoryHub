@@ -1,7 +1,7 @@
 name: CMH v2
 on:
   push:
-    branches: [v2]
+    branches: [v2, phase1/identity]
   pull_request:
     branches: [v2]
   workflow_dispatch:
@@ -22,7 +22,9 @@ jobs:
           --health-cmd "pg_isready -U postgres -d cmh_v2_test"
           --health-interval 2s --health-timeout 3s --health-retries 30
     env:
-      CMH_DATABASE_URL: postgresql+psycopg://postgres:ci-only-isolated-service@127.0.0.1:5432/cmh_v2_dev
+      CMH_ADMIN_DATABASE_URL: postgresql://postgres:ci-only-isolated-service@127.0.0.1:5432/cmh_v2_test
+      CMH_DATABASE_URL: postgresql+psycopg://cmh_app:ci-only-app@127.0.0.1:5432/cmh_v2_dev
+      CMH_MIGRATE_DATABASE_URL: postgresql+psycopg://cmh_migrate:ci-only-migrate@127.0.0.1:5432/cmh_v2_dev
       CMH_TEST_DATABASE_URL: postgresql+psycopg://postgres:ci-only-isolated-service@127.0.0.1:5432/cmh_v2_test
       CMH_PUBLIC_URL: http://127.0.0.1:8008
       CMH_ENV: test
@@ -32,6 +34,7 @@ jobs:
         with:
           python-version: "3.11"
       - run: pip install './src/cmh[dev]'
+      - run: python v2/init_database.py
       - run: ruff check --config src/cmh/pyproject.toml src/cmh migrations tests/v2 v2
       - run: pytest -c src/cmh/pyproject.toml tests/v2 -v
   compose-smoke:
@@ -46,9 +49,15 @@ jobs:
           echo "::add-mask::$password"
           echo "::add-mask::$token"
           echo "CMH_POSTGRES_PASSWORD=$password" >> "$GITHUB_ENV"
+          app_password="$(openssl rand -hex 32)"
+          migrate_password="$(openssl rand -hex 32)"
+          echo "::add-mask::$app_password"
+          echo "::add-mask::$migrate_password"
+          echo "CMH_APP_PASSWORD=$app_password" >> "$GITHUB_ENV"
+          echo "CMH_MIGRATE_PASSWORD=$migrate_password" >> "$GITHUB_ENV"
           echo "CMH_BOOTSTRAP_TOKEN=$token" >> "$GITHUB_ENV"
       - run: docker compose up --build -d --wait --wait-timeout 120
       - run: curl --fail --silent http://127.0.0.1:8080/healthz
-      - run: docker compose exec -T app python v2/check_mcp.py --url http://127.0.0.1:8080/mcp --env dev
+      - run: docker compose exec -T app python v2/check_mcp.py --url http://localhost:8080/mcp --env dev
       - if: always()
         run: docker compose down --volumes

@@ -7,4 +7,7 @@
 !v2/
 !v2/alembic.ini
 !v2/check_mcp.py
+!v2/init_database.py
+!seed/
+!seed/**
 **/__pycache__/

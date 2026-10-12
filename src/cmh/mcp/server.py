@@ -1,12 +1,15 @@
-"""Phase 0 transport and ping; no identity can be supplied by tool arguments."""
+"""Stateless MCP tools share REST/admin identity services and request context."""
 
+import json
 from urllib.parse import urlsplit
 
 from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
+from mcp.types import CallToolResult, TextContent
 
 from cmh import __version__
-from cmh.auth.bootstrap import principal
+from cmh.auth.context import current_context, current_service
+from cmh.policy.evaluator import deny
 
 
 def build_mcp(settings) -> FastMCP:
@@ -28,11 +31,41 @@ def build_mcp(settings) -> FastMCP:
     @server.tool()
     def cmh_ping() -> dict:
         """Return server metadata for the authenticated request."""
-        identity = principal.get()
-        if identity != "bootstrap":
+        identity = current_context.get()
+        if identity is None:
             raise PermissionError("Authenticated request context required")
+        current_service.get().whoami(identity)
         return {
-            "server": "cmh", "version": __version__, "principal": identity, "env": settings.env,
+            "server": "cmh", "version": __version__,
+            "principal": identity.principal["slug"], "env": settings.env,
         }
+
+    def tool_result(body):
+        return CallToolResult(
+            isError=body.get("outcome") == "DENY",
+            content=[TextContent(type="text", text=json.dumps(body, default=str))],
+        )
+
+    @server.tool()
+    def cmh_whoami() -> CallToolResult:
+        """Report caller claims without secrets; no caller-supplied identity."""
+        return tool_result(current_service.get().whoami(current_context.get()))
+
+    @server.tool()
+    def cmh_check_access(operation: str, namespace: str | None = None) -> CallToolResult:
+        """Dry-run the Phase 1 permission pipeline and audit its decision."""
+        return tool_result(current_service.get().check(current_context.get(), operation, namespace))
+
+    @server.tool()
+    def cmh_register_agent(
+        kind: str = "agent", slug: str = "", display_name: str = "", tier: int = 2,
+        sponsor_id: str | None = None, template: str = "", credential_name: str = "",
+    ) -> CallToolResult:
+        """Registration uses JSON admin; MCP callers cannot create principals."""
+        context, service = current_context.get(), current_service.get()
+        decision = deny("PRINCIPAL_CREATION_FORBIDDEN", 6) if (
+            context.principal["kind"] != "human"
+        ) else deny("AI_CLIENT_CEILING", 2)
+        return tool_result(service.record(context, decision, "principals.admin"))
 
     return server
