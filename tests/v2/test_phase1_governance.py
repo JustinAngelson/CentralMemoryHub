@@ -14,7 +14,8 @@ def registration(case, **extra):
         "kind": "agent", "slug": "agent-test-" + secrets.token_hex(4),
         "display_name": "agent_nix_test", "tier": 2,
         "sponsor_id": str(case.partner_a["id"]),
-        "template": "openclaw-agent-standard", "credential_name": "test-runtime", **extra,
+        "template": "openclaw-agent-standard",
+        "credential_name": "test-runtime-" + case.namespace.split(".")[-1], **extra,
     }
 
 
@@ -233,6 +234,12 @@ def test_T1_13_expired_approval_never_executes_payload(identity):
     assert response.status_code == 202
     approval_id = response.json()["approval_id"]
     identity.clock.advance(days=14, seconds=1)
+    # Advancing beyond the approval TTL also expires the seven-day admin
+    # session. Authenticate afresh so this tests approval expiry, not AUTHN.
+    login = identity.request(identity.owner_client, "POST", "/admin/api/login", json={
+        "email": "owner@example.invalid", "password": identity.password,
+    })
+    assert login.status_code == 200
     response = identity.request(identity.owner_client, "POST",
                                 f"/admin/api/approvals/{approval_id}/approve")
     assert response.status_code in (403, 409)

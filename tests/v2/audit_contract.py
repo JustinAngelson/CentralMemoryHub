@@ -67,7 +67,10 @@ def observe_body():
                 def async_wrapper(method):
                     @wraps(method)
                     async def wrapped(*args, **kwargs):
-                        if not is_health_probe(args[1]):
+                        request = kwargs.get("request") or next(
+                            (item for item in args if isinstance(item, httpx.Request)), None,
+                        )
+                        if request is None or not is_health_probe(request):
                             activity.requests += 1
                         return await method(*args, **kwargs)
                     return wrapped
@@ -76,7 +79,10 @@ def observe_body():
                 def sync_wrapper(method):
                     @wraps(method)
                     def wrapped(*args, **kwargs):
-                        if not is_health_probe(args[1]):
+                        request = kwargs.get("request") or next(
+                            (item for item in args if isinstance(item, httpx.Request)), None,
+                        )
+                        if request is None or not is_health_probe(request):
                             activity.requests += 1
                         return method(*args, **kwargs)
                     return wrapped

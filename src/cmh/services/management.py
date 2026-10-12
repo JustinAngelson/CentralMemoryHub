@@ -56,7 +56,9 @@ def mint(connection, issuer, target, selected, payload, now):
     if personal:
         scopes = [scope for scope in scopes if not ceiling(scope)]
         if selected["name"].endswith("-readonly"):
-            scopes = [scope for scope in scopes if scope.endswith(".read")]
+            from cmh.policy.scopes import OBSERVER
+
+            scopes = [scope for scope in scopes if scope in OBSERVER]
     value = ("cmh_pk_" if personal else "cmh_ak_") + secrets.token_urlsafe(32)
     credential = connection.execute(text("""
       INSERT INTO credentials(principal_id,token_hash,token_prefix,name,kind,client_label,
@@ -103,7 +105,11 @@ def create_principal(service, context, payload, approved=False, approval_id=None
         selected = None if human else template(connection, payload.get("template"))
         preliminary = evaluate(connection, context, operation)
         if preliminary["outcome"] == "ALLOW":
-            if not re.fullmatch(r"[a-z0-9]+(-[a-z0-9]+)*", payload.get("slug", "")):
+            if payload.get("kind") not in {"human", "agent", "service"}:
+                preliminary = deny("VALIDATION_FAILED")
+            elif "bundle:sync" in payload.get("scopes", []) and payload["scopes"] != ["bundle:sync"]:
+                preliminary = deny("SCOPE_MISSING", 2)
+            elif not re.fullmatch(r"[a-z0-9]+(-[a-z0-9]+)*", payload.get("slug", "")):
                 preliminary = deny("VALIDATION_FAILED")
             elif not human and not selected:
                 preliminary = deny("TEMPLATE_NOT_FOUND")
@@ -246,6 +252,19 @@ def issue_credential(service, context, payload, approved=False, approval_id=None
 
 
 def update_principal(service, context, identity, payload):
+    def preflight(connection):
+        subject = principal(connection, identity)
+        if subject and subject["kind"] == "agent" and payload.get("tier", subject["tier"]) > 3:
+            return deny("AGENT_TIER_LIMIT", 3)
+        if subject and "sponsor_id" in payload and subject["kind"] != "human":
+            sponsor = principal(connection, payload["sponsor_id"]) if payload["sponsor_id"] else None
+            if not sponsor or sponsor["kind"] != "human" or sponsor["status"] != "active":
+                return deny("SPONSOR_CEILING", 4)
+            if subject["role"] == "external" and sponsor["role"] != "owner":
+                return deny("SPONSOR_CEILING", 4)
+            if subject["tier"] is not None and subject["tier"] > sponsor["tier"]:
+                return deny("SPONSOR_CEILING", 4)
+
     def change(connection):
         subject = principal(connection, identity)
         if not subject:
@@ -264,7 +283,7 @@ def update_principal(service, context, identity, payload):
                 connection.execute(text("UPDATE principals SET status='active' WHERE id=:id"),
                                    {"id": identity})
         return {"principal": principal(connection, identity)}
-    return service.perform(context, "principals.admin", change=change)
+    return service.perform(context, "principals.admin", change=change, preflight=preflight)
 
 
 def grant(service, context, payload, remove=False):
@@ -296,9 +315,10 @@ def grant(service, context, payload, remove=False):
         if remove:
             connection.execute(text("""
               DELETE FROM namespace_grants WHERE principal_id=:id AND namespace_id=:namespace
-                AND access=:access
+                AND (:all_access OR access=:access)
             """), {"id": target["id"], "namespace": node["id"],
-                   "access": payload.get("permission", "read")})
+                   "access": payload.get("permission", "read"),
+                   "all_access": "permission" not in payload})
         else:
             connection.execute(text("""
               INSERT INTO namespace_grants(principal_id,namespace_id,access,granted_by)

@@ -43,6 +43,11 @@ class IdentityMiddleware:
             "request_id": request_id.get(),
         }
         context = PrincipalContext({}, request_meta=meta)
+        if path.startswith("/mcp") and path != "/mcp":
+            self.service.record(context, deny("NOT_FOUND"), "routing.not_found")
+            return await JSONResponse({"code": "NOT_FOUND"}, status_code=404)(
+                scope, receive, send,
+            )
         rejection = None
         status = 200
         if path.startswith("/admin/api/"):

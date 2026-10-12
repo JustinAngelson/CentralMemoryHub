@@ -9,6 +9,7 @@ from starlette.responses import JSONResponse
 
 from cmh import audit
 from cmh.auth.context import current_context, current_service
+from cmh.policy.evaluator import deny
 from cmh.services import accounts, administration, management
 
 
@@ -70,9 +71,11 @@ def identity_router(settings):
 
     @router.post("/api/principals")
     async def bearer_registration(request: Request):
-        return response(management.create_principal(
-            current_service.get(), current_context.get(), await request.json(),
-        ), 201)
+        context = current_context.get()
+        decision = deny("PRINCIPAL_CREATION_FORBIDDEN", 6) if (
+            context.principal["kind"] != "human"
+        ) else deny("AI_CLIENT_CEILING", 2)
+        return response(current_service.get().record(context, decision, "principals.admin"))
 
     @router.post("/admin/api/principals")
     async def registration(request: Request):

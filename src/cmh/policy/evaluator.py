@@ -2,7 +2,7 @@
 
 from sqlalchemy import text
 
-from cmh.policy.scopes import ceiling, envelope
+from cmh.policy.scopes import ceiling, envelope, has_scope
 
 
 def deny(code, step=1):
@@ -68,7 +68,7 @@ def sponsor_ceiling(connection, subject, path, write=False, operation=None):
         operation.startswith("sync.") or operation == "entities.write"
     ):
         return sponsor["role"] == "owner"
-    if operation and operation not in envelope(sponsor):
+    if operation and not has_scope(envelope(sponsor), operation):
         return False
     if path is None:
         return True
@@ -89,11 +89,11 @@ def evaluate(connection, context, operation, path=None):
     credential = context.credential
     if credential and credential["ai_client"] and ceiling(operation):
         return deny("AI_CLIENT_CEILING", 2)
-    if credential and operation not in credential["scopes"]:
+    if credential and not has_scope(credential["scopes"], operation):
         return deny("AI_CLIENT_CEILING" if credential["ai_client"] and ceiling(operation)
                     else "SCOPE_MISSING", 2)
     tier_scopes = set(credential["scopes"]) if subject["kind"] == "service" else envelope(subject)
-    if operation not in tier_scopes:
+    if not has_scope(tier_scopes, operation):
         return deny("TIER_FORBIDDEN", 3)
     write = not operation.endswith(".read")
     if subject["role"] == "external" and write and path != "inbox":

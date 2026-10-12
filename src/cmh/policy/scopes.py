@@ -13,15 +13,21 @@ CONTRIBUTOR = OBSERVER | {
 } | {"memory.endorse", "decisions.endorse", "knowledge.endorse", "entities.propose_change"}
 OPERATOR = CONTRIBUTOR | {"approvals.review", "digest.read"}
 STEWARD = OPERATOR | {
-    "audit.read", "policy.read", "policy.write", "policy.approve", "grants.admin",
-    "principals.admin", "credentials.admin", "credentials.issue_sponsored",
+    "audit.read", "policy.*", "grants.admin",
+    "principals.admin", "credentials.admin",
 }
 BUNDLES = {
     "bundle:observer": OBSERVER, "bundle:contributor": CONTRIBUTOR,
     "bundle:operator": OPERATOR, "bundle:steward": STEWARD,
     "bundle:external": OBSERVER | {"inbox.write"},
-    "bundle:sync": {"entities.write", "sync.read", "sync.write", "sync.reconcile"},
+    "bundle:sync": {"entities.write", "sync.*"},
 }
+
+
+def has_scope(scopes, operation):
+    return operation in scopes or any(
+        scope.endswith(".*") and operation.startswith(scope[:-1]) for scope in scopes
+    )
 
 
 def ceiling(scope):

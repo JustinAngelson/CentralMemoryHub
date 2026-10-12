@@ -23,6 +23,9 @@ def test_T1_1_table_owner_runtime_refused(identity, role_login_engine, monkeypat
             cmh.app.create_app()
     finally:
         identity.tamper("ALTER TABLE users OWNER TO cmh_migrate")
+        # ALTER OWNER rewrites owner ACL entries. Restore the migration's
+        # original application grants as well as ownership for later cases.
+        identity.tamper("GRANT SELECT, INSERT, UPDATE, DELETE ON users TO cmh_app")
 
 
 @pytest.mark.no_app_operation(reason="Startup audit-UPDATE privilege guard; no app operation.")

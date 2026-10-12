@@ -1,6 +1,7 @@
 """Owner governance, approval review and credential lifecycle."""
 
 import json
+import re
 import secrets
 from datetime import timedelta
 
@@ -14,6 +15,11 @@ from cmh.services.management import create_principal, issue_credential
 
 
 def namespace_create(service, context, payload):
+    def preflight(connection):
+        path = payload.get("path", "")
+        if not re.fullmatch(r"(?:org|people)(?:\.[a-zA-Z0-9_-]+)+", path):
+            return deny("NAMESPACE_FORBIDDEN", 5)
+
     def change(connection):
         row = connection.execute(text("""
           INSERT INTO namespaces(path,description,mode,created_by,owner_principal_id)
@@ -22,7 +28,7 @@ def namespace_create(service, context, payload):
                "mode": payload.get("mode", "flag"), "creator": context.id,
                "owner": payload.get("owner_principal_id")}).mappings().one()
         return {"namespace": dict(row)}
-    return service.perform(context, "principals.admin", change=change)
+    return service.perform(context, "principals.admin", change=change, preflight=preflight)
 
 
 def template_edit(service, context, name, payload):
@@ -143,6 +149,10 @@ def approve(service, context, identity):
 
 def approval_list(service, context):
     def data(connection):
+        connection.execute(text("""
+          UPDATE approvals SET status='expired'
+          WHERE required_reviewer_id=:id AND status='pending' AND expires_at <= :now
+        """), {"id": context.id, "now": service.now()})
         rows = connection.execute(text("""
           SELECT id,requester_id,required_reviewer_id,operation,payload,status,created_at,
             expires_at,reviewed_at,reviewed_by FROM approvals
