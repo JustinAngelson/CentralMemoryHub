@@ -50,7 +50,10 @@ def notify(connection, issuer, target, credential, selected, now):
 
 def mint(connection, issuer, target, selected, payload, now):
     personal = selected["name"].startswith("personal-ai-client")
-    scopes = expand(payload.get("scopes", selected["scopes"])) if target["kind"] == "service" else (
+    service_scopes = payload.get("scopes", selected["scopes"]) if (
+        issuer["role"] == "owner"
+    ) else selected["scopes"]
+    scopes = expand(service_scopes) if target["kind"] == "service" else (
         sorted(envelope(target)) if personal else expand(selected["scopes"])
     )
     if personal:
@@ -73,6 +76,43 @@ def mint(connection, issuer, target, selected, payload, now):
            "expires": now + timedelta(days=selected["default_expiry_days"])}).mappings().one()
     notify(connection, issuer, target, credential, selected, now)
     return {**credential, "token": value}
+
+
+def external_grants(payload):
+    return payload.get("namespace_grants", [
+        {"path": item, "access": "read"} for item in payload.get("namespaces", [])
+    ])
+
+
+def validate_external_grants(connection, sponsor, payload):
+    grants = external_grants(payload)
+    if not isinstance(grants, list):
+        return deny("VALIDATION_FAILED")
+    for grant in grants:
+        if not isinstance(grant, dict):
+            return deny("VALIDATION_FAILED")
+        path = grant.get("path") or grant.get("namespace")
+        if not isinstance(path, str) or not re.fullmatch(r"[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*", path):
+            return deny("NAMESPACE_FORBIDDEN", 5)
+        if grant.get("access", "read") != "read" or (
+            path in ("system", "inbox") or path.startswith(("system.", "inbox."))
+            or re.match(r"^(people|agents)\..+\.private(?:\.|$)", path)
+        ):
+            return deny("NAMESPACE_FORBIDDEN", 5)
+        if not namespace(connection, path):
+            return deny("NAMESPACE_NOT_FOUND", 5)
+        if not sponsor or not can_access(connection, sponsor, path):
+            return deny("SPONSOR_CEILING", 4)
+    return allow()
+
+
+def template_matches(target, selected):
+    personal = selected["name"].startswith("personal-ai-client")
+    kind = "human" if personal else ("agent" if selected["target_role"] else "service")
+    return target["kind"] == kind and (
+        (personal and selected["target_role"] is None)
+        or target["role"] == selected["target_role"]
+    )
 
 
 def queue(service, context, operation, payload, selected):
@@ -140,6 +180,8 @@ def create_principal(service, context, payload, approved=False, approval_id=None
                         ):
                             preliminary = deny("SPONSOR_CEILING", 4)
                             break
+                    if preliminary["outcome"] == "ALLOW" and selected["name"] == "external-readonly":
+                        preliminary = validate_external_grants(connection, sponsor, payload)
     if preliminary["outcome"] != "ALLOW":
         return service.record(context, preliminary, operation)
     sync = payload.get("kind") == "service" and payload.get("scopes") == ["bundle:sync"]
@@ -179,9 +221,7 @@ def create_principal(service, context, payload, approved=False, approval_id=None
         else:
             grants = selected["namespace_grants_template"]
             if selected["name"] == "external-readonly":
-                grants = payload.get("namespace_grants", [
-                    {"path": item, "access": "read"} for item in payload.get("namespaces", [])
-                ])
+                grants = external_grants(payload)
             if sync:
                 grants = [{"path": "org", "access": "write"}]
             for grant in grants:
@@ -219,13 +259,24 @@ def issue_credential(service, context, payload, approved=False, approval_id=None
             decision = deny("VALIDATION_FAILED")
         if target and selected and decision["outcome"] == "ALLOW":
             personal = selected["name"].startswith("personal-ai-client")
-            if personal and target["kind"] != "human":
+            if not template_matches(target, selected):
                 decision = deny("TIER_FORBIDDEN", 3)
+            elif "scopes" in payload and (
+                context.principal["role"] != "owner"
+                or ("bundle:sync" in payload["scopes"] and (
+                    payload["scopes"] != ["bundle:sync"] or target["kind"] != "service"
+                ))
+            ):
+                decision = deny("SCOPE_MISSING", 2)
             elif context.principal["role"] != "owner" and (
                 (personal and target["id"] != context.id)
                 or (not personal and target["sponsor_id"] != context.id)
             ):
                 decision = deny("SPONSOR_CEILING", 4)
+            elif selected["name"] == "external-readonly":
+                decision = validate_external_grants(
+                    connection, principal(connection, target["sponsor_id"]), payload,
+                )
     if decision["outcome"] != "ALLOW":
         return service.record(context, decision, "credentials.issue_sponsored")
     if selected["requires_owner_approval"] and not approved:

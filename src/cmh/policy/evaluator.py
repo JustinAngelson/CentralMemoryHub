@@ -52,7 +52,12 @@ def can_access(connection, subject, path, write=False):
     return bool(connection.execute(text("""
         SELECT 1 FROM namespace_grants g JOIN namespaces n ON n.id=g.namespace_id
         WHERE g.principal_id=:id AND n.path @> CAST(:path AS ltree)
-          AND (:write=false OR g.access='write') LIMIT 1
+          AND (:write=false OR g.access='write')
+          AND NOT EXISTS (
+            SELECT 1 FROM namespaces barrier
+            WHERE barrier.mode='queue' AND barrier.path @> CAST(:path AS ltree)
+              AND NOT (n.path <@ barrier.path)
+          ) LIMIT 1
     """), {"id": subject["id"], "path": path, "write": write}).scalar())
 
 
@@ -99,7 +104,10 @@ def evaluate(connection, context, operation, path=None):
     if subject["role"] == "external" and write and path != "inbox":
         return deny("TIER_FORBIDDEN", 3)
     existing = namespace(connection, path) if path else None
-    if not sponsor_ceiling(connection, subject, path if existing else None, write, operation):
+    # A2: an inaccessible existing namespace must not reveal its existence
+    # through a different sponsor-ceiling result from a missing sibling.
+    sponsor_path = path if existing and can_access(connection, subject, path, write) else None
+    if not sponsor_ceiling(connection, subject, sponsor_path, write, operation):
         return deny("SPONSOR_CEILING", 4)
     if path:
         node = existing

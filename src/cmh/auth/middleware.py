@@ -44,7 +44,13 @@ class IdentityMiddleware:
         }
         context = PrincipalContext({}, request_meta=meta)
         if path.startswith("/mcp") and path != "/mcp":
-            self.service.record(context, deny("NOT_FOUND"), "routing.not_found")
+            # Unknown MCP paths cannot be used to bypass the shared IP audit
+            # budget. Preserve 404 without authenticating or revealing routes.
+            audit, summary = self.limits.failure(meta["client_ip"], self.service.now())
+            if audit:
+                self.service.record(context, deny("NOT_FOUND"), "routing.not_found")
+            elif summary:
+                self.service.record(context, deny("RATE_LIMITED"), "auth.rate_limit_summary")
             return await JSONResponse({"code": "NOT_FOUND"}, status_code=404)(
                 scope, receive, send,
             )

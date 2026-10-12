@@ -8,6 +8,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from starlette.responses import JSONResponse
 
 from cmh import __version__
+from cmh.db.roles import guard_runtime_role
 
 
 def health_router(engine, environment: str) -> APIRouter:
@@ -20,6 +21,10 @@ def health_router(engine, environment: str) -> APIRouter:
         body = {"version": __version__, "env": environment, "extensions": extensions,
                 "db_role": "ok"}
         try:
+            try:
+                body["db_role"] = guard_runtime_role(engine, environment)
+            except RuntimeError as condition:
+                body["db_role"] = str(condition)
             with engine.connect() as connection:
                 installed = set(connection.execute(text(
                     "SELECT extname FROM pg_extension "
@@ -27,7 +32,7 @@ def health_router(engine, environment: str) -> APIRouter:
                 )).scalars())
             for name in extensions:
                 extensions[name] = name in installed
-            ready = all(extensions.values())
+            ready = all(extensions.values()) and body["db_role"] == "ok"
             return JSONResponse(
                 {**body, "status": "ok" if ready else "degraded", "database": "ok"},
                 status_code=200 if ready else 503,
