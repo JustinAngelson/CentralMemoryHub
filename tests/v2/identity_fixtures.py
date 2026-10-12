@@ -267,9 +267,8 @@ class IdentityCase:
 
 @pytest.fixture
 def identity(configured_env, audit_admin, monkeypatch, tmp_path, request):
-    from cmh.seed import seed_database
-
     from cmh.db.engine import normalize_database_url
+    from cmh.seed import seed_database
 
     seed_database(audit_admin)
     engine = create_engine(
