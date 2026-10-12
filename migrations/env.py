@@ -1,4 +1,4 @@
-"""Migrations read only CMH_DATABASE_URL, never the legacy database variable."""
+"""Alembic alone uses CMH_MIGRATE_DATABASE_URL; no runtime/v1 fallback."""
 
 import os
 
@@ -8,13 +8,13 @@ from sqlalchemy.exc import ArgumentError
 
 from cmh.db.engine import normalize_database_url
 
-url = os.environ.get("CMH_DATABASE_URL")
+url = os.environ.get("CMH_MIGRATE_DATABASE_URL")
 if not url:
-    raise RuntimeError("CMH_DATABASE_URL is required for migrations")
+    raise RuntimeError("CMH_MIGRATE_DATABASE_URL is required for migrations")
 try:
     connection_url = normalize_database_url(url)
 except (ArgumentError, TypeError, ValueError):
-    raise RuntimeError("Invalid CMH_DATABASE_URL for migrations") from None
+    raise RuntimeError("Invalid CMH_MIGRATE_DATABASE_URL for migrations") from None
 
 if context.is_offline_mode():
     context.configure(url=connection_url, literal_binds=True, dialect_opts={"paramstyle": "named"})

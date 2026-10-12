@@ -1,0 +1,8 @@
+{
+ "bundle:observer":{"reads":["memory","decisions","knowledge","orgstate","entities","directory","messages","tasks","experiments","insights"]},
+ "bundle:contributor":{"inherits":"bundle:observer","writes":["memory","decisions","knowledge","orgstate","messages","tasks","experiments","insights"],"adds":["memory.endorse","decisions.endorse","knowledge.endorse","entities.propose_change"]},
+ "bundle:operator":{"inherits":"bundle:contributor","adds":["approvals.review","digest.read"]},
+ "bundle:steward":{"inherits":"bundle:operator","adds":["audit.read","policy.read","policy.write","policy.approve","grants.admin","principals.admin","credentials.admin","credentials.issue_sponsored"]},
+ "bundle:external":{"inherits":"bundle:observer","adds":["inbox.write"]},
+ "bundle:sync":{"adds":["entities.write","sync.read","sync.write","sync.reconcile"]}
+}

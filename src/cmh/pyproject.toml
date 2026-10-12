@@ -16,13 +16,17 @@ dependencies = [
   "alembic>=1.13",
   "pydantic-settings>=2",
   "pgvector>=0.3",
+  "argon2-cffi>=23.1",
 ]
+
+[project.scripts]
+cmh-seed = "cmh.seed:main"
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "pytest-asyncio>=0.24", "httpx>=0.27", "ruff>=0.8"]
 
 [tool.setuptools]
-packages = ["cmh", "cmh.api", "cmh.auth", "cmh.db", "cmh.mcp"]
+packages = ["cmh", "cmh.api", "cmh.auth", "cmh.db", "cmh.mcp", "cmh.policy", "cmh.services"]
 package-dir = {cmh = "."}
 
 [tool.ruff]

@@ -15,8 +15,9 @@ class Settings(BaseSettings):
     database_url: SecretStr
     public_url: str
     env: str = "dev"
-    bootstrap_token: SecretStr = Field(min_length=32)
+    bootstrap_token: SecretStr = Field(min_length=64)
     allowed_hosts: str = ""
+    trusted_proxy_hops: int = Field(default=0, ge=0, le=32)
 
     @field_validator("database_url")
     @classmethod

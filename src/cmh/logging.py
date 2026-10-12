@@ -9,6 +9,9 @@ from uuid import UUID, uuid4
 request_id: ContextVar[str] = ContextVar("cmh_request_id", default="startup")
 _SENSITIVE = re.compile(r"authorization|token|secret|key|password", re.IGNORECASE)
 _BEARER = re.compile(r"\bBearer\s+[^\s\"',;]+", re.IGNORECASE)
+_QUERY = re.compile(r"\?[^\s\"']+")
+_CREDENTIAL = re.compile(r"cmh_(?:ak|pk|at)_[A-Za-z0-9_-]+")
+_SESSION = re.compile(r"cmh_session=[^;\s\"']+")
 _secret_values: tuple[str, ...] = ()
 _installed = False
 _STANDARD_FIELDS = set(logging.makeLogRecord({}).__dict__) | {
@@ -25,6 +28,9 @@ def redact(value, field: str = ""):
         return [redact(item) for item in value]
     if isinstance(value, str):
         value = _BEARER.sub("Bearer [REDACTED]", value)
+        value = _QUERY.sub("?[REDACTED]", value)
+        value = _CREDENTIAL.sub("[REDACTED]", value)
+        value = _SESSION.sub("cmh_session=[REDACTED]", value)
         for secret in _secret_values:
             value = value.replace(secret, "[REDACTED]")
         return value

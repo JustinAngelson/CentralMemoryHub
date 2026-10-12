@@ -17,7 +17,8 @@ def health_router(engine, environment: str) -> APIRouter:
     @router.get("/healthz")
     def health():
         extensions = {"vector": False, "ltree": False, "pgcrypto": False}
-        body = {"version": __version__, "env": environment, "extensions": extensions}
+        body = {"version": __version__, "env": environment, "extensions": extensions,
+                "db_role": "ok"}
         try:
             with engine.connect() as connection:
                 installed = set(connection.execute(text(

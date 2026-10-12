@@ -1,1 +1,8 @@
-# Phase 0 placeholder. Principal templates belong to Phase 1.
+[
+ {"name":"openclaw-agent-standard","role":"delegated_agent","tier":2,"scopes":["bundle:contributor"],"grants":[{"path":"org","access":"write"},{"path":"org.clients","access":"read"},{"path":"agents.<slug>.private","access":"write"}],"days":90,"approval":false},
+ {"name":"autonomous-claude","role":"delegated_agent","tier":2,"scopes":["bundle:contributor"],"grants":[{"path":"org","access":"write"},{"path":"org.clients","access":"read"},{"path":"agents.<slug>.private","access":"write"}],"days":90,"approval":false},
+ {"name":"personal-ai-client","role":null,"tier":null,"scopes":[],"grants":[],"days":90,"approval":false},
+ {"name":"personal-ai-client-readonly","role":null,"tier":null,"scopes":["bundle:observer"],"grants":[],"days":90,"approval":false},
+ {"name":"external-readonly","role":"external","tier":1,"scopes":["bundle:external"],"grants":[],"days":90,"approval":true},
+ {"name":"service-integration","role":null,"tier":null,"scopes":[],"grants":[],"days":365,"approval":true}
+]
