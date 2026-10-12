@@ -111,6 +111,10 @@ def test_database():
             "alembic_version", "principals", "users", "admin_sessions", "credentials",
             "credential_templates", "namespaces", "namespace_grants", "approvals",
             "audit_events", "notifications", "bootstrap_state",
+            "entities", "entity_versions", "edges", "edge_types", "embeddings",
+            "memories", "decisions", "knowledge", "org_states", "tasks", "experiments",
+            "insights", "shared_contexts", "inbox_items", "memory_links",
+            "orgs", "engagements", "projects", "notes",
         }
         assert set(tables) <= allowed, "Test database contains tables outside the v2 identity scope"
         # The spec requires a migration rebuild at the start of a run. During
@@ -152,6 +156,7 @@ def configured_env(monkeypatch, test_database):
     monkeypatch.setenv("CMH_ENV", "test")
     monkeypatch.setenv("CMH_BOOTSTRAP_TOKEN", token)
     monkeypatch.setenv("CMH_ALLOWED_HOSTS", "")
+    monkeypatch.setenv("CMH_EMBEDDING_PROVIDER", "fake")
     from sqlalchemy import event
 
     import cmh.app
