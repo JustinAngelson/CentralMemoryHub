@@ -117,6 +117,9 @@ def test_database():
         # that run, no fixture truncates or deletes any DENY/QUEUE audit rows.
         for name in sorted(allowed):
             conn.execute(text(f'DROP TABLE IF EXISTS "{name}" CASCADE'))
+        # Table CASCADE removes triggers, not their standalone functions.
+        for name in ("immutable_principal_slug", "require_human_user"):
+            conn.execute(text(f"DROP FUNCTION IF EXISTS {name}()"))
         for extension in ("vector", "ltree", "pgcrypto"):
             conn.execute(text(f"DROP EXTENSION IF EXISTS {extension}"))
     config = Config(str(ROOT / "v2/alembic.ini"))
@@ -136,8 +139,15 @@ def test_database():
 
 @pytest.fixture
 def configured_env(monkeypatch, test_database):
+    from sqlalchemy.engine import make_url
+
+    from cmh.db.engine import normalize_database_url
+
     token = secrets.token_urlsafe(48)
-    monkeypatch.setenv("CMH_DATABASE_URL", test_database)
+    runtime_url = make_url(normalize_database_url(test_database.runtime_role_url)).set(
+        database=make_url(normalize_database_url(test_database)).database,
+    )
+    monkeypatch.setenv("CMH_DATABASE_URL", runtime_url.render_as_string(hide_password=False))
     monkeypatch.setenv("CMH_PUBLIC_URL", "http://127.0.0.1:8008")
     monkeypatch.setenv("CMH_ENV", "test")
     monkeypatch.setenv("CMH_BOOTSTRAP_TOKEN", token)
@@ -188,6 +198,20 @@ def client(configured_env):
 
     with TestClient(create_app(), base_url="http://127.0.0.1") as instance:
         yield instance
+
+
+@pytest.fixture
+def unreachable_client(configured_env, monkeypatch):
+    from fastapi.testclient import TestClient
+
+    from cmh.app import create_app
+
+    marker = SensitiveTestValue(secrets.token_urlsafe(32))
+    monkeypatch.setenv(
+        "CMH_DATABASE_URL", f"postgresql://unreachable:{marker}@127.0.0.1:1/unreachable",
+    )
+    with TestClient(create_app()) as instance:
+        yield instance, marker
 
 
 @pytest.fixture

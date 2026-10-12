@@ -160,10 +160,11 @@ def test_bootstrap_wrong_origin_is_rejected(client, configured_env):
 
 @pytest.mark.parametrize("mode", ["dev", "prod"])
 @pytest.mark.no_app_operation(reason="Startup superuser guard; no HTTP or service call.")
-def test_T1_1_superuser_runtime_is_refused(configured_env, monkeypatch, mode):
+def test_T1_1_superuser_runtime_is_refused(configured_env, test_database, monkeypatch, mode):
     from cmh.app import create_app
 
     monkeypatch.setenv("CMH_ENV", mode)
+    monkeypatch.setenv("CMH_DATABASE_URL", test_database)
     with pytest.raises(RuntimeError, match="(?i)(database role|db.role|superuser)"):
         create_app()
 

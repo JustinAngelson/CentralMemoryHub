@@ -43,17 +43,9 @@ def test_T0_2_health(client):
 
 
 @pytest.mark.no_app_operation(reason="Only GET /healthz: unaudited public health probe by design.")
-def test_T0_3_unreachable_database(configured_env, monkeypatch):
-    from fastapi.testclient import TestClient
-
-    from cmh.app import create_app
-
-    marker = secrets.token_urlsafe(32)
-    monkeypatch.setenv(
-        "CMH_DATABASE_URL", f"postgresql://unreachable:{marker}@127.0.0.1:1/unreachable"
-    )
-    with TestClient(create_app()) as instance:
-        response = instance.get("/healthz")
+def test_T0_3_unreachable_database(unreachable_client):
+    instance, marker = unreachable_client
+    response = instance.get("/healthz")
     assert response.status_code == 503
     assert response.json()["database"] == "unreachable"
     assert marker not in response.text
@@ -195,11 +187,8 @@ def test_request_id_and_host_protection(client, valid_mcp_token):
 
 
 @pytest.mark.no_app_operation(reason="Logging configuration inspection; no requests are sent.")
-def test_uvicorn_access_logs_stay_disabled(configured_env):
+def test_uvicorn_access_logs_stay_disabled(client):
     """Factory logging must not re-enable URL/query-string access logs."""
-    from cmh.app import create_app
-
-    create_app()
     assert logging.getLogger("uvicorn.access").disabled
 
 
