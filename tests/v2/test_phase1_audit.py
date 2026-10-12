@@ -10,6 +10,7 @@ import pytest
 from sqlalchemy import text
 from sqlalchemy.exc import ProgrammingError
 from test_phase1_credentials import denied
+from test_phase1_governance import registration
 
 
 def canonical(value):
@@ -112,6 +113,30 @@ def test_4_6_ten_concurrent_real_committed_audited_operations(identity):
 
 def test_4_7_audit_api_requires_audit_read(identity):
     denied(identity.bearer(identity.readonly_token, path="/api/audit/events"), "SCOPE_MISSING", 2)
+
+
+@pytest.mark.parametrize("outcome", ["DENY", "QUEUE"])
+def test_4_1_denial_and_queue_audits_survive_body_rollback(identity, outcome):
+    before = {row["seq"] for row in identity.audit()}
+    if outcome == "DENY":
+        denied(identity.check(identity.owner_token, "policy.write"), "AI_CLIENT_CEILING", 2)
+    else:
+        response = identity.request(identity.client_a, "POST", "/admin/api/principals",
+                                    json=registration(
+                                        identity, role="external", tier=1,
+                                        sponsor_id=str(identity.owner["id"]),
+                                        template="external-readonly",
+                                    ))
+        assert response.status_code == 202
+        assert response.json()["outcome"] == "QUEUE"
+    # Administrative connection sees only committed rows, never the body engine's
+    # uncommitted ALLOW events. Keep these rows for every later chain test.
+    new = [row for row in identity.audit() if row["seq"] not in before]
+    assert len(new) == 1
+    assert new[0]["outcome"] == outcome
+    saved_seq = new[0]["seq"]
+    identity.transaction.rollback()
+    assert any(row["seq"] == saved_seq and row["outcome"] == outcome for row in identity.audit())
 
 
 def test_4_8_sponsor_filter_returns_exact_agents_window_in_one_query(identity):

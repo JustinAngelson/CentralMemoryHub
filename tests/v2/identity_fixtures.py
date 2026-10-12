@@ -227,7 +227,8 @@ class IdentityCase:
             client.close()
         self.owner_client.__exit__(None, None, None)
         if self.transaction is not None:
-            self.transaction.rollback()
+            if self.transaction.is_active:
+                self.transaction.rollback()
             self.engine.connection.close()
             self.engine.connection = None
 
