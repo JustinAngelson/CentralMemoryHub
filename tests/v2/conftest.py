@@ -14,6 +14,13 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
 
 
+class SensitiveTestValue(str):
+    """Keep temporary tokens and database URLs out of pytest failure reports."""
+
+    def __repr__(self):
+        return "<redacted test credential>"
+
+
 @pytest.fixture(scope="session")
 def test_database():
     from alembic import command
@@ -40,7 +47,7 @@ def test_database():
         command.upgrade(config, "head")
     with engine.begin() as conn:
         conn.execute(text("ALTER TABLE alembic_version OWNER TO cmh_migrate"))
-    yield url
+    yield SensitiveTestValue(url)
     engine.dispose()
 
 
@@ -52,7 +59,7 @@ def configured_env(monkeypatch, test_database):
     monkeypatch.setenv("CMH_ENV", "test")
     monkeypatch.setenv("CMH_BOOTSTRAP_TOKEN", token)
     monkeypatch.setenv("CMH_ALLOWED_HOSTS", "")
-    return token
+    return SensitiveTestValue(token)
 
 
 @pytest.fixture
