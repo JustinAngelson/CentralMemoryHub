@@ -36,7 +36,10 @@ def test_database():
     config = Config(str(ROOT / "v2/alembic.ini"))
     with pytest.MonkeyPatch.context() as patch:
         patch.setenv("CMH_DATABASE_URL", url)
+        patch.setenv("CMH_MIGRATE_DATABASE_URL", url)
         command.upgrade(config, "head")
+    with engine.begin() as conn:
+        conn.execute(text("ALTER TABLE alembic_version OWNER TO cmh_migrate"))
     yield url
     engine.dispose()
 
