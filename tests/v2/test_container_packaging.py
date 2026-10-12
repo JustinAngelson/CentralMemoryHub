@@ -16,3 +16,11 @@ def test_container_allowlist_includes_seed_and_role_initializer():
         assert (root / "seed" / (name + ".yaml")).is_file()
     assert (root / "v2" / "init_database.py").is_file()
     assert not any(rule.startswith("!.local") for rule in rules)
+
+
+@pytest.mark.no_app_operation(reason="CI feature-branch trigger inspection; no app operation.")
+def test_feature_branch_push_has_independent_ci_trigger():
+    root = Path(__file__).resolve().parents[2]
+    workflow = (root / ".github/workflows/v2-ci.yml").read_text()
+    push_section = workflow.split("  push:\n", 1)[1].split("  pull_request:", 1)[0]
+    assert "phase1/identity" in push_section
