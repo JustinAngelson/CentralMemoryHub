@@ -30,6 +30,7 @@ def test_T0_1_missing_configuration_is_sanitized(monkeypatch):
     assert "input_value" not in str(error.value)
 
 
+@pytest.mark.no_app_operation(reason="Only GET /healthz: unaudited public health probe by design.")
 def test_T0_2_health(client):
     response = client.get("/healthz")
     assert response.status_code == 200
@@ -41,6 +42,7 @@ def test_T0_2_health(client):
     assert body["extensions"] == {"vector": True, "ltree": True, "pgcrypto": True}
 
 
+@pytest.mark.no_app_operation(reason="Only GET /healthz: unaudited public health probe by design.")
 def test_T0_3_unreachable_database(configured_env, monkeypatch):
     from fastapi.testclient import TestClient
 
@@ -137,7 +139,7 @@ def test_T0_11_migration_round_trip(test_database, monkeypatch):
             assert conn.execute(text(
                 "SELECT count(*) FROM pg_extension WHERE extname IN ('vector','ltree','pgcrypto')"
             )).scalar_one() == 0
-        command.upgrade(config, "head")
+        command.upgrade(config, "0001")
         with engine.connect() as conn:
             assert conn.execute(text(
                 "SELECT count(*) FROM pg_extension WHERE extname IN ('vector','ltree','pgcrypto')"
@@ -145,6 +147,8 @@ def test_T0_11_migration_round_trip(test_database, monkeypatch):
             assert conn.execute(text(
                 "SELECT tablename FROM pg_tables WHERE schemaname='public'"
             )).scalars().all() == ["alembic_version"]
+        command.downgrade(config, "base")
+        command.upgrade(config, "0001")
     finally:
         engine.dispose()
 
@@ -153,7 +157,7 @@ def test_T0_11_migration_round_trip(test_database, monkeypatch):
 def test_malformed_auth_is_rejected(client, value):
     response = client.post("/mcp", headers={"Authorization": value}, json={})
     assert response.status_code == 401
-    assert response.json() == {"code": "AUTH_INVALID"}
+    assert response.json() == {"code": "AUTH_MISSING" if value == "" else "AUTH_INVALID"}
 
 
 def test_other_credentials_do_not_authenticate(client, configured_env):

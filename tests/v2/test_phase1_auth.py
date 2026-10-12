@@ -63,7 +63,7 @@ def test_phase0_T0_5_replacement_wrong_mcp_token(client):
 def test_1_3_unknown_or_malformed_bearer(client, authorization, caplog):
     response = client.get("/api/whoami", headers={"Authorization": authorization})
     assert response.status_code == 401
-    assert response.json()["code"] == "AUTH_INVALID"
+    assert response.json()["code"] == ("AUTH_MISSING" if authorization == "" else "AUTH_INVALID")
     require(authorization not in caplog.text or not authorization, "Authorization was logged")
 
 
@@ -75,6 +75,7 @@ def test_1_7_query_credentials_are_ignored_and_redacted(client, configured_env, 
     require(marker not in caplog.text, "Query credential was logged")
 
 
+@pytest.mark.no_app_operation(reason="Only GET /healthz: unaudited public health probe by design.")
 def test_T1_1_health_reports_actual_application_role(client):
     response = client.get("/healthz")
     assert response.status_code == 200
@@ -165,6 +166,36 @@ def test_T1_1_superuser_runtime_is_refused(configured_env, monkeypatch, mode):
     monkeypatch.setenv("CMH_ENV", mode)
     with pytest.raises(RuntimeError, match="(?i)(database role|db.role|superuser)"):
         create_app()
+
+
+@pytest.mark.no_app_operation(reason="Startup login-role guard; no HTTP or services call.")
+def test_T1_1_superuser_login_switching_into_cmh_app_is_refused(
+    configured_env, test_database, monkeypatch,
+):
+    from sqlalchemy import create_engine, event, text
+
+    import cmh.app
+    from cmh.db.engine import normalize_database_url
+
+    engine = create_engine(normalize_database_url(test_database), hide_parameters=True)
+
+    @event.listens_for(engine, "connect")
+    def switched(connection, _record):
+        with connection.cursor() as cursor:
+            cursor.execute("SET ROLE cmh_app")
+
+    try:
+        with engine.connect() as connection:
+            assert connection.execute(text("SELECT current_user")).scalar_one() == "cmh_app"
+            assert connection.execute(text(
+                "SELECT rolsuper FROM pg_roles WHERE rolname=session_user"
+            )).scalar_one() is True
+        monkeypatch.setenv("CMH_ENV", "dev")
+        monkeypatch.setattr(cmh.app, "build_engine", lambda *_args: engine)
+        with pytest.raises(RuntimeError, match="(?i)(database role|superuser)"):
+            cmh.app.create_app()
+    finally:
+        engine.dispose()
 
 
 @pytest.mark.no_app_operation(reason="Seed command discovery only; no application operation.")

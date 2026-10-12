@@ -3,7 +3,7 @@
 from types import SimpleNamespace
 
 import pytest
-from audit_contract import BodyActivity, validate_exemption
+from audit_contract import BodyActivity, is_health_probe, validate_exemption
 
 pytestmark = pytest.mark.no_app_operation(
     reason="Audit meta-fixture validation with synthetic counters; no HTTP or services executed."
@@ -26,3 +26,14 @@ def test_no_app_marker_never_hides_operations(activity):
 
 def test_unmarked_audit_operations_are_not_exempt():
     validate_exemption(None, BodyActivity(requests=1, services=1))
+
+
+@pytest.mark.parametrize("method,path,probe", [
+    ("GET", "/healthz", True), ("POST", "/healthz", False),
+    ("GET", "/healthz/", False), ("GET", "/health", False),
+    ("GET", "/healthz?key=example", False), ("GET", "/api/whoami", False),
+])
+def test_only_exact_get_healthz_is_a_non_operation(method, path, probe):
+    import httpx
+
+    assert is_health_probe(httpx.Request(method, "https://example.invalid" + path)) is probe

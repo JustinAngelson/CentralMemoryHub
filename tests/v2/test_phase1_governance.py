@@ -4,9 +4,9 @@ import json
 import secrets
 
 import pytest
+from contract_helpers import denied
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
-from test_phase1_credentials import denied
 
 
 def registration(case, **extra):
@@ -55,9 +55,20 @@ def test_2A_3_agent_cannot_be_tier_four(identity):
 
 
 def test_2A_4_grant_outside_sponsor_envelope(identity):
+    response = identity.request(identity.owner_client, "DELETE", "/admin/api/grants", json={
+        "principal_id": str(identity.partner_a["id"]), "namespace": "org",
+    })
+    assert response.status_code == 200
+    assert grant(identity, identity.owner_client, identity.partner_a, "org.ops",
+                 permission="write").status_code == 201
+    denied(grant(identity, identity.owner_client, identity.agent_a["principal"], "org.finance"),
+           "SPONSOR_CEILING")
+
+
+def test_owner_cannot_grant_another_humans_private_namespace(identity):
     other_private = "people." + identity.partner_b["slug"] + ".private"
     denied(grant(identity, identity.owner_client, identity.agent_a["principal"], other_private),
-           "SPONSOR_CEILING")
+           "NAMESPACE_FORBIDDEN")
 
 
 def test_2A_5_live_sponsor_grant_revocation(identity):

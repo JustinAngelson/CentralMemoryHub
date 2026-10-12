@@ -6,29 +6,37 @@ from datetime import timedelta
 from pathlib import Path
 
 import pytest
+from contract_helpers import denied
 from identity_fixtures import require, token_hash
 from sqlalchemy import create_engine, text
-from test_phase1_credentials import denied
 
 
 @pytest.mark.no_app_operation(reason="Startup table-owner guard; no request or service call.")
-def test_T1_1_table_owner_runtime_refused(identity, monkeypatch):
-    from cmh.app import create_app
+def test_T1_1_table_owner_runtime_refused(identity, role_login_engine, monkeypatch):
+    import cmh.app
 
-    identity.engine.connection.execute(text("SET LOCAL ROLE cmh_migrate"))
+    identity.tamper("ALTER TABLE users OWNER TO cmh_app")
     monkeypatch.setenv("CMH_ENV", "dev")
-    with pytest.raises(RuntimeError, match="(?i)(table.owner|owns.*table|database role)"):
-        create_app()
+    monkeypatch.setattr(cmh.app, "build_engine", lambda *_: role_login_engine)
+    try:
+        with pytest.raises(RuntimeError, match="(?i)(table.owner|owns.*table|database role)"):
+            cmh.app.create_app()
+    finally:
+        identity.tamper("ALTER TABLE users OWNER TO cmh_migrate")
 
 
 @pytest.mark.no_app_operation(reason="Startup audit-UPDATE privilege guard; no app operation.")
-def test_T1_1_audit_update_privileged_runtime_refused(identity, monkeypatch):
-    from cmh.app import create_app
+def test_T1_1_audit_update_privileged_runtime_refused(identity, role_login_engine, monkeypatch):
+    import cmh.app
 
     identity.tamper("GRANT UPDATE ON audit_events TO cmh_app")
     monkeypatch.setenv("CMH_ENV", "prod")
-    with pytest.raises(RuntimeError, match="(?i)(audit|database role)"):
-        create_app()
+    monkeypatch.setattr(cmh.app, "build_engine", lambda *_: role_login_engine)
+    try:
+        with pytest.raises(RuntimeError, match="(?i)(audit|database role)"):
+            cmh.app.create_app()
+    finally:
+        identity.tamper("REVOKE UPDATE ON audit_events FROM cmh_app")
 
 
 def test_T1_2_real_session_is_ignored_by_bearer_surfaces(identity):

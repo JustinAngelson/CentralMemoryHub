@@ -13,6 +13,10 @@ from sqlalchemy import text
 ACTIVE_BODY = None
 
 
+def is_health_probe(request):
+    return request.method == "GET" and request.url.raw_path == b"/healthz"
+
+
 def service_profile(frame, event, arg):
     if (
         ACTIVE_BODY is not None and event == "call"
@@ -63,7 +67,8 @@ def observe_body():
                 def async_wrapper(method):
                     @wraps(method)
                     async def wrapped(*args, **kwargs):
-                        activity.requests += 1
+                        if not is_health_probe(args[1]):
+                            activity.requests += 1
                         return await method(*args, **kwargs)
                     return wrapped
                 patch.setattr(owner, "send", async_wrapper(original))
@@ -71,7 +76,8 @@ def observe_body():
                 def sync_wrapper(method):
                     @wraps(method)
                     def wrapped(*args, **kwargs):
-                        activity.requests += 1
+                        if not is_health_probe(args[1]):
+                            activity.requests += 1
                         return method(*args, **kwargs)
                     return wrapped
                 patch.setattr(owner, "send", sync_wrapper(original))

@@ -6,19 +6,8 @@ import secrets
 from datetime import timedelta
 
 import pytest
+from contract_helpers import denied
 from identity_fixtures import require, token_hash
-
-
-def denied(response, code, step=None):
-    assert response.status_code in (401, 403)
-    body = response.json()
-    assert body["code"] == code
-    if response.status_code == 403:
-        assert body["outcome"] == "DENY"
-        assert isinstance(body["detail"], str)
-        assert isinstance(body["remedy"], str)
-    if step is not None:
-        assert body["step"] == step
 
 
 def test_1_4_expired_credential(identity):

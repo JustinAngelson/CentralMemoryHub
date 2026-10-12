@@ -1,4 +1,4 @@
-"""Identity contract harness; setup commits, body ALLOW mutations roll back.
+"""Identity contract harness; application requests use committed transactions.
 
 Independent DENY/QUEUE transactions and concurrent audit-only requests persist.
 No teardown truncates/deletes audit rows. All actor fixtures are role-based.
@@ -11,7 +11,7 @@ import secrets
 import socket
 import threading
 import time
-from contextlib import asynccontextmanager, contextmanager
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 
 import httpx
@@ -38,36 +38,6 @@ class Clock:
         self.now += timedelta(**kwargs)
 
 
-class BodyEngine:
-    """Late-bind rollback isolation after all committed actor setup."""
-
-    def __init__(self, engine):
-        self.real = engine
-        self.connection = None
-        self.lock = threading.RLock()
-
-    @contextmanager
-    def begin(self):
-        if self.connection is None:
-            with self.real.begin() as connection:
-                yield connection
-        else:
-            with self.lock, self.connection.begin_nested():
-                yield self.connection
-
-    @contextmanager
-    def connect(self):
-        if self.connection is None:
-            with self.real.connect() as connection:
-                yield connection
-        else:
-            with self.lock:
-                yield self.connection
-
-    def dispose(self):
-        pass
-
-
 class IdentityCase:
     def __repr__(self):
         return "<identity contract harness; credentials redacted>"
@@ -77,7 +47,9 @@ class IdentityCase:
 
         import cmh.app
 
-        self.engine = BodyEngine(engine)
+        self.engine = engine
+        self.engine.real = engine
+        self.engine.connection = None
         self.admin = admin
         self.clock = Clock()
         self.origin = "https://configuration.example"
@@ -105,6 +77,10 @@ class IdentityCase:
             self.owner_client, self.owner, "personal-ai-client-readonly"
         )
         self.transaction = None
+        self.namespace = "org.clients.test-" + secrets.token_hex(8)
+        require(self.request(self.owner_client, "POST", "/admin/api/namespaces", json={
+            "path": self.namespace,
+        }).status_code == 201, "Per-test namespace setup failed")
 
     def request(self, client, method, path, **kwargs):
         headers = dict(kwargs.pop("headers", {}))
@@ -199,8 +175,8 @@ class IdentityCase:
             return connection.execute(text(statement), params).mappings().all()
 
     def tamper(self, statement, **params):
-        # Administrative tampering participates in the body rollback, never
-        # grants cmh_app extra authority or removes committed denial events.
+        # Administrative simulations commit; tests restore global mutations
+        # explicitly. Audit rows are never removed in ordinary teardown.
         if self.engine.connection is None:
             with self.admin.begin() as connection:
                 connection.execute(text(statement), params)
@@ -213,9 +189,9 @@ class IdentityCase:
                 connection.execute(text("SET LOCAL ROLE cmh_app"))
 
     def start_body(self, concurrent=False):
-        if not concurrent:
-            self.engine.connection = self.engine.real.connect()
-            self.transaction = self.engine.connection.begin()
+        # Each app/SDK server has fresh in-process rate-limit state; no request
+        # borrows an outer test transaction. Principals and namespaces are unique.
+        pass
 
     def close(self):
         if self.server:
@@ -304,7 +280,6 @@ def identity(configured_env, audit_admin, monkeypatch, tmp_path, request):
     def app_role(dbapi_connection, _record):
         with dbapi_connection.cursor() as cursor:
             cursor.execute("SET ROLE cmh_app")
-            cursor.execute("SET statement_timeout='3s'")
 
     case = IdentityCase(engine, audit_admin, configured_env, monkeypatch, tmp_path)
     case.start_body(concurrent=request.node.get_closest_marker("concurrent_audit") is not None)

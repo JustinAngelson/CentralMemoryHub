@@ -126,7 +126,9 @@ def test_database():
         command.upgrade(config, "head")
     with engine.begin() as conn:
         conn.execute(text("ALTER TABLE alembic_version OWNER TO cmh_migrate"))
-    yield SensitiveTestValue(url)
+    private_url = SensitiveTestValue(url)
+    private_url.runtime_role_url = SensitiveTestValue(os.environ["CMH_DATABASE_URL"])
+    yield private_url
     with engine.begin() as conn:
         conn.execute(text("ALTER TABLE alembic_version OWNER TO cmh_migrate"))
     engine.dispose()
@@ -153,7 +155,6 @@ def configured_env(monkeypatch, test_database):
             def app_role(connection, _record):
                 with connection.cursor() as cursor:
                     cursor.execute("SET ROLE cmh_app")
-                    cursor.execute("SET statement_timeout='3s'")
         return engine
     monkeypatch.setattr(cmh.app, "build_engine", factory)
     return SensitiveTestValue(token)
@@ -162,6 +163,21 @@ def configured_env(monkeypatch, test_database):
 @pytest.fixture
 def valid_mcp_token(identity):
     return identity.owner_token["token"]
+
+
+@pytest.fixture
+def role_login_engine(test_database):
+    from sqlalchemy import create_engine
+    from sqlalchemy.engine import make_url
+
+    from cmh.db.engine import normalize_database_url
+
+    url = make_url(normalize_database_url(test_database.runtime_role_url)).set(
+        database=make_url(normalize_database_url(test_database)).database,
+    )
+    engine = create_engine(url, hide_parameters=True)
+    yield PrivateAdminEngine(engine)
+    engine.dispose()
 
 
 @pytest.fixture

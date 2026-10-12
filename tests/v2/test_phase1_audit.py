@@ -7,9 +7,9 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 import pytest
+from contract_helpers import denied
 from sqlalchemy import text
 from sqlalchemy.exc import ProgrammingError
-from test_phase1_credentials import denied
 from test_phase1_governance import registration
 
 
@@ -56,11 +56,16 @@ def test_4_3_tamper_detected_at_exact_sequence(identity):
         assert identity.check(identity.owner_token, "memory.read").status_code == 200
     rows = identity.body_audit()
     target = rows[len(rows) // 2]["seq"]
+    original = next(row["actor"] for row in rows if row["seq"] == target)
     identity.tamper("UPDATE audit_events SET actor='tampered-test-actor' WHERE seq=:seq", seq=target)
-    result = identity.bearer(identity.owner_token, path="/api/audit/verify")
-    assert result.status_code == 200
-    assert result.json()["valid"] is False
-    assert result.json()["bad_seq"] == target
+    try:
+        result = identity.bearer(identity.owner_token, path="/api/audit/verify")
+        assert result.status_code == 200
+        assert result.json()["valid"] is False
+        assert result.json()["bad_seq"] == target
+    finally:
+        identity.tamper("UPDATE audit_events SET actor=:actor WHERE seq=:seq",
+                        actor=original, seq=target)
 
 
 @pytest.mark.parametrize("operation", ["UPDATE", "DELETE", "TRUNCATE"])
@@ -135,8 +140,41 @@ def test_4_1_denial_and_queue_audits_survive_body_rollback(identity, outcome):
     assert len(new) == 1
     assert new[0]["outcome"] == outcome
     saved_seq = new[0]["seq"]
-    identity.transaction.rollback()
+    # Roll back a separate test transaction after the committed request.
+    # It never encloses an application request or an audit-chain lock.
+    with identity.engine.real.connect() as connection:
+        transaction = connection.begin()
+        transaction.rollback()
     assert any(row["seq"] == saved_seq and row["outcome"] == outcome for row in identity.audit())
+
+
+def test_4_1_allow_state_and_audit_roll_back_atomically(identity):
+    from sqlalchemy import event
+
+    assert identity.bearer(identity.owner_token).status_code == 200
+    before = len(identity.audit())
+    name = "atomicity-test-credential"
+
+    def fail_audit(_conn, _cursor, statement, _params, _context, _many):
+        if statement.lstrip().lower().startswith("insert into audit_events"):
+            raise RuntimeError("Injected failure after state change, before audit insert")
+
+    event.listen(identity.engine.real, "before_cursor_execute", fail_audit)
+    identity.owner_client.raise_server_exceptions = False
+    transport = identity.owner_client._transport
+    previous = transport.raise_server_exceptions
+    transport.raise_server_exceptions = False
+    try:
+        response = identity.request(identity.owner_client, "POST", "/admin/api/credentials", json={
+            "principal_id": str(identity.owner["id"]), "template": "personal-ai-client",
+            "name": name,
+        })
+        assert response.status_code >= 500
+    finally:
+        transport.raise_server_exceptions = previous
+        event.remove(identity.engine.real, "before_cursor_execute", fail_audit)
+    assert not identity.sql("SELECT id FROM credentials WHERE name=:name", name=name)
+    assert len(identity.audit()) == before
 
 
 def test_4_8_sponsor_filter_returns_exact_agents_window_in_one_query(identity):
