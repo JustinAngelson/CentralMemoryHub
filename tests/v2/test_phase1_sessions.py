@@ -165,7 +165,7 @@ def test_T1_9_missing_namespace_does_not_leak_to_external(identity):
         "kind": "agent", "role": "external", "tier": 1,
         "slug": "external-test-" + secrets.token_hex(4), "display_name": "external_1",
         "sponsor_id": str(identity.owner["id"]), "template": "external-readonly",
-        "namespace": namespace, "credential_name": "external-reader",
+        "namespaces": [namespace], "credential_name": "external-reader",
     })
     # Approval-required issuance never bypasses the residual queue.
     assert response.status_code == 202
@@ -174,6 +174,12 @@ def test_T1_9_missing_namespace_does_not_leak_to_external(identity):
                                 f"/admin/api/approvals/{approval_id}/approve")
     assert approved.status_code == 200
     credential = approved.json()["credential"]
+    grants = identity.sql("""
+      SELECT n.path::text AS path,g.access FROM namespace_grants g
+      JOIN namespaces n ON n.id=g.namespace_id WHERE g.principal_id=:id
+    """, id=approved.json()["principal"]["id"])
+    assert [dict(row) for row in grants] == [{"path": namespace, "access": "read"}]
+    assert identity.check(credential, "memory.read", namespace).json()["outcome"] == "ALLOW"
     denied(identity.check(credential, "memory.read", "org.clients.ghost"), "NAMESPACE_FORBIDDEN")
     partner = identity.credential(identity.client_a, identity.partner_a, "personal-ai-client")
     denied(identity.check(partner, "memory.read", "org.clients.ghost"), "NAMESPACE_NOT_FOUND")
