@@ -44,6 +44,18 @@ def test_1_2_missing_mcp_bearer_advertises_resource_metadata(client):
     assert response.headers["www-authenticate"] == expected
 
 
+def test_phase0_T0_5_replacement_wrong_mcp_token(client):
+    response = client.post("/mcp", json={}, headers={
+        "Authorization": "Bearer not-issued-test-token",
+    })
+    assert response.status_code == 401
+    assert response.json()["code"] == "AUTH_INVALID"
+    assert response.headers["www-authenticate"] == (
+        'Bearer resource_metadata="' + os.environ["CMH_PUBLIC_URL"]
+        + '/.well-known/oauth-protected-resource"'
+    )
+
+
 @pytest.mark.parametrize("authorization", [
     "", "Basic invalid", "Bearer", "Bearer invalid extra",
     "Bearer cmh_at_not-issued-in-phase1", "Bearer cmh_ak_unknown",
@@ -91,8 +103,10 @@ def test_T1_3_bearer_does_not_authenticate_admin_surface(client, configured_env)
     assert response.json()["code"] == "AUTH_MISSING"
 
 
-def test_1_9_bootstrap_creates_owner_and_consumes_token(client, configured_env):
-    password = secrets.token_urlsafe(24)
+def test_1_9_bootstrap_creates_owner_and_consumes_token(client, configured_env, audit_admin):
+    from conftest import SensitiveTestValue
+
+    password = SensitiveTestValue(secrets.token_urlsafe(24))
     headers = {
         "Authorization": "Bearer " + configured_env,
         "Origin": os.environ["CMH_PUBLIC_URL"],
@@ -103,6 +117,7 @@ def test_1_9_bootstrap_creates_owner_and_consumes_token(client, configured_env):
     }
     first = client.post("/admin/api/bootstrap", headers=headers, json=body)
     assert first.status_code == 201
+    audit_admin._test_owner_password = password
     principal = first.json()["principal"]
     assert principal["slug"] == "owner"
     assert principal["kind"] == "human"
@@ -143,6 +158,7 @@ def test_bootstrap_wrong_origin_is_rejected(client, configured_env):
 
 
 @pytest.mark.parametrize("mode", ["dev", "prod"])
+@pytest.mark.no_app_operation(reason="Startup superuser guard; no HTTP or service call.")
 def test_T1_1_superuser_runtime_is_refused(configured_env, monkeypatch, mode):
     from cmh.app import create_app
 
@@ -151,6 +167,7 @@ def test_T1_1_superuser_runtime_is_refused(configured_env, monkeypatch, mode):
         create_app()
 
 
+@pytest.mark.no_app_operation(reason="Seed command discovery only; no application operation.")
 def test_expected_seed_command_exists():
     from importlib.util import find_spec
 

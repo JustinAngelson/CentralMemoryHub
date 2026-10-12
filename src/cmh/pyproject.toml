@@ -35,3 +35,7 @@ pythonpath = [".."]
 asyncio_mode = "strict"
 asyncio_default_fixture_loop_scope = "function"
 cache_dir = "../../.local/cmh-v2-evidence/pytest-cache"
+markers = [
+  "no_app_operation(reason): justified infrastructure-only test; HTTP and service calls forbidden",
+  "concurrent_audit: audit-only integration scenario using physical committed transactions",
+]
