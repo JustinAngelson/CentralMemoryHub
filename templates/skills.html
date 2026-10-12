@@ -251,7 +251,7 @@
                            class="btn btn-sm btn-outline-secondary py-0 px-2"
                            style="font-size:.7rem;">Edit</a>
                         <form method="POST" action="/skills/{{ sk.id }}/delete"
-                              onsubmit="return confirm('Delete skill \'{{ sk.name | e }}\'?');" class="d-inline">
+                              data-confirm="Delete skill '{{ sk.name }}'?" class="d-inline">
                             <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2"
                                     style="font-size:.7rem;">Del</button>
                         </form>

@@ -45,6 +45,18 @@ def load_user(user_id):
 # Intercepts /mcp at the WSGI level to bypass Werkzeug header validation
 from mcp_proxy import MCPProxyMiddleware
 from werkzeug.middleware.proxy_fix import ProxyFix
-app.wsgi_app = MCPProxyMiddleware(ProxyFix(app.wsgi_app, x_proto=1, x_host=1))
+
+
+def trusted_proxy_hops():
+    """Trust no forwarded client-IP values until deployment hops are verified."""
+    hops = int(os.environ.get("CMH_TRUSTED_PROXY_HOPS", "0"))
+    if hops < 0:
+        raise ValueError("CMH_TRUSTED_PROXY_HOPS must be non-negative")
+    return hops
+
+
+app.wsgi_app = MCPProxyMiddleware(ProxyFix(
+    app.wsgi_app, x_for=trusted_proxy_hops(), x_proto=1, x_host=1,
+))
 
 # Import routes at the end to avoid circular imports

@@ -119,8 +119,8 @@ if (searchForm) {
                     el.innerHTML = `
                         <div class="d-flex justify-content-between align-items-start">
                             <div>
-                                <h6>ID: ${item.id}</h6>
-                                <p class="mb-1">${preview}</p>
+                                <h6>ID: ${escapeHtml(item.id)}</h6>
+                                <p class="mb-1">${escapeHtml(preview)}</p>
                             </div>
                             <span class="badge bg-primary">${score}%</span>
                         </div>`;

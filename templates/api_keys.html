@@ -202,6 +202,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>feather.replace();</script>
+    <script src="{{ url_for('static', filename='js/security.js') }}"></script>
     <script>
         // Global variables
         let apiKeys = [];
@@ -239,7 +240,7 @@
                 document.getElementById('apiKeysTable').innerHTML = `
                     <tr>
                         <td colspan="7" class="text-center text-danger">
-                            Error loading API keys: ${error.message}
+                            Error loading API keys: ${escapeHtml(error.message)}
                         </td>
                     </tr>
                 `;
@@ -276,7 +277,7 @@
                 document.getElementById('apiLogsTable').innerHTML = `
                     <tr>
                         <td colspan="6" class="text-center text-danger">
-                            Error loading API logs: ${error.message}
+                            Error loading API logs: ${escapeHtml(error.message)}
                         </td>
                     </tr>
                 `;
@@ -364,15 +365,15 @@
                 
                 html += `
                     <tr>
-                        <td>${key.name}</td>
+                        <td>${escapeHtml(key.name)}</td>
                         <td>${created}</td>
                         <td>${lastUsed}</td>
                         <td>${expires}</td>
-                        <td>${key.rate_limit} req/min</td>
+                        <td>${escapeHtml(key.rate_limit)} req/min</td>
                         <td>${status}</td>
                         <td>
                             ${key.is_active ? 
-                                `<button class="btn btn-sm btn-outline-danger" onclick="confirmRevoke('${key.key_id}', '${key.name}')">
+                                `<button class="btn btn-sm btn-outline-danger revoke-key" data-key-id="${escapeHtml(key.key_id)}" data-key-name="${escapeHtml(key.name)}">
                                     Revoke
                                 </button>` : 
                                 '<span class="text-muted">Revoked</span>'
@@ -383,6 +384,9 @@
             }
             
             tableBody.innerHTML = html;
+            tableBody.querySelectorAll('.revoke-key').forEach(button => {
+                button.addEventListener('click', () => confirmRevoke(button.dataset.keyId, button.dataset.keyName));
+            });
         }
         
         // Populate the API logs table
@@ -424,11 +428,11 @@
                 html += `
                     <tr>
                         <td>${timestamp}</td>
-                        <td>${keyName}</td>
-                        <td>${log.method}</td>
-                        <td>${log.endpoint}</td>
-                        <td class="${statusClass}">${log.status_code}</td>
-                        <td>${log.ip_address || 'Unknown'}</td>
+                        <td>${escapeHtml(keyName)}</td>
+                        <td>${escapeHtml(log.method)}</td>
+                        <td>${escapeHtml(log.endpoint)}</td>
+                        <td class="${statusClass}">${escapeHtml(log.status_code)}</td>
+                        <td>${escapeHtml(log.ip_address || 'Unknown')}</td>
                     </tr>
                 `;
             }

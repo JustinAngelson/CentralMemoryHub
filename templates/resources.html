@@ -136,7 +136,7 @@
                     </button>
                     <form method="POST"
                           action="{{ url_for('auth.resource_delete', resource_id=r.id) }}"
-                          onsubmit="return confirm('Delete resource \'{{ r.name | e }}\'?');"
+                          data-confirm="Delete resource '{{ r.name }}'?"
                           class="d-inline">
                         <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2" style="font-size:.7rem;">Del</button>
                     </form>

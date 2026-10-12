@@ -94,7 +94,7 @@
                             </form>
                             <!-- Delete -->
                             <form method="POST" action="{{ url_for('auth.delete_user', user_id=u.id) }}"
-                                onsubmit="return confirm('Delete {{ u.username }}? This cannot be undone.')">
+                                data-confirm="Delete {{ u.username }}? This cannot be undone.">
                                 <button type="submit" class="btn btn-outline-danger btn-sm">Delete</button>
                             </form>
                         </div>
@@ -131,7 +131,7 @@
                     <td class="text-muted small">{{ inv.expires_at.strftime('%Y-%m-%d %H:%M') if inv.expires_at else '—' }}</td>
                     <td>
                         <button class="btn btn-outline-secondary btn-sm"
-                                onclick="navigator.clipboard.writeText('{{ url_for('auth.register', token=inv.token, _external=True) }}'); this.textContent='Copied!'">
+                                data-copy-url="{{ url_for('auth.register', token=inv.token, _external=True) }}">
                             Copy Link
                         </button>
                     </td>

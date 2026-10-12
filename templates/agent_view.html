@@ -152,10 +152,10 @@
                                         <td>{{ agent.seniority_level }}</td>
                                         <td>{{ reports_to_names.get(agent.reports_to, '—') if agent.reports_to else '—' }}</td>
                                         <td class="text-nowrap">
-                                            <button class="btn btn-sm btn-outline-info me-1" onclick="handleViewAgent('{{ agent.agent_id }}')">View</button>
-                                            <button class="btn btn-sm btn-outline-primary me-1" onclick="handleEditAgent('{{ agent.agent_id }}')">Edit</button>
+                                            <button class="btn btn-sm btn-outline-info me-1" data-agent-action="view" data-agent-id="{{ agent.agent_id }}">View</button>
+                                            <button class="btn btn-sm btn-outline-primary me-1" data-agent-action="edit" data-agent-id="{{ agent.agent_id }}">Edit</button>
                                             {% if current_user.is_admin %}
-                                            <button class="btn btn-sm btn-outline-danger" onclick="handleDeleteAgent('{{ agent.agent_id }}')">Delete</button>
+                                            <button class="btn btn-sm btn-outline-danger" data-agent-action="delete" data-agent-id="{{ agent.agent_id }}">Delete</button>
                                             {% endif %}
                                         </td>
                                     </tr>
@@ -476,6 +476,7 @@
         </div>
     </div>
 
+    <script src="{{ url_for('static', filename='js/security.js') }}"></script>
     <script>
         // Global variables — seeded server-side, kept in sync on refresh
         let allAgents = {{ agents_json | tojson }};
@@ -497,14 +498,14 @@
             }
         };
 
-        function fmt(val) { return val || '<span class="text-muted">—</span>'; }
+        function fmt(val) { return val ? escapeHtml(val) : '<span class="text-muted">—</span>'; }
         function fmtDate(iso) {
             if (!iso) return '<span class="text-muted">—</span>';
             return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
         }
         function fmtList(arr) {
             if (!arr || arr.length === 0) return '<span class="text-muted">—</span>';
-            return arr.map(s => `<span class="badge bg-secondary me-1">${s}</span>`).join('');
+            return arr.map(s => `<span class="badge bg-secondary me-1">${escapeHtml(s)}</span>`).join('');
         }
 
         function openViewAgentModal(agentId) {
@@ -526,7 +527,7 @@
                     </div>
                     <div class="col-md-3">
                         <p class="mb-1 text-muted small">Status</p>
-                        <p><span class="badge ${statusBadge}">${agent.status}</span></p>
+                        <p><span class="badge ${statusBadge}">${escapeHtml(agent.status)}</span></p>
                     </div>
                     <div class="col-md-3">
                         <p class="mb-1 text-muted small">Seniority Level</p>
@@ -632,16 +633,16 @@
                 const agentType = agent.agent_type || 'AI Agent';
 
                 row.innerHTML = `
-                    <td>${agent.name}</td>
-                    <td>${agent.role}</td>
-                    <td><span class="badge ${statusBadgeClass}">${agent.status}</span></td>
-                    <td><span class="badge ${typeBadgeClass}">${agentType}</span></td>
-                    <td>${agent.seniority_level}</td>
-                    <td>${agent.reports_to ? agentNameMap[agent.reports_to] || agent.reports_to : '—'}</td>
+                    <td>${escapeHtml(agent.name)}</td>
+                    <td>${escapeHtml(agent.role)}</td>
+                    <td><span class="badge ${statusBadgeClass}">${escapeHtml(agent.status)}</span></td>
+                    <td><span class="badge ${typeBadgeClass}">${escapeHtml(agentType)}</span></td>
+                    <td>${escapeHtml(agent.seniority_level)}</td>
+                    <td>${escapeHtml(agent.reports_to ? agentNameMap[agent.reports_to] || agent.reports_to : '—')}</td>
                     <td class="text-nowrap">
-                        <button class="btn btn-sm btn-outline-info me-1" onclick="handleViewAgent('${agent.agent_id}')">View</button>
-                        <button class="btn btn-sm btn-outline-primary me-1" onclick="handleEditAgent('${agent.agent_id}')">Edit</button>
-                        ${IS_ADMIN ? `<button class="btn btn-sm btn-outline-danger" onclick="handleDeleteAgent('${agent.agent_id}')">Delete</button>` : ''}
+                        <button class="btn btn-sm btn-outline-info me-1" data-agent-action="view" data-agent-id="${escapeHtml(agent.agent_id)}">View</button>
+                        <button class="btn btn-sm btn-outline-primary me-1" data-agent-action="edit" data-agent-id="${escapeHtml(agent.agent_id)}">Edit</button>
+                        ${IS_ADMIN ? `<button class="btn btn-sm btn-outline-danger" data-agent-action="delete" data-agent-id="${escapeHtml(agent.agent_id)}">Delete</button>` : ''}
                     </td>
                 `;
                 tableBody.appendChild(row);
@@ -691,10 +692,10 @@
             
             node.innerHTML = `
                 <div class="card-body">
-                    <h5 class="card-title">${agent.name}</h5>
-                    <h6 class="card-subtitle mb-2 text-muted">${agent.role}</h6>
-                    <span class="badge ${statusBadgeClass}">${agent.status}</span>
-                    <p class="card-text mt-2">${agent.description || ''}</p>
+                    <h5 class="card-title">${escapeHtml(agent.name)}</h5>
+                    <h6 class="card-subtitle mb-2 text-muted">${escapeHtml(agent.role)}</h6>
+                    <span class="badge ${statusBadgeClass}">${escapeHtml(agent.status)}</span>
+                    <p class="card-text mt-2">${escapeHtml(agent.description || '')}</p>
                 </div>
             `;
             
@@ -927,12 +928,12 @@
                 col.innerHTML = `
                     <div class="card agent-card h-100">
                         <div class="card-body">
-                            <h5 class="card-title">${agentName}</h5>
-                            <h6 class="card-subtitle mb-2 text-muted small">${s.session_id}</h6>
-                            <p class="card-text small mb-1"><strong>Focus:</strong> ${focus}</p>
-                            <p class="card-text"><small class="text-muted">Active since: ${since}</small></p>
+                            <h5 class="card-title">${escapeHtml(agentName)}</h5>
+                            <h6 class="card-subtitle mb-2 text-muted small">${escapeHtml(s.session_id)}</h6>
+                            <p class="card-text small mb-1"><strong>Focus:</strong> ${escapeHtml(focus)}</p>
+                            <p class="card-text"><small class="text-muted">Active since: ${escapeHtml(since)}</small></p>
                             <div class="d-flex justify-content-between mt-2">
-                                <button class="btn btn-outline-primary btn-sm view-messages" data-session-id="${s.session_id}" data-agent-name="${agentName}">Messages</button>
+                                <button class="btn btn-outline-primary btn-sm view-messages" data-session-id="${escapeHtml(s.session_id)}" data-agent-name="${escapeHtml(agentName)}">Messages</button>
                             </div>
                         </div>
                     </div>`;
@@ -948,25 +949,14 @@
                     modalLabel.textContent = `Session Messages — ${agentName}`;
                     modalBody.innerHTML = '<p class="text-muted">Loading…</p>';
                     bootstrap.Modal.getOrCreateInstance(document.getElementById('sessionMessagesModal')).show();
-                    fetch(`/api/agents/messages/${sid}`, { credentials: 'same-origin' })
+                    fetch(`/api/agents/messages/${encodeURIComponent(sid)}`, { credentials: 'same-origin' })
                         .then(r => r.json())
                         .then(msgs => {
                             if (!Array.isArray(msgs) || msgs.length === 0) {
                                 modalBody.innerHTML = '<p class="text-muted">No messages recorded for this session.</p>';
                                 return;
                             }
-                            const badgeClass = { instruction: 'bg-primary', status_update: 'bg-secondary', handoff: 'bg-warning text-dark', question: 'bg-info text-dark' };
-                            modalBody.innerHTML = msgs.map(m => `
-                                <div class="card mb-2">
-                                    <div class="card-body py-2 px-3">
-                                        <div class="d-flex justify-content-between align-items-center mb-1">
-                                            <span class="small"><strong>${m.sender_agent}</strong> → <strong>${m.receiver_agent || 'broadcast'}</strong></span>
-                                            <span class="badge ${badgeClass[m.message_type] || 'bg-secondary'}">${m.message_type}</span>
-                                        </div>
-                                        <p class="mb-1 small">${m.content}</p>
-                                        <span class="text-muted" style="font-size:.75rem;">${new Date(m.timestamp).toLocaleString()}</span>
-                                    </div>
-                                </div>`).join('');
+                            modalBody.innerHTML = renderSessionMessages(msgs);
                         })
                         .catch(err => { modalBody.innerHTML = '<p class="text-danger">Failed to load messages.</p>'; console.error(err); });
                 });

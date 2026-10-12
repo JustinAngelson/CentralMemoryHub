@@ -325,11 +325,11 @@
                 <div id="waitlistForm">
                     <div class="mb-3">
                         <label for="wlFirstName" class="form-label">First Name</label>
-                        <input type="text" class="form-control" id="wlFirstName" placeholder="Your first name" autocomplete="given-name">
+                        <input type="text" class="form-control" id="wlFirstName" maxlength="100" placeholder="Your first name" autocomplete="given-name">
                     </div>
                     <div class="mb-3">
                         <label for="wlEmail" class="form-label">Email</label>
-                        <input type="email" class="form-control" id="wlEmail" placeholder="you@example.com" autocomplete="email">
+                        <input type="email" class="form-control" id="wlEmail" maxlength="120" placeholder="you@example.com" autocomplete="email">
                     </div>
                     <div id="wlError" class="alert alert-danger d-none py-2 small" role="alert"></div>
                     <div class="d-grid">
@@ -376,7 +376,15 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ first_name: firstName, email: email })
         })
-        .then(r => r.json())
+        .then(async r => {
+            const data = await r.json();
+            if (!r.ok) {
+                throw new Error(r.status === 429 ? 'Too many submissions. Please try again later.'
+                    : r.status === 400 ? (data.error || 'Please check your name and email.')
+                    : 'Something went wrong — try again.');
+            }
+            return data;
+        })
         .then(data => {
             if (data.ok) {
                 document.getElementById('waitlistForm').classList.add('d-none');
@@ -387,8 +395,8 @@
                 throw new Error(data.error || 'Unknown error');
             }
         })
-        .catch(() => {
-            errorEl.textContent = 'Something went wrong — try again.';
+        .catch(error => {
+            errorEl.textContent = error.message || 'Something went wrong — try again.';
             errorEl.classList.remove('d-none');
             btn.disabled = false;
             btn.textContent = 'Join the Waitlist';
