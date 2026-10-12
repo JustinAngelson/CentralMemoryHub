@@ -1,7 +1,7 @@
 name: CMH v2
 on:
   push:
-    branches: [v2, phase1/identity]
+    branches: [v2, 'phase*/**']
   pull_request:
     branches: [v2]
   workflow_dispatch:

@@ -52,7 +52,7 @@ def test_F4_rotation_obeys_template_expiry(identity):
 def test_F4_legacy_rotation_is_refused(identity):
     token = SensitiveTestValue(secrets.token_urlsafe(32))
     created = identity.request(identity.owner_client, "POST", "/admin/api/credentials/import",
-                               json={"token": token, "principal_id": identity.owner["id"],
+                               json={"token": token, "principal_id": str(identity.owner["id"]),
                                      "name": "legacy-test-" + uuid4().hex})
     assert created.status_code == 201
     response = identity.request(identity.owner_client, "POST",

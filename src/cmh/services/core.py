@@ -16,17 +16,18 @@ class IdentityService:
         return decision
 
     def perform(self, context, operation, namespace=None, change=None, preflight=None,
-                decision=None):
+                decision=None, audit_operation=None):
         with self.engine.begin() as connection:
             result = decision or evaluate(connection, context, operation, namespace)
             if result["outcome"] == "ALLOW" and preflight:
                 result = preflight(connection) or result
             if result["outcome"] == "ALLOW":
                 value = change(connection) if change else result
-                audit.append(connection, context, result, operation, self.now(), namespace)
+                audit.append(connection, context, result, audit_operation or operation,
+                             self.now(), namespace)
                 return value
         # No chain lock or uncommitted state is retained across this boundary.
-        return self.record(context, result, operation, namespace)
+        return self.record(context, result, audit_operation or operation, namespace)
 
     def check(self, context, operation, namespace):
         import re

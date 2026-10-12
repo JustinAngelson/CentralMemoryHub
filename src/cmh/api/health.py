@@ -40,7 +40,8 @@ def health_router(engine, environment: str) -> APIRouter:
         except SQLAlchemyError:
             logging.getLogger("cmh").warning("database_unreachable")
             return JSONResponse(
-                {**body, "status": "unavailable", "database": "unreachable"}, status_code=503
+                {**body, "db_role": "unknown", "status": "unavailable",
+                 "database": "unreachable"}, status_code=503
             )
 
     return router
