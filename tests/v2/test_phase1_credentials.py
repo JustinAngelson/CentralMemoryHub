@@ -84,7 +84,7 @@ async def test_1_11_spoofed_identity_is_ignored_or_rejected(identity, field):
         })
         if not result.isError:
             assert json.loads(result.content[0].text)["outcome"] == "ALLOW"
-    event = identity.audit()[-1]
+    event = identity.body_audit()[-1]
     assert str(event["principal_id"]) == str(principal["id"])
     assert str(event["credential_id"]) == str(credential["id"])
     require("partner_b" not in json.dumps(event["request_meta"]), "Spoofed identity was trusted")
@@ -111,7 +111,7 @@ async def test_1_13_personal_client_has_human_principal_and_actor(identity):
     assert body["actor"] == token["name"]
     assert body["credential_kind"] == "personal_ai_client"
     assert body["ai_client"] is True
-    event = identity.audit()[-1]
+    event = identity.body_audit()[-1]
     assert str(event["principal_id"]) == str(identity.owner["id"])
     assert event["actor"] == token["name"]
     require(token["token"] not in json.dumps(body), "whoami returned plaintext credential")

@@ -32,9 +32,16 @@ def test_T1_1_audit_update_privileged_runtime_refused(identity, monkeypatch):
 
 
 def test_T1_2_real_session_is_ignored_by_bearer_surfaces(identity):
+    cookie_header = "; ".join(
+        f"{cookie.name}={cookie.value}" for cookie in identity.owner_client.cookies.jar
+        if cookie.path == "/admin"
+    )
+    require(bool(cookie_header), "No real admin session cookie available")
     for path in ("/api/whoami", "/mcp"):
-        response = identity.owner_client.get(path) if path.startswith("/api") else (
-            identity.owner_client.post(path, json={})
+        response = identity.owner_client.get(path, headers={"Cookie": cookie_header}) if (
+            path.startswith("/api")
+        ) else (
+            identity.owner_client.post(path, json={}, headers={"Cookie": cookie_header})
         )
         denied(response, "AUTH_MISSING")
 
@@ -86,6 +93,11 @@ def test_T1_5_ten_failed_logins_lock_for_fifteen_minutes(identity, caplog):
 
 @pytest.mark.parametrize("expiry", ["idle", "absolute", "logout"])
 def test_T1_6_session_expiration_and_revocation(identity, expiry):
+    cookie_header = "; ".join(
+        f"{cookie.name}={cookie.value}" for cookie in identity.owner_client.cookies.jar
+        if cookie.path == "/admin"
+    )
+    require(bool(cookie_header), "No real admin session cookie available")
     if expiry == "idle":
         identity.clock.advance(hours=12, seconds=1)
     elif expiry == "absolute":
@@ -98,7 +110,9 @@ def test_T1_6_session_expiration_and_revocation(identity, expiry):
     else:
         assert identity.request(identity.owner_client, "POST",
                                 "/admin/api/logout").status_code == 200
-    response = identity.owner_client.get("/admin/api/principals")
+    # Replay the issued cookie even if logout/expiry removed it from the jar.
+    response = identity.owner_client.get("/admin/api/principals",
+                                        headers={"Cookie": cookie_header})
     denied(response, "AUTH_REVOKED" if expiry == "logout" else "AUTH_EXPIRED")
 
 
