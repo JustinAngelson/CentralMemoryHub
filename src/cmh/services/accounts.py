@@ -23,6 +23,12 @@ def password_hasher():
     return PasswordHasher()
 
 
+# One process-lifetime dummy, with the same Argon2 cost as genuine users.
+# Its input is not an account password and cannot authenticate any principal.
+# Generate once, never per login, and never include the encoding in logs.
+_DUMMY_LOGIN_HASH = password_hasher().hash("cmh-non-account-timing-placeholder")
+
+
 def session(connection, user_id, now, meta):
     value = secrets.token_urlsafe(32)
     connection.execute(text("""
@@ -100,6 +106,10 @@ def login(service, payload, meta):
             "SELECT * FROM users WHERE lower(email)=lower(:email) FOR UPDATE"
         ), {"email": payload.get("email", "")}).mappings().first()
         if not user:
+            try:
+                password_hasher().verify(_DUMMY_LOGIN_HASH, payload.get("password", ""))
+            except VerificationError:
+                pass
             status = "AUTH_INVALID"
         elif user["locked_until"] and user["locked_until"] > now:
             status = "AUTH_LOCKED"

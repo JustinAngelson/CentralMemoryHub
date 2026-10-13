@@ -12,7 +12,7 @@ from cmh.auth.context import current_context, current_service
 from cmh.policy.evaluator import deny
 
 
-def build_mcp(settings) -> FastMCP:
+def build_mcp(settings, memory_service=None) -> FastMCP:
     base = urlsplit(settings.public_url)
     hosts = {base.hostname, "127.0.0.1", "localhost"}
     hosts.update(filter(None, (part.strip() for part in settings.allowed_hosts.split(","))))
@@ -68,4 +68,8 @@ def build_mcp(settings) -> FastMCP:
         ) else deny("AI_CLIENT_CEILING", 2)
         return tool_result(service.record(context, decision, "principals.admin"))
 
+    if memory_service:
+        from cmh.mcp.memory import register_memory_tools
+
+        register_memory_tools(server, memory_service)
     return server

@@ -28,7 +28,8 @@ def namespace_create(service, context, payload):
                "mode": payload.get("mode", "flag"), "creator": context.id,
                "owner": payload.get("owner_principal_id")}).mappings().one()
         return {"namespace": dict(row)}
-    return service.perform(context, "principals.admin", change=change, preflight=preflight)
+    return service.perform(context, "grants.admin", change=change, preflight=preflight,
+                           audit_operation="namespaces.create")
 
 
 def template_edit(service, context, name, payload):
@@ -78,11 +79,21 @@ def revoke(service, context, identity, payload):
 
 
 def rotate(service, context, identity):
+    def preflight(connection):
+        old = connection.execute(text(
+            "SELECT kind,template_id FROM credentials WHERE id=:id FOR UPDATE"
+        ), {"id": identity}).mappings().first()
+        if not old or old["kind"] == "legacy_shared" or not old["template_id"]:
+            return deny("VALIDATION_FAILED")
+
     def change(connection):
         old = connection.execute(text(
             "SELECT * FROM credentials WHERE id=:id FOR UPDATE"
         ), {"id": identity}).mappings().one()
         now = service.now()
+        days = connection.execute(text(
+            "SELECT default_expiry_days FROM credential_templates WHERE id=:id"
+        ), {"id": old["template_id"]}).scalar_one()
         prefix = {"api": "cmh_ak_", "personal_ai_client": "cmh_pk_", "legacy_shared": ""}[old["kind"]]
         value = prefix + secrets.token_urlsafe(32)
         row = connection.execute(text("""
@@ -94,7 +105,7 @@ def rotate(service, context, identity):
         """), {"principal": old["principal_id"], "hash": digest(value), "prefix": value[:11],
                "name": old["name"], "kind": old["kind"], "label": old["client_label"],
                "ai": old["ai_client"], "scopes": old["scopes"], "template": old["template_id"],
-               "issuer": context.id, "now": now, "expires": now + timedelta(days=90),
+               "issuer": context.id, "now": now, "expires": now + timedelta(days=days),
                "limit": old["rate_limit"]}).mappings().one()
         expiry = min(now + timedelta(hours=24), old["expires_at"]) if old["expires_at"] else (
             now + timedelta(hours=24)
@@ -102,7 +113,7 @@ def rotate(service, context, identity):
         connection.execute(text("UPDATE credentials SET expires_at=:at WHERE id=:id"),
                            {"at": expiry, "id": identity})
         return {**row, "token": value}
-    return service.perform(context, "credentials.admin", change=change)
+    return service.perform(context, "credentials.admin", change=change, preflight=preflight)
 
 
 def credential_list(service, context):

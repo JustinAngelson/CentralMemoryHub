@@ -6,6 +6,7 @@ import socket
 import sys
 import threading
 import time
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -15,6 +16,18 @@ sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(Path(__file__).parent))
 
 pytest_plugins = ["identity_fixtures"]
+
+
+def assert_v1_ports_only():
+    """Run after every Unix-socket start, including the actual repl config."""
+    paths = [ROOT / ".replit"]
+    actual = Path("/home/runner/workspace/.replit")
+    if actual.exists() and actual not in paths:
+        paths.append(actual)
+    for path in paths:
+        assert tomllib.loads(path.read_text()).get("ports") == [
+            {"localPort": 5000, "externalPort": 80},
+        ], "Unexpected Replit port mapping"
 
 
 class PrivateAdminEngine:
@@ -111,6 +124,10 @@ def test_database():
             "alembic_version", "principals", "users", "admin_sessions", "credentials",
             "credential_templates", "namespaces", "namespace_grants", "approvals",
             "audit_events", "notifications", "bootstrap_state",
+            "entities", "entity_versions", "edges", "edge_types", "embeddings",
+            "memories", "decisions", "knowledge", "org_states", "tasks", "experiments",
+            "insights", "shared_contexts", "inbox_items", "memory_links",
+            "orgs", "engagements", "projects", "notes",
         }
         assert set(tables) <= allowed, "Test database contains tables outside the v2 identity scope"
         # The spec requires a migration rebuild at the start of a run. During
@@ -118,8 +135,10 @@ def test_database():
         for name in sorted(allowed):
             conn.execute(text(f'DROP TABLE IF EXISTS "{name}" CASCADE'))
         # Table CASCADE removes triggers, not their standalone functions.
-        for name in ("immutable_principal_slug", "require_human_user"):
-            conn.execute(text(f"DROP FUNCTION IF EXISTS {name}()"))
+        for name in ("immutable_principal_slug", "require_human_user",
+                     "check_kernel_edge", "check_kernel_integrity", "kernel_integrity"):
+            argument = "uuid" if name == "kernel_integrity" else ""
+            conn.execute(text(f"DROP FUNCTION IF EXISTS {name}({argument})"))
         for extension in ("vector", "ltree", "pgcrypto"):
             conn.execute(text(f"DROP EXTENSION IF EXISTS {extension}"))
     config = Config(str(ROOT / "v2/alembic.ini"))
@@ -152,6 +171,7 @@ def configured_env(monkeypatch, test_database):
     monkeypatch.setenv("CMH_ENV", "test")
     monkeypatch.setenv("CMH_BOOTSTRAP_TOKEN", token)
     monkeypatch.setenv("CMH_ALLOWED_HOSTS", "")
+    monkeypatch.setenv("CMH_EMBEDDING_PROVIDER", "fake")
     from sqlalchemy import event
 
     import cmh.app
@@ -165,6 +185,9 @@ def configured_env(monkeypatch, test_database):
             def app_role(connection, _record):
                 with connection.cursor() as cursor:
                     cursor.execute("SET ROLE cmh_app")
+                # SET ROLE is transactional. A startup read's rollback must not
+                # silently restore this administrative fixture login.
+                connection.commit()
         return engine
     monkeypatch.setattr(cmh.app, "build_engine", factory)
     return SensitiveTestValue(token)
@@ -233,6 +256,7 @@ def live_server(configured_env, tmp_path):
         time.sleep(0.02)
     try:
         assert server.started, "ASGI server did not start"
+        assert_v1_ports_only()
         yield ("http://localhost/mcp", path)
     finally:
         server.should_exit = True

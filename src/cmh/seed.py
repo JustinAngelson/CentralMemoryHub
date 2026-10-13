@@ -27,6 +27,12 @@ def seed_database(engine):
               VALUES(:name,:role,:tier,:scopes,CAST(:grants AS jsonb),:days,:approval)
               ON CONFLICT(name) DO NOTHING
             """), {**item, "grants": json.dumps(item["grants"])})
+        if connection.execute(text("SELECT to_regclass('public.edge_types')")).scalar():
+            for item in json.loads((directory / "edge_types.yaml").read_text()):
+                connection.execute(text("""
+                  INSERT INTO edge_types(type,allowed_src_kinds,allowed_dst_kinds,mirrored)
+                  VALUES(:type,:src,:dst,:mirrored) ON CONFLICT(type) DO NOTHING
+                """), item)
 
 
 def main():

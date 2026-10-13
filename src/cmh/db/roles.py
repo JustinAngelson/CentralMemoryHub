@@ -18,13 +18,16 @@ def guard_runtime_role(engine, environment):
             WHERE schemaname='public' AND tableowner=session_user)
         """)).scalar_one():
             raise RuntimeError("Unsafe database role: login owns a v2 table")
-        exists = connection.execute(text("SELECT to_regclass('public.audit_events')")).scalar()
-        if exists and connection.execute(text("""
-          SELECT has_table_privilege(session_user,'audit_events','UPDATE')
-              OR has_table_privilege(session_user,'audit_events','DELETE')
-              OR has_table_privilege(session_user,'audit_events','TRUNCATE')
-        """)).scalar_one():
-            raise RuntimeError("Unsafe database role: audit mutation privileges")
+        for table in ("audit_events", "entity_versions"):
+            exists = connection.execute(text("SELECT to_regclass(:table)"),
+                                        {"table": "public." + table}).scalar()
+            if exists and connection.execute(text("""
+              SELECT has_table_privilege(session_user,:table,'UPDATE')
+                  OR has_table_privilege(session_user,:table,'DELETE')
+                  OR has_table_privilege(session_user,:table,'TRUNCATE')
+            """), {"table": table}).scalar_one():
+                label = "audit" if table == "audit_events" else table
+                raise RuntimeError("Unsafe database role: " + label + " mutation privileges")
         if connection.execute(text("""
           SELECT has_schema_privilege(session_user,'public','CREATE')
         """)).scalar_one():

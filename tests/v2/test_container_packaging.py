@@ -23,4 +23,4 @@ def test_feature_branch_push_has_independent_ci_trigger():
     root = Path(__file__).resolve().parents[2]
     workflow = (root / ".github/workflows/v2-ci.yml").read_text()
     push_section = workflow.split("  push:\n", 1)[1].split("  pull_request:", 1)[0]
-    assert "phase1/identity" in push_section
+    assert "'phase*/**'" in push_section

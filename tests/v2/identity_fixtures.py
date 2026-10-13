@@ -230,6 +230,9 @@ class IdentityCase:
         while not self.server.started and time.monotonic() < deadline:
             time.sleep(0.02)
         require(self.server.started, "Unix MCP server failed to start")
+        from conftest import assert_v1_ports_only
+
+        assert_v1_ports_only()
 
     @asynccontextmanager
     async def mcp(self, credential):
@@ -279,6 +282,7 @@ def identity(configured_env, audit_admin, monkeypatch, tmp_path, request):
     def app_role(dbapi_connection, _record):
         with dbapi_connection.cursor() as cursor:
             cursor.execute("SET ROLE cmh_app")
+        dbapi_connection.commit()
 
     case = IdentityCase(engine, audit_admin, configured_env, monkeypatch, tmp_path)
     case.start_body(concurrent=request.node.get_closest_marker("concurrent_audit") is not None)
