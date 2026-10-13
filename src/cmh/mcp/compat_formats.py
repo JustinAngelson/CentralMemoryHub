@@ -41,7 +41,9 @@ def project(row):
                 **{key: state.get(key) for key in (
                     "entity", "type", "status", "summary", "owner_agent",
                     "last_updated_by", "important_dates", "linked_docs",
-                )}}
+                 )}, "owner_agent": targets.get("owner_agent") or unresolved.get(
+                     "owner_agent",
+                 ) or state.get("owner_agent")}
     if kind == "task":
         return {**base, "task_id": str(row["id"]), "title": row["title"],
                 "description": row.get("description"),
@@ -74,7 +76,9 @@ def project(row):
                     row.get("memory_ref_entity_ids") or []
                 )] + unresolved.get("memory_refs", []),
                 "timestamp": iso(row["occurred_at"])}
-    return {"link_id": str(row["id"]), "pinecone_vector_id": row.get("edge_target"),
+    return {"link_id": str(row["id"]), "pinecone_vector_id": row.get(
+                "edge_target_display", row.get("edge_target"),
+            ),
             "summary": row.get("summary"), "linked_agent_event": row.get("linked_event_ref"),
             "origin_file_or_source": row.get("origin_file_or_source"),
             "timestamp_added": iso(row["created_at"])}
@@ -173,6 +177,8 @@ def format_success(name, body):
     value = operational(body) if name in (
         "cmh_create_session", "cmh_end_session", "cmh_send_message",
     ) else project(body)
+    if name == "cmh_create_memory_link":
+        value["pinecone_vector_id"] = body["_requested_pinecone_vector_id"]
     formats = {
         "cmh_store_structured": "Structured memory stored successfully.\nID: {id}",
         "cmh_store_knowledge": "Knowledge term stored.\nIndex ID: {index_id}\nTerm: {term}",

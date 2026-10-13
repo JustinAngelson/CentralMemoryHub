@@ -27,6 +27,18 @@ class CompatEntities:
         self.identity = entities.identity
         self.operations = operations
 
+    def memory_target(self, conn, readable, context, value):
+        """One read-scoped resolver for create and list-filter identity forms."""
+        kinds = self.entities.kinds(context, ["memory"])
+        target = self.entities.find(conn, readable, str(value), kinds)
+        if target or not kinds:
+            return target
+        return conn.execute(text("""
+          SELECT * FROM entities
+          WHERE namespace_id=ANY(CAST(:readable AS uuid[])) AND kind='memory'
+            AND legacy_meta->>'pinecone_id'=:archive ORDER BY id LIMIT 1
+        """), {"readable": readable, "archive": str(value)}).mappings().first()
+
     def call(self, context, name, payload):
         action = name.removeprefix("cmh_")
         kind = KINDS[action]
@@ -83,15 +95,7 @@ class CompatEntities:
         if kind == "memory_link":
             with self.entities.engine.begin() as conn:
                 readable = self.entities.scope(conn, context)
-                target = self.entities.find(conn, readable, str(payload["pinecone_vector_id"]),
-                                            self.entities.kinds(context, ["memory"]))
-                if not target:
-                    target = conn.execute(text("""
-                      SELECT * FROM entities
-                      WHERE namespace_id=ANY(CAST(:readable AS uuid[])) AND kind='memory'
-                        AND legacy_meta->>'pinecone_id'=:archive
-                    """), {"readable": readable, "archive": payload["pinecone_vector_id"]}
-                    ).mappings().first() if self.entities.kinds(context, ["memory"]) else None
+                target = self.memory_target(conn, readable, context, payload["pinecone_vector_id"])
                 if not target:
                     return self.identity.record(
                         context, deny("EDGE_ENDPOINT_FORBIDDEN", 5), op, path,
@@ -105,7 +109,11 @@ class CompatEntities:
                     if linked:
                         data[column] = linked["id"]
                         break
-        return self.entities.create(context, kind, data, values, path, legacy_meta=meta, about=about)
+        created = self.entities.create(context, kind, data, values, path, legacy_meta=meta, about=about)
+        if kind == "memory_link" and "id" in created:
+            # Response only: retain no duplicate lookup IDs in persisted metadata.
+            created["_requested_pinecone_vector_id"] = payload["pinecone_vector_id"]
+        return created
 
     def data(self, kind, payload, meta, current=None, actor=None):
         if kind == "memory":
@@ -230,11 +238,18 @@ class CompatEntities:
                     "knowledge": {"used_by_agents": "used_by_principal_ids"},
                     "shared_context": {"recipients": "recipient_principal_ids"},
                 }
-                ids = {snapshot["author_principal_id"] for snapshot in snapshots}
+                ids = {str(snapshot["author_principal_id"]) for snapshot in snapshots
+                       if snapshot["author_principal_id"]}
                 for snapshot in snapshots:
                     for column in target_columns.get(kind, {}).values():
                         value = snapshot.get(column)
-                        ids.update(value if isinstance(value, list) else [value])
+                        ids.update(str(item) for item in (
+                            value if isinstance(value, list) else [value]
+                        ) if item)
+                    if kind == "org_state":
+                        ids.update(str(item) for item in snapshot["legacy_meta"].get(
+                            "resolved", {},
+                        ).get("owner_agent", []) if item)
                 slugs = {str(row["id"]): row["slug"] for row in conn.execute(text(
                     "SELECT id,slug FROM principals WHERE id=ANY(CAST(:ids AS uuid[]))"
                 ), {"ids": list(ids - {None})}).mappings()}
@@ -249,19 +264,36 @@ class CompatEntities:
                             ]
                         elif value:
                             snapshot["target_slugs"][field] = slugs.get(str(value))
+                    if kind == "org_state":
+                        owner = principal_id(snapshot["legacy_meta"], "owner_agent")
+                        snapshot["target_slugs"]["owner_agent"] = slugs.get(str(owner))
                 if kind == "memory_link" and snapshots:
-                    links = {str(row["src_entity_id"]): str(row["dst_entity_id"]) for row
+                    links = {str(row["src_entity_id"]): (
+                        str(row["dst_entity_id"]), row["pinecone_id"] or str(row["dst_entity_id"]),
+                    ) for row
                              in conn.execute(text("""
-                                 SELECT x.src_entity_id,x.dst_entity_id
+                                  SELECT x.src_entity_id,x.dst_entity_id,
+                                         dst.legacy_meta->>'pinecone_id' AS pinecone_id
                                  FROM edges x JOIN entities dst ON dst.id=x.dst_entity_id
                                  WHERE x.src_entity_id=ANY(CAST(:ids AS uuid[]))
                                    AND dst.namespace_id=ANY(CAST(:readable AS uuid[]))
+                                    AND x.type='about' AND dst.kind='memory'
                              """), {"ids": [s["id"] for s in snapshots],
                                     "readable": readable}).mappings()}
                     for snapshot in snapshots:
-                        snapshot["edge_target"] = links.get(str(snapshot["id"]))
+                        target, display = links.get(str(snapshot["id"]), (None, None))
+                        snapshot["edge_target"] = target
+                        snapshot["edge_target_display"] = display
+                filters = payload
+                if kind == "memory_link" and payload.get("pinecone_vector_id") is not None:
+                    target = self.memory_target(
+                        conn, readable, context, payload["pinecone_vector_id"],
+                    )
+                    snapshots = [row for row in snapshots if target and
+                                 row.get("edge_target") == str(target["id"])]
+                    filters = {k: v for k, v in payload.items() if k != "pinecone_vector_id"}
                 try:
-                    snapshots = self.filter(conn, snapshots, payload)
+                    snapshots = self.filter(conn, snapshots, filters)
                 except (TypeError, ValueError):
                     result = deny("VALIDATION_FAILED", 7)
                 if result["outcome"] == "ALLOW":
