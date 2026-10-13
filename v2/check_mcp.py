@@ -63,10 +63,13 @@ async def check(url: str, environment: str, unix_socket: str | None = None):
         tools = await session.list_tools()
         inventory = json.loads(files("cmh.mcp").joinpath("v1_inventory.json").read_text())
         required = {item["name"] for item in inventory["tools"]} | {
-            "cmh_ping", "cmh_whoami", "cmh_check_access",
+            "cmh_ping", "cmh_whoami", "cmh_check_access", "cmh_verify_audit_chain",
         }
         if required != {tool.name for tool in tools.tools}:
-            raise RuntimeError("MCP compatibility must expose exactly 34 tools")
+            raise RuntimeError("MCP must expose exactly the legacy inventory plus declared metadata tools")
+        verified = await session.call_tool("cmh_verify_audit_chain", {})
+        if verified.isError or json.loads(verified.content[0].text).get("valid") is not True:
+            raise RuntimeError("MCP chain integrity verification failed")
         result = await session.call_tool("cmh_whoami", {})
         if result.isError:
             raise RuntimeError("MCP whoami failed")
