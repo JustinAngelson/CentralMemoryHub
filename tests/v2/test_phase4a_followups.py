@@ -11,18 +11,21 @@ from test_phase2_kernel import context
 @pytest.fixture
 def link_target(request):
     case, ids = request.getfixturevalue("compat_case")
+    ids = {**ids, "v1_memory": "fixture-memory-" + uuid4().hex,
+           "archive": "archived-fixture-" + uuid4().hex}
     case.tamper("""
       UPDATE entities SET legacy_meta=legacy_meta ||
-        '{"v1_table":"unstructured_data","v1_id":"fixture-memory-12",
-          "pinecone_id":"archived-fixture-vector"}'::jsonb WHERE id=:id
-    """, id=ids["memory"])
+        jsonb_build_object('v1_table','unstructured_data',
+                           'v1_id',CAST(:old AS text),'pinecone_id',CAST(:archive AS text))
+      WHERE id=:id
+    """, id=ids["memory"], old=ids["v1_memory"], archive=ids["archive"])
     return case, ids
 
 
 def target_name(ids, form):
-    return {"uuid": ids["memory"], "v1id": "fixture-memory-12",
-            "prefixed": "v1:unstructured_data:fixture-memory-12",
-            "archive": "archived-fixture-vector"}[form]
+    return {"uuid": ids["memory"], "v1id": ids["v1_memory"],
+            "prefixed": "v1:unstructured_data:" + ids["v1_memory"],
+            "archive": ids["archive"]}[form]
 
 
 @pytest.mark.asyncio
@@ -44,7 +47,7 @@ async def test_R8_filter_resolves_about_target_and_lists_archived_identifier(lin
     case, ids = link_target
     other = case.app.state.memory_service.store(context(case), {
         "content": "unrelated fixture memory", "namespace": case.namespace,
-    })
+    }, compatibility=True)
     async with case.mcp(case.agent_a["credential"]) as session:
         for target in (ids["memory"], str(other["id"])):
             result = await session.call_tool("cmh_create_memory_link", {"params": {
@@ -57,7 +60,7 @@ async def test_R8_filter_resolves_about_target_and_lists_archived_identifier(lin
     assert not result.isError
     listed = json.loads(body(result))
     assert len(listed) == 1
-    assert listed[0]["pinecone_vector_id"] == "archived-fixture-vector"
+    assert listed[0]["pinecone_vector_id"] == ids["archive"]
 
 
 @pytest.mark.asyncio
@@ -65,7 +68,7 @@ async def test_R8_unarchived_target_lists_v2_uuid_and_unknown_filter_matches_not
     case = identity
     memory = case.app.state.memory_service.store(context(case), {
         "content": "plain fixture memory", "namespace": case.namespace,
-    })
+    }, compatibility=True)
     async with case.mcp(case.agent_a["credential"]) as session:
         await session.call_tool("cmh_create_memory_link", {"params": {
             "pinecone_vector_id": str(memory["id"]), "namespace": case.namespace,
@@ -92,6 +95,7 @@ async def test_R9_display_owner_projects_slug_and_filters_by_either_identity(ide
         created = await session.call_tool("cmh_create_org_state", {"params": {
             "entity": "Example Mechanical", "type": "project", "status": "active",
             "owner_agent": display, "namespace": case.namespace,
+            "last_updated_by": case.agent_a["principal"]["slug"],
         }})
         assert not created.isError
         result = await session.call_tool("cmh_list_org_states", {"params": {
@@ -111,9 +115,11 @@ async def test_R9_unresolved_owner_preserves_raw_text_and_filter(identity):
         await session.call_tool("cmh_create_org_state", {"params": {
             "entity": "Example Mechanical", "type": "project", "status": "active",
             "owner_agent": "Unmapped Fixture Agent", "namespace": case.namespace,
+            "last_updated_by": case.agent_a["principal"]["slug"],
         }})
         result = await session.call_tool("cmh_list_org_states", {"params": {
             "owner_agent": "Unmapped Fixture Agent", "namespace": case.namespace,
+            "last_updated_by": case.agent_a["principal"]["slug"],
         }})
     assert json.loads(body(result))[0]["owner_agent"] == "Unmapped Fixture Agent"
 
