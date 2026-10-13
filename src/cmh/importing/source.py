@@ -69,7 +69,7 @@ def source_connection(url):
         conn.rollback()
 
 
-def read_source(url):
+def read_source(url, include_waitlist=False):
     with source_connection(url) as conn:
         # One catalog read; no excluded data, emails, keys or file bytes loaded.
         names = {r["tablename"] for r in conn.execute(
@@ -92,10 +92,12 @@ def read_source(url):
         for table in sorted(INVENTORY):
             counts[table] = conn.execute(sql.SQL("SELECT count(*) AS n FROM public.{}").format(
                 sql.Identifier(table))).fetchone()["n"]
-            if table in EXCLUDED | {"waitlist"}:
+            if table in EXCLUDED or (table == "waitlist" and not include_waitlist):
                 continue
             selected = [r["column_name"] for r in columns if r["table_name"] == table
-                        and r["column_name"] not in FORBIDDEN_COLUMNS and r["data_type"] != "bytea"]
+                        and (r["column_name"] not in FORBIDDEN_COLUMNS
+                             or (table == "waitlist" and r["column_name"] == "email"))
+                        and r["data_type"] != "bytea"]
             tables[table] = conn.execute(sql.SQL("SELECT {} FROM public.{}").format(
                 sql.SQL(",").join(map(sql.Identifier, selected)),
                 sql.Identifier(table))).fetchall()

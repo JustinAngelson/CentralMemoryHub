@@ -2,7 +2,11 @@
 
 from alembic import op
 
-from cmh.kernel import TYPED
+from cmh.kernel import TYPED as CURRENT_TYPED
+
+# Freeze this historical revision; later registries must not create their
+# tables before their own migration or break revision-0003 round trips.
+TYPED = {kind: value for kind, value in CURRENT_TYPED.items() if kind not in {"skill", "resource"}}
 
 revision = "0003_memory_kernel"
 down_revision = "0002_identity"

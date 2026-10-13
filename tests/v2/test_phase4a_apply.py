@@ -50,7 +50,9 @@ def test_r10_reuse_existing_slugs_rerun_creates_zero_principals(import_case):
         assert conn.execute(text("SELECT count(*) FROM principals")).scalar_one() == count
         assert conn.execute(text("SELECT count(*) FROM principals WHERE role='owner'")).scalar_one() == 1
         assert conn.execute(text("SELECT tier FROM principals WHERE role='owner'")).scalar_one() == 4
-        assert conn.execute(text("SELECT bool_and(tier=3) FROM principals WHERE role='partner'")).scalar_one()
+        assert conn.execute(text("""SELECT bool_and(tier=3) FROM principals
+          WHERE role='partner' AND slug=ANY(:slugs)"""),
+          {"slugs": list(runner.by_slug)}).scalar_one()
 
 
 def test_r10_owner_must_already_be_bootstrapped(import_case):
@@ -161,6 +163,37 @@ def test_t4a_8_apply_missing_review_refused_and_audited(import_case):
         runner.apply({"tables": {}, "counts": {}}, directory)
 
 
+def test_6_2_failed_embedding_revokes_and_resume_reuses_committed_records(reviewed_import):
+    from datetime import timedelta
+
+    from cmh.services.embedding import EmbeddingUnavailable
+
+    runner, case, source, directory = reviewed_import
+    base = runner.entities.provider
+
+    class FailOnce:
+        model, dimensions = base.model, base.dimensions
+        calls = 0
+
+        def embed(self, content):
+            self.calls += 1
+            if self.calls == 2:
+                raise EmbeddingUnavailable("Synthetic one-time import failure")
+            return base.embed(content)
+
+    runner.entities.provider = FailOnce()
+    with pytest.raises(ValueError, match="READ_ONLY_MODE"):
+        runner.apply(source, directory)
+    with case.admin.connect() as conn:
+        assert conn.execute(text("""SELECT bool_and(revoked_at IS NOT NULL) FROM credentials
+          WHERE principal_id=(SELECT id FROM principals WHERE slug='v1-import')""")).scalar_one()
+    when = case.app.state.clock()
+    case.app.state.clock = lambda: when + timedelta(seconds=61)
+    report = runner.apply(source, directory)
+    assert report["complete"] and report["existing"] == 1 and report["imported"] == 2
+    assert report["principals"]["created"] == 0
+
+
 @pytest.mark.parametrize("path", ["/search", "/memory/unstructured"])
 def test_t4a_13_compat_rest_requires_bearer(identity, path):
     assert identity.owner_client.post(path, json={"content": "fictional", "query": "fictional"}).status_code == 401
@@ -179,22 +212,75 @@ def test_t4a_13_compat_roundtrip_and_a12(identity):
 
 
 def test_t4a_10_landing_headers_and_invalid_waitlist(identity):
+    identity.owner_client._transport.client = ("198.51.100.11", 50000)
     response = identity.owner_client.get("/")
     assert response.status_code == 200 and "Central" in response.text
     assert response.headers["x-frame-options"] == "DENY"
     assert "frame-ancestors 'none'" in response.headers["content-security-policy"]
-    assert identity.owner_client.post("/api/waitlist", json={"email": "invalid"}).status_code == 400
-    assert identity.owner_client.post("/api/waitlist", json={"email": "x" * 121 + "@example.invalid"}).status_code == 400
+    assert identity.owner_client.post("/api/waitlist", json={"first_name": "Example", "email": "invalid"}).status_code == 400
+    assert identity.owner_client.post("/api/waitlist", json={"first_name": "Example", "email": "x" * 121 + "@example.invalid"}).status_code == 400
 
 
 def test_t4a_10_waitlist_valid_duplicate_and_ip_limit(identity):
     client = identity.owner_client
+    client._transport.client = ("198.51.100.12", 50000)
     email = case_email = "signup-" + identity.namespace + "@example.invalid"
-    assert client.post("/api/waitlist", json={"email": email}).status_code == 200
-    assert client.post("/api/waitlist", json={"email": case_email.upper()}).status_code == 200
+    assert client.post("/api/waitlist", json={"first_name": "Example", "email": email}).status_code == 200
+    assert client.post("/api/waitlist", json={"first_name": "Example", "email": case_email.upper()}).status_code == 200
     with identity.admin.connect() as conn:
         assert conn.execute(text("SELECT count(*) FROM waitlist WHERE lower(email)=:email"),
                             {"email": email}).scalar_one() == 1
     for _ in range(3):
-        client.post("/api/waitlist", json={"email": email})
-    assert client.post("/api/waitlist", json={"email": email}).status_code == 429
+        client.post("/api/waitlist", json={"first_name": "Example", "email": email})
+    assert client.post("/api/waitlist", json={"first_name": "Example", "email": email}).status_code == 429
+
+
+def test_t4a_7_typed_files_assignments_and_6_6_about_edge(reviewed_import):
+    runner, case, source, directory = reviewed_import
+    from cmh.importing.embedding import ImportEmbeddingProvider
+    from cmh.importing.plan import write_csv
+
+    marker = case.namespace.split("-")[-1]
+    skill, resource, file, link, assignment = (name + "-" + marker for name in (
+        "skill", "resource", "file", "link", "assignment",
+    ))
+    source["tables"]["skills"] = [{"id": skill, "skill_name": "Fictional inspection", "description": "Check a component"}]
+    source["tables"]["resources"] = [{"id": resource, "name": "Fictional guide", "type": "manual",
+                                     "purpose": "Inspection", "url": "https://example.invalid/uploads/private.pdf"}]
+    source["tables"]["skill_files"] = [{"id": file, "filename": "../uploads/fictional.pdf",
+                                       "stored_filename": "static/uploads/do-not-copy.pdf",
+                                       "file_bytes": b"DO-NOT-COPY-FILE-BYTES"}]
+    source["tables"]["agent_skills"] = [{"id": assignment, "skill_id": skill,
+                                       "agent_id": "source-" + case.agent_a["principal"]["slug"]}]
+    source["tables"]["memory_links"] = [{"id": link, "summary": "Fictional linked event",
+                                        "pinecone_id": source["tables"]["unstructured_data"][0]["pinecone_id"]}]
+    source["tables"]["unstructured_data"][0]["content"] += " complete legacy content" * 700
+    source["counts"] = {table: len(records) for table, records in source["tables"].items()}
+    mappings = [{"v1_table": table, "v1_id": row["id"], "proposed_namespace": "org",
+                 "matched_aliases": "", "reason": "reviewed"}
+                for table, records in source["tables"].items() for row in records]
+    write_csv(directory / "namespace_mapping.csv", mappings, list(mappings[0]))
+    provider = ImportEmbeddingProvider(runner.entities.provider)
+    runner.entities.provider = provider
+    report = runner.apply(source, directory)
+    assert report["complete"] and report["imported"] == 8
+    assert provider.chunked_records == 1
+    with case.admin.connect() as conn:
+        records = conn.execute(text("""SELECT * FROM entities WHERE legacy_meta->>'v1_id'=ANY(:ids)"""),
+                               {"ids": [skill, resource, file, link]}).mappings().all()
+        assert {row["kind"] for row in records} == {"skill", "resource", "memory_link"}
+        payload = json.dumps([dict(row) for row in records], default=str)
+        for forbidden in ("DO-NOT-COPY-FILE-BYTES", "static/uploads", "../uploads", "/uploads/private.pdf"):
+            assert forbidden not in payload
+        assert conn.execute(text("""SELECT metadata->>'filename' FROM resources
+          WHERE id=(SELECT id FROM entities WHERE legacy_meta->>'v1_id'=:id)"""),
+                            {"id": file}).scalar_one() == "fictional.pdf"
+        assert conn.execute(text("""SELECT count(*) FROM edges
+          WHERE type='about' AND src_entity_id=(SELECT id FROM entities WHERE legacy_meta->>'v1_id'=:id)"""),
+                            {"id": link}).scalar_one() == 1
+        assignment_row = conn.execute(text("""SELECT a.* FROM principal_skill_assignments a
+          JOIN entities e ON a.skill_entity_id=e.id WHERE e.legacy_meta->>'v1_id'=:id"""),
+                                      {"id": skill}).mappings().one()
+        skill_ns = conn.execute(text("SELECT namespace_id FROM entities WHERE id=:id"),
+                                {"id": assignment_row["skill_entity_id"]}).scalar_one()
+        assert assignment_row["namespace_id"] == skill_ns

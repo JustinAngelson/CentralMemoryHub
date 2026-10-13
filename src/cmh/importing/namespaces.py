@@ -57,7 +57,8 @@ def make_namespaces(tables, orgs, primary_keys):
             text = "\n".join(str(v) for k, v in row.items()
                              if k in CONTENT_FIELDS and isinstance(v, str))
             matches = [(org["namespace"], alias) for org in orgs for alias in org["aliases"]
-                       if re.search(r"(?<!\w)" + re.escape(alias) + r"(?!\w)", text, re.IGNORECASE)]
+                       if re.search(r"(?<!\w)" + re.escape(alias) + r"(?!\w)", text,
+                                    0 if len(alias) <= 3 else re.IGNORECASE)]
             namespaces = {ns for ns, _ in matches if ns != "org"}
             if len(namespaces) == 1:
                 ns, reason = next(iter(namespaces)), "single-client-namespace"
@@ -70,3 +71,20 @@ def make_namespaces(tables, orgs, primary_keys):
                            "matched_aliases": " | ".join(sorted({safe(a) for _, a in matches})),
                            "reason": reason, "review_required": "yes"})
     return result
+
+
+def alias_hit_counts(tables, orgs):
+    """Actual whole-word occurrences, including zeroes, without emitting source text."""
+    counts = {alias: 0 for org in orgs for alias in org["aliases"]}
+    patterns = {alias: re.compile(r"(?<!\w)" + re.escape(alias) + r"(?!\w)",
+                                 0 if len(alias) <= 3 else re.IGNORECASE)
+                for alias in counts}
+    for table, rows in tables.items():
+        if table == "waitlist":
+            continue
+        for row in rows:
+            content = "\n".join(str(value) for key, value in row.items()
+                                if key in CONTENT_FIELDS and isinstance(value, str))
+            for alias, pattern in patterns.items():
+                counts[alias] += len(pattern.findall(content))
+    return counts

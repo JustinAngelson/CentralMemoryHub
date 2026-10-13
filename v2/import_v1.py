@@ -36,7 +36,14 @@ def main(argv=None):
         args.out = private_output_directory(args.out)
         if args.apply:
             require_review_files(args.out)
-            raise ValueError("Apply is gated pending owner review; this checkpoint is plan-only")
+            from cmh.importing.apply import apply_reviewed
+
+            source = connection_from_env(args.source_env, args.source_database)
+            report = apply_reviewed(source, args.target_database, args.out)
+            print(json.dumps({"mode": "apply", "complete": report["complete"],
+                              "imported": report["imported"], "existing": report["existing"],
+                              "skipped": report["skipped"], "resolved": report["resolved"]}))
+            return 0
         source = connection_from_env(args.source_env, args.source_database)
         # Whole-table proof cannot use an RLS-filtered app/migration view.
         # The isolated test administrator still explicitly sets READ ONLY.

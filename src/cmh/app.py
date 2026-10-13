@@ -72,6 +72,18 @@ def create_app(clock=None) -> FastAPI:
     app.state.entity_service = entities
     app.state.memory_service = memory
     app.state.embedding_provider = provider
+    app.state.entities = entities
+    from pathlib import Path
+
+    from starlette.staticfiles import StaticFiles
+
+    from cmh.api.compat_rest import compatibility_router
+    from cmh.api.public import PublicSecurityHeaders, public_router
+
+    app.servers = [{"url": settings.public_url}]
+    app.include_router(public_router(service, settings))
+    app.include_router(compatibility_router(memory))
+    app.mount("/public", StaticFiles(directory=Path(__file__).parent / "public"), name="public")
     app.include_router(health_router(engine, settings.env, entities))
     app.include_router(identity_router(settings))
     app.include_router(memory_router(memory))
@@ -82,4 +94,5 @@ def create_app(clock=None) -> FastAPI:
     app.add_middleware(IdentityMiddleware, service=service, settings=settings,
                        limits=app.state.limits)
     app.add_middleware(RequestIDMiddleware)
+    app.add_middleware(PublicSecurityHeaders)
     return app

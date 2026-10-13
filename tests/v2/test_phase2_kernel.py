@@ -507,10 +507,35 @@ def test_T2A_12_startup_and_health_reject_mutable_versions(unsafe_version_privil
 
 
 @pytest.mark.no_app_operation(reason="Migration schema validation: Phase 4A tables stay absent.")
-def test_P5_skills_resources_and_assignments_are_deferred(audit_admin):
-    with audit_admin.connect() as conn:
-        for name in ("skills", "resources", "skill_files", "principal_skill_assignments"):
-            assert conn.execute(text("SELECT to_regclass(:name)"), {"name": name}).scalar() is None
+def test_P5_skills_resources_and_assignments_are_deferred(audit_admin, monkeypatch):
+    # This Phase 2 assertion remains unchanged at its original revision.
+    # Phase 4A tests separately require the new typed tables at head.
+    from uuid import uuid4
+
+    from alembic import command
+    from alembic.config import Config
+    from conftest import ROOT
+    from sqlalchemy import create_engine
+
+    name = "cmh_v2_p5_" + uuid4().hex + "_test"
+    url = audit_admin.url.set(database=name)
+    with audit_admin.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+        conn.execute(text(f'CREATE DATABASE "{name}" OWNER cmh_migrate'))
+    fixture = create_engine(url, hide_parameters=True)
+    try:
+        with fixture.begin() as conn:
+            for extension in ("vector", "ltree", "pgcrypto"):
+                conn.execute(text(f"CREATE EXTENSION IF NOT EXISTS {extension}"))
+        monkeypatch.setenv("CMH_MIGRATE_DATABASE_URL", url.render_as_string(hide_password=False))
+        monkeypatch.setenv("CMH_TEST_DATABASE_URL", url.render_as_string(hide_password=False))
+        command.upgrade(Config(str(ROOT / "v2/alembic.ini")), "0003_memory_kernel")
+        with fixture.connect() as conn:
+            for table in ("skills", "resources", "skill_files", "principal_skill_assignments"):
+                assert conn.execute(text("SELECT to_regclass(:name)"), {"name": table}).scalar() is None
+    finally:
+        fixture.dispose()
+        with audit_admin.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+            conn.execute(text(f'DROP DATABASE "{name}" WITH (FORCE)'))
 
 
 @pytest.mark.asyncio

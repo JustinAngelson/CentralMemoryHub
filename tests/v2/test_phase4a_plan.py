@@ -135,7 +135,7 @@ def test_t4a_1_humans_follow_approved_rules_not_v1_type(source, defaults, orgs):
     assert roster(result, "owner")["kind"] == "human"
     assert roster(result, "owner")["role"] == "owner"
     assert roster(result, "partner_a")["role"] == "partner"
-    assert roster(result, "owner")["tier"] == ""
+    assert roster(result, "owner")["tier"] == 4
 
 
 def test_t4a_1_active_agent_sponsor_tier_and_no_credentials(source, defaults, orgs):
@@ -400,7 +400,7 @@ def test_cli_accepts_private_review_output_directory(tmp_path):
     assert cli["private_output_directory"](directory) == directory.resolve()
 
 
-@pytest.mark.parametrize("alias", ["EXM", "TFG", "RH", "DPM"])
+@pytest.mark.parametrize("alias", ["EXM", "XYZ", "ZX", "FIC"])
 def test_short_alias_case_sensitive_whole_words(alias):
     module = importlib.import_module("cmh.importing.namespaces")
     org = [{"namespace": "org.clients.example", "aliases": [alias]}]

@@ -72,8 +72,12 @@ def make_roster(directory, config):
         result.append({**{k: entry[k] for k in (
             "name", "slug", "kind", "role", "tier", "sponsor", "status")},
             "v1_id": "", "action": "import", "reason": "approved-addition",
-            "review_required": "yes", "aliases": json.dumps([entry["name"], entry["slug"]])})
+            "review_required": "yes",
+            "aliases": json.dumps(list(dict.fromkeys([entry["name"], entry["slug"]])))})
     imported = [r for r in result if r["action"] == "import"]
+    for row in imported:
+        if row["kind"] == "human":
+            row["tier"] = 4 if row["role"] == "owner" else 3
     if len({r["slug"] for r in imported}) != len(imported):
         raise ValueError("Duplicate roster slug")
     by_slug = {r["slug"]: r for r in imported}

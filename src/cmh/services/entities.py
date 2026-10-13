@@ -147,12 +147,16 @@ class EntityService:
                "version": snapshot["current_version"], "vector": encode(vector), "now": self.now()})
 
     def create(self, context, kind, data, provenance, path="org", title=None, legacy_meta=None,
-               about=None):
+               about=None, _import_record=None):
+        if _import_record is not None:
+            _import_record.validate(context)
         op = operation(kind, True)
         result = None
         try:
             with self.engine.begin() as conn:
                 result = evaluate(conn, context, op, path)
+                if result["outcome"] == "ALLOW" and _import_record:
+                    result = {**result, "import": _import_record.trace}
                 if (legacy_meta or {}).get("claimed_identity_mismatch"):
                     result = {**result, "claimed_identity_mismatch": True}
                 if result["outcome"] == "ALLOW" and kind not in TYPED:
@@ -191,12 +195,15 @@ class EntityService:
                             author_principal_id,actor,source_type,source_ref,confidence,
                             occurred_at,legacy_meta,created_at,updated_at)
                           VALUES(:id,:kind,:namespace,:title,:content,:author,:actor,:source_type,
-                            :source_ref,:confidence,:occurred_at,CAST(:meta AS jsonb),:now,:now)
+                            :source_ref,:confidence,:occurred_at,CAST(:meta AS jsonb),:created,:updated)
                           RETURNING *
                         """), {"id": identity, "kind": kind, "namespace": node["id"],
-                               "title": title, "content": search_text, "author": context.id,
+                               "title": title, "content": search_text,
+                               "author": _import_record.author if _import_record else context.id,
                                "actor": context.actor, **provenance, "meta": encode(legacy_meta or {}),
-                               "now": self.now()}).mappings().one())
+                               "created": _import_record.created_at if _import_record else self.now(),
+                               "updated": _import_record.updated_at if _import_record else self.now()
+                               }).mappings().one())
                         fields = ["id", *data]
                         values = {"id": identity, **data}
                         expressions = [":" + name for name in fields]
@@ -230,6 +237,8 @@ class EntityService:
         # The state transaction ended before an independent DENY audit append.
         if (legacy_meta or {}).get("claimed_identity_mismatch"):
             result = {**result, "claimed_identity_mismatch": True}
+        if _import_record:
+            result = {**result, "import": _import_record.trace}
         return self.identity.record(context, result, op, path)
 
     def update(self, context, identity, data, expected_kind=None, legacy_meta=None):

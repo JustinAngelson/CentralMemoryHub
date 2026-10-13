@@ -139,7 +139,8 @@ def test_database():
             "memories", "decisions", "knowledge", "org_states", "tasks", "experiments",
             "insights", "shared_contexts", "inbox_items", "memory_links",
             "orgs", "engagements", "projects", "notes",
-            "sessions", "messages", "agent_directory",
+            "sessions", "messages", "agent_directory", "skills", "resources",
+            "principal_skill_assignments", "waitlist", "waitlist_attempts", "import_runs",
         }
         assert set(tables) <= allowed, "Test database contains tables outside the v2 identity scope"
         # The spec requires a migration rebuild at the start of a run. During
