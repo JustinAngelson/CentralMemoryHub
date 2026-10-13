@@ -119,7 +119,6 @@ async def test_R9_unresolved_owner_preserves_raw_text_and_filter(identity):
         }})
         result = await session.call_tool("cmh_list_org_states", {"params": {
             "owner_agent": "Unmapped Fixture Agent", "namespace": case.namespace,
-            "last_updated_by": case.agent_a["principal"]["slug"],
         }})
     assert json.loads(body(result))[0]["owner_agent"] == "Unmapped Fixture Agent"
 
@@ -135,7 +134,9 @@ async def test_R9_update_replaces_resolved_owner_and_old_filter_no_longer_matche
         result = await session.call_tool("cmh_create_org_state", {"params": {
             "entity": "Example Mechanical", "type": "project", "status": "active",
             "owner_agent": "Unmapped Fixture Agent", "namespace": case.namespace,
+            "last_updated_by": case.agent_a["principal"]["slug"],
         }})
+        assert not result.isError, body(result)
         state_id = body(result).splitlines()[1].removeprefix("Entity ID: ")
         updated = await session.call_tool("cmh_update_org_state", {"params": {
             "entity_id": state_id, "owner_agent": display,
