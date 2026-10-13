@@ -4,8 +4,11 @@ import json
 from uuid import uuid4
 
 import pytest
-from contract_helpers import denied
 from test_phase2_kernel import context, rows, search, store
+
+
+def readonly(body):
+    assert body["outcome"] == "DENY" and body["code"] == "READ_ONLY_MODE"
 
 
 @pytest.mark.parametrize("failure", ["write", "search", "boot"])
@@ -29,12 +32,12 @@ def test_R1_cooldown_and_recovery(identity, monkeypatch, failure):
     if failure != "boot":
         provider.fail = True
         if failure == "write":
-            denied(service.store(context(identity), payload), "READ_ONLY_MODE")
+            readonly(service.store(context(identity), payload))
         else:
             assert service.search(context(identity), {"query": "recovery"})["degraded"] is True
-    denied(service.store(context(identity), payload), "READ_ONLY_MODE")
+    readonly(service.store(context(identity), payload))
     provider.fail = False
-    denied(service.store(context(identity), payload), "READ_ONLY_MODE")
+    readonly(service.store(context(identity), payload))
     identity.clock.advance(seconds=61)
     result = service.store(context(identity), payload)
     assert "id" in result and result.get("outcome") != "DENY"
