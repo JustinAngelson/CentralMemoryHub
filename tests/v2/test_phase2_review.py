@@ -67,8 +67,8 @@ def test_R4_readable_set_matches_oracle_for_entire_fixture_world(identity):
                     conn, subject, n["path"],
                 ) and sponsor_ceiling(conn, subject, n["path"])}
                 statements = []
-                def count(*args):
-                    statements.append(args[2])
+                def count(*args, _statements=statements):
+                    _statements.append(args[2])
                 event.listen(entities.engine, "before_cursor_execute", count)
                 try:
                     actual = set(entities.scope(conn, PrincipalContext(subject)))
@@ -80,8 +80,8 @@ def test_R4_readable_set_matches_oracle_for_entire_fixture_world(identity):
     assert case.bearer(case.owner_token).status_code == 200
 
 
-def test_R4_compat_update_query_count_constant_after_50_namespaces(compat_case):
-    case, ids = compat_case
+def test_R4_compat_update_query_count_constant_after_50_namespaces(request):
+    case, ids = request.getfixturevalue("compat_case")
     adapter = service(case)
     counts = []
     for additional in (False, True):
@@ -94,8 +94,8 @@ def test_R4_compat_update_query_count_constant_after_50_namespaces(compat_case):
                 """), {"prefix": case.namespace + ".extra", "owner": case.owner["id"]})
         caller = context(case)
         statements = []
-        def count(*args):
-            statements.append(args[2])
+        def count(*args, _statements=statements):
+            _statements.append(args[2])
         event.listen(case.engine, "before_cursor_execute", count)
         try:
             result = adapter.call(caller, "cmh_update_task", {
@@ -149,14 +149,20 @@ def test_R6_target_view_uses_current_typed_slug_or_unresolved_text(identity, unr
     target = "unknown target" if unresolved else identity.agent_b["principal"]["slug"]
     result = create(identity, "cmh_create_task", title="target contract",
                     assigned_to_agent=target)
-    new_slug = "agent-renamed-" + uuid4().hex
     if not unresolved:
-        identity.tamper("UPDATE principals SET slug=:slug WHERE id=:id",
-                        slug=new_slug, id=identity.agent_b["principal"]["id"])
+        # Slugs are immutable. Prove the typed reference takes precedence over
+        # a stale legacy string instead of attempting an illegal slug rename.
+        identity.tamper("""
+          UPDATE entities SET legacy_meta=jsonb_set(
+            legacy_meta,'{v1_fields,assigned_to_agent}',to_jsonb(CAST(:stale AS text)),true
+          ) WHERE id=:id
+        """, stale="obsolete target", id=result["id"])
     output = service(identity).call(context(identity), "cmh_list_tasks",
                                     {"namespace": identity.namespace})
     view = project(next(row for row in output if row["id"] == result["id"]))
-    assert view["assigned_to_agent"] == ("unknown target" if unresolved else new_slug)
+    assert view["assigned_to_agent"] == (
+        "unknown target" if unresolved else identity.agent_b["principal"]["slug"]
+    )
 
 
 @pytest.mark.parametrize("kind,tool,list_tool", [

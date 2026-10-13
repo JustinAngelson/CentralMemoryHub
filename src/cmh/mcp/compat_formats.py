@@ -10,6 +10,8 @@ def iso(value):
 def project(row):
     meta = row.get("legacy_meta", {})
     fields = meta.get("v1_fields", {})
+    targets = row.get("target_slugs", {})
+    unresolved = meta.get("unresolved", {})
     kind = row["kind"]
     base = {"created_at": iso(row["created_at"]), "updated_at": iso(row["updated_at"])}
     author = row.get("author_slug") or fields.get("gpt_role") or fields.get("made_by_agent")
@@ -21,14 +23,16 @@ def project(row):
                 "timestamp": iso(row["occurred_at"])}
     if kind == "decision":
         return {"decision_id": str(row["id"]), "context": row.get("context"),
-                "made_by_agent": fields.get("made_by_agent", author),
+                "made_by_agent": author,
                 "timestamp": iso(row["occurred_at"]), "decision_text": row["decision_text"],
                 "impact_area": row.get("impact_area"),
                 "reversal_possible": row.get("reversal_possible")}
     if kind == "knowledge":
         return {**base, "index_id": str(row["id"]), "term": row["term"],
                 "defined_by_file": row.get("defined_by_file"),
-                "used_by_agents": fields.get("used_by_agents", []),
+                "used_by_agents": targets.get("used_by_agents", []) or unresolved.get(
+                    "used_by_agents", [],
+                ),
                 "relevance_score": row.get("relevance_score"),
                 "last_verified": iso(row.get("last_verified")), "synonyms": row.get("synonyms")}
     if kind == "org_state":
@@ -41,8 +45,9 @@ def project(row):
     if kind == "task":
         return {**base, "task_id": str(row["id"]), "title": row["title"],
                 "description": row.get("description"),
-                "assigned_to_agent": fields.get("assigned_to_agent"),
-                "created_by_agent": fields.get("created_by_agent", author),
+                "assigned_to_agent": targets.get("assigned_to_agent") or unresolved.get(
+                    "assigned_to_agent",
+                ), "created_by_agent": author,
                 "status": row.get("task_status"), "priority": row.get("priority"),
                 "linked_project": row.get("linked_project"), "summary_notes": row.get("summary_notes"),
                 "due_date": iso(row.get("due_at"))}
@@ -50,22 +55,26 @@ def project(row):
         return {**base, "experiment_id": str(row["id"]),
                 **{key: row.get(key) for key in (
                     "title", "description", "hypothesis", "outcome", "notes",
-                )}, "executing_agent": fields.get("executing_agent"),
+                )}, "executing_agent": targets.get("executing_agent") or unresolved.get(
+                    "executing_agent",
+                ),
                 "status": row.get("experiment_status")}
     if kind == "insight":
-        return {"insight_id": str(row["id"]), "user_id": fields.get("user_id"),
+        return {"insight_id": str(row["id"]), "user_id": targets.get("user_id") or unresolved.get(
+            "user_id",
+        ),
                 **{key: row.get(key) for key in (
                     "interaction_type", "summary", "related_agent_or_project", "result", "tone_tag",
                 )}, "timestamp": iso(row["occurred_at"])}
     if kind == "shared_context":
-        return {"id": str(row["id"]), "sender": fields.get("sender", author),
-                "recipients": fields.get("recipients", []),
+        return {"id": str(row["id"]), "sender": author,
+                "recipients": targets.get("recipients", []) or unresolved.get("recipients", []),
                 "context_tag": row["context_tag"],
-                "memory_refs": fields.get("memory_refs", [
-                    str(item) for item in (row.get("memory_ref_entity_ids") or [])
-                ]),
+                "memory_refs": [str(item) for item in (
+                    row.get("memory_ref_entity_ids") or []
+                )] + unresolved.get("memory_refs", []),
                 "timestamp": iso(row["occurred_at"])}
-    return {"link_id": str(row["id"]), "pinecone_vector_id": fields.get("pinecone_vector_id"),
+    return {"link_id": str(row["id"]), "pinecone_vector_id": row.get("edge_target"),
             "summary": row.get("summary"), "linked_agent_event": row.get("linked_event_ref"),
             "origin_file_or_source": row.get("origin_file_or_source"),
             "timestamp_added": iso(row["created_at"])}

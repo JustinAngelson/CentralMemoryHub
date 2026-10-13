@@ -62,7 +62,7 @@ class CompatEntities:
             KIND_TABLE[kind]
         )
         try:
-            data = self.data(kind, payload, meta)
+            data = self.data(kind, payload, meta, actor=context.principal["slug"])
         except (ValueError, TypeError):
             return self.identity.record(context, {
                 **deny("VALIDATION_FAILED", 7),
@@ -107,7 +107,7 @@ class CompatEntities:
                         break
         return self.entities.create(context, kind, data, values, path, legacy_meta=meta, about=about)
 
-    def data(self, kind, payload, meta, current=None):
+    def data(self, kind, payload, meta, current=None, actor=None):
         if kind == "memory":
             return {"content": payload["decision_text"]}
         if kind == "decision":
@@ -124,9 +124,14 @@ class CompatEntities:
             return data
         if kind == "org_state":
             state = dict((current or {}).get("state", {}))
-            state.update(meta["v1_fields"])
+            for key in ("entity", "type", "status", "summary", "last_updated_by",
+                        "important_dates", "linked_docs"):
+                if key in payload:
+                    state[key] = payload[key]
+            if "last_updated_by" in payload:
+                state["last_updated_by"] = actor
             if "owner_agent" in payload:
-                state["owner_principal_id"] = principal_id(meta, "owner_agent")
+                state["owner_agent"] = payload["owner_agent"]
             return {"state_key": payload.get("entity", (current or {}).get("state_key")),
                     "state": state}
         if kind == "task":
@@ -176,7 +181,8 @@ class CompatEntities:
                     snapshot = self.entities.snapshot(conn, row, readable)
                     meta = claims(conn, context, payload, row["legacy_meta"])
                     try:
-                        data = self.data(kind, payload, meta, snapshot)
+                        data = self.data(kind, payload, meta, snapshot,
+                                         actor=context.principal["slug"])
                     except (ValueError, TypeError):
                         result = deny("VALIDATION_FAILED", 7)
             else:
@@ -217,10 +223,43 @@ class CompatEntities:
                     """), {"kind": kind, "readable": readable,
                            "ns": node["id"] if node else None}).mappings()
                     snapshots = [self.entities.snapshot(conn, dict(row), readable) for row in records]
+                target_columns = {
+                    "task": {"assigned_to_agent": "assignee_principal_id"},
+                    "experiment": {"executing_agent": "executing_principal_id"},
+                    "insight": {"user_id": "subject_principal_id"},
+                    "knowledge": {"used_by_agents": "used_by_principal_ids"},
+                    "shared_context": {"recipients": "recipient_principal_ids"},
+                }
+                ids = {snapshot["author_principal_id"] for snapshot in snapshots}
                 for snapshot in snapshots:
-                    snapshot["author_slug"] = conn.execute(text(
-                        "SELECT slug FROM principals WHERE id=:id"
-                    ), {"id": snapshot["author_principal_id"]}).scalar()
+                    for column in target_columns.get(kind, {}).values():
+                        value = snapshot.get(column)
+                        ids.update(value if isinstance(value, list) else [value])
+                slugs = {str(row["id"]): row["slug"] for row in conn.execute(text(
+                    "SELECT id,slug FROM principals WHERE id=ANY(CAST(:ids AS uuid[]))"
+                ), {"ids": list(ids - {None})}).mappings()}
+                for snapshot in snapshots:
+                    snapshot["author_slug"] = slugs.get(str(snapshot["author_principal_id"]))
+                    snapshot["target_slugs"] = {}
+                    for field, column in target_columns.get(kind, {}).items():
+                        value = snapshot.get(column)
+                        if isinstance(value, list):
+                            snapshot["target_slugs"][field] = [
+                                slugs[str(item)] for item in value if str(item) in slugs
+                            ]
+                        elif value:
+                            snapshot["target_slugs"][field] = slugs.get(str(value))
+                if kind == "memory_link" and snapshots:
+                    links = {str(row["src_entity_id"]): str(row["dst_entity_id"]) for row
+                             in conn.execute(text("""
+                                 SELECT x.src_entity_id,x.dst_entity_id
+                                 FROM edges x JOIN entities dst ON dst.id=x.dst_entity_id
+                                 WHERE x.src_entity_id=ANY(CAST(:ids AS uuid[]))
+                                   AND dst.namespace_id=ANY(CAST(:readable AS uuid[]))
+                             """), {"ids": [s["id"] for s in snapshots],
+                                    "readable": readable}).mappings()}
+                    for snapshot in snapshots:
+                        snapshot["edge_target"] = links.get(str(snapshot["id"]))
                 try:
                     snapshots = self.filter(conn, snapshots, payload)
                 except (TypeError, ValueError):
@@ -258,6 +297,8 @@ class CompatEntities:
                     matches &= value.lower() in (view.get("term") or "").lower() or (
                         value.lower() in json.dumps(view.get("synonyms") or []).lower()
                     )
+                elif field == "origin_file_or_source":
+                    matches &= value.lower() in (view.get(field) or "").lower()
                 elif field in TARGETS or field in ("made_by_agent", "created_by_agent", "agent"):
                     target = resolve(conn, value)
                     canonical = target["slug"] if target else value
@@ -269,4 +310,14 @@ class CompatEntities:
                     matches &= str(view[field]).lower() == str(value).lower()
             if matches:
                 output.append(snapshot)
+        if output and output[0]["kind"] in ("org_state", "knowledge", "decision", "insight"):
+            kind = output[0]["kind"]
+            key = {
+                "org_state": "updated_at", "knowledge": "relevance_score",
+                "decision": "occurred_at", "insight": "occurred_at",
+            }[kind]
+            output.sort(key=lambda row: (
+                row.get(key) is not None, row.get(key) or 0, row["created_at"],
+                str(row["id"]),
+            ), reverse=True)
         return output

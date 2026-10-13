@@ -8,6 +8,9 @@ SELF = {"gpt_role", "made_by_agent", "created_by_agent", "sender_agent", "sender
         "last_updated_by", "agent_id"}
 TARGETS = {"assigned_to_agent", "receiver_agent", "recipients", "owner_agent",
            "executing_agent", "used_by_agents", "user_id"}
+# Everything else lives in native typed columns (or org_states.state).
+# IDs and content must not be duplicated in legacy_meta.
+UNTYPED_V1_FIELDS = {"context_embedding", "related_documents"}
 KIND_TABLE = {
     "memory": "unstructured_data", "decision": "decision_log", "knowledge": "kb_index",
     "org_state": "org_state", "task": "agent_tasks", "experiment": "experiments",
@@ -47,9 +50,10 @@ def claims(conn, context, payload, meta=None):
     current_claims = {key: payload[key] for key in SELF if key in payload}
     claimed.update(current_claims)
     meta["claimed"] = claimed
-    meta["v1_fields"] = {**meta.get("v1_fields", {}), **payload}
-    # Self fields in returned legacy views describe the real principal, not a claim.
-    meta["v1_fields"].update({key: context.principal["slug"] for key in SELF if key in payload})
+    meta["v1_fields"] = {
+        key: value for key, value in {**meta.get("v1_fields", {}), **payload}.items()
+        if key in UNTYPED_V1_FIELDS
+    }
     meta["claimed_identity_mismatch"] = False
     for value in current_claims.values():
         principal = resolve(conn, value)
@@ -65,8 +69,6 @@ def claims(conn, context, payload, meta=None):
             unresolved[field] = value
         else:
             unresolved.pop(field, None)
-        canonical = [item["slug"] if item else raw for item, raw in zip(found, values)]
-        meta["v1_fields"][field] = canonical if isinstance(value, list) else canonical[0]
     meta.update(resolved=resolved, unresolved=unresolved)
     return meta
 

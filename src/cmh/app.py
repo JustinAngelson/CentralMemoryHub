@@ -24,7 +24,9 @@ from cmh.services.entities import EntityService
 from cmh.services.memory import MemoryService
 
 
-def create_app() -> FastAPI:
+def create_app(clock=None) -> FastAPI:
+    # The boot probe and the request-time recovery must use the same clock.
+    initial_clock = clock or (lambda: datetime.now(UTC))
     settings = load_settings()
     database_url = settings.database_url.get_secret_value()
     token = settings.bootstrap_token.get_secret_value()
@@ -44,7 +46,7 @@ def create_app() -> FastAPI:
             raise RuntimeError("Embedding provider/column dimension mismatch")
         provider.embed("cmh embedding readiness")
     except (EmbeddingUnavailable, SQLAlchemyError):
-        entities.embedding_failed(datetime.now(UTC))
+        entities.embedding_failed(initial_clock())
     memory = MemoryService(entities)
     server = build_mcp(settings, memory)
     mcp_app = server.streamable_http_app()
@@ -64,7 +66,7 @@ def create_app() -> FastAPI:
     app.state.engine = engine
     app.state.session_factory = build_session_factory(engine)
     app.state.mcp = server
-    app.state.clock = lambda: datetime.now(UTC)
+    app.state.clock = initial_clock
     app.state.limits = RateLimits()
     app.state.identity_service = service
     app.state.entity_service = entities

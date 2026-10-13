@@ -9,7 +9,8 @@ from sqlalchemy import text
 
 from cmh import audit
 from cmh.kernel import MIRRORED, TYPED, operation
-from cmh.policy.evaluator import can_access, deny, evaluate, namespace, sponsor_ceiling
+from cmh.policy.evaluator import deny, evaluate, namespace
+from cmh.policy.readable import readable_namespaces
 from cmh.policy.scopes import envelope, has_scope
 from cmh.services.embedding import EmbeddingUnavailable
 from cmh.services.provenance import provenance as validate_provenance
@@ -58,12 +59,11 @@ class EntityService:
             return True
 
     def scope(self, connection, context):
-        subject = context.principal
-        readable = [str(row["id"]) for row in connection.execute(text(
-            "SELECT id,path::text FROM namespaces"
-        )).mappings() if can_access(connection, subject, row["path"]) and sponsor_ceiling(
-            connection, subject, row["path"],
-        )]
+        if "readable" not in context.policy_cache:
+            context.policy_cache["readable"] = readable_namespaces(
+                connection, context.principal,
+            )
+        readable = context.policy_cache["readable"]
         connection.execute(text("SELECT set_config('cmh.readable_namespaces',:value,true)"),
                            {"value": ",".join(readable)})
         return readable
@@ -120,7 +120,10 @@ class EntityService:
         }
 
     def version(self, connection, context, snapshot, change_kind, vector):
-        snapshot = {key: value for key, value in snapshot.items() if key != "search_tsv"}
+        # search_text is a derived retrieval index, not another copy of the
+        # typed content in the immutable version. The embedding is retained.
+        snapshot = {key: value for key, value in snapshot.items()
+                    if key not in ("search_tsv", "search_text")}
         # Keep the native v2 vector with its immutable snapshot for historical semantic
         # retrieval. Historical v1 context_embedding remains legacy_meta only (P7).
         snapshot["__embedding"] = vector
