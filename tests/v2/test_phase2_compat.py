@@ -55,20 +55,23 @@ def sample(case, tool, ids):
 @pytest.fixture
 def compat_case(identity):
     case = identity
+    legacy_ids = {kind: str(uuid4().int % (2**60))
+                  for kind in ("structured", "task", "org_state", "session")}
     service = case.app.state.entity_service
     provenance = {"source_type": "agent_inference", "confidence": 0.7,
                   "occurred_at": case.clock()}
     definitions = {
         "memory": ("memory", {"content": "compatibility memory"}, {}),
         "structured": ("memory", {"content": "compatibility structured"}, {
-            "original_table": "project_decisions", "v1_table": "project_decisions", "v1_id": "32",
+            "original_table": "project_decisions", "v1_table": "project_decisions",
+            "v1_id": legacy_ids["structured"],
             "v1_fields": {"context_embedding": [0.1, 0.2], "related_documents": ["example.md"]},
         }),
         "task": ("task", {"title": "compatibility task", "task_status": "open"}, {
-            "v1_table": "agent_tasks", "v1_id": "42"}),
+            "v1_table": "agent_tasks", "v1_id": legacy_ids["task"]}),
         "org_state": ("org_state", {"state_key": "compatibility", "state": {
             "entity": "Example Mechanical", "status": "open", "type": "project",
-        }}, {"v1_table": "org_state", "v1_id": "43"}),
+        }}, {"v1_table": "org_state", "v1_id": legacy_ids["org_state"]}),
         "decision": ("decision", {"context": "example", "decision_text": "compatibility",
                                   "reversal_possible": True}, {}),
         "knowledge": ("knowledge", {"term": "compatibility"}, {}),
@@ -82,14 +85,17 @@ def compat_case(identity):
         assert "id" in value
         ids[name] = str(value["id"])
     ids["session"] = str(uuid4())
+    ids.update({"legacy_" + kind: value for kind, value in legacy_ids.items()})
     with case.admin.begin() as conn:
         if conn.execute(text("SELECT to_regclass('public.sessions')")).scalar():
             conn.execute(text("""
               INSERT INTO sessions(id,principal_id,namespace_id,started_at,legacy_meta)
-              SELECT :id,:principal,id,:now,'{"v1_table":"agent_sessions","v1_id":"41"}'::jsonb
+              SELECT :id,:principal,id,:now,CAST(:meta AS jsonb)
               FROM namespaces WHERE path='org'
             """), {"id": ids["session"], "principal": case.agent_a["principal"]["id"],
-                   "now": case.clock()})
+                   "now": case.clock(), "meta": json.dumps({
+                       "v1_table": "agent_sessions", "v1_id": legacy_ids["session"],
+                   })})
             conn.execute(text("""
               UPDATE agent_directory SET aliases=ARRAY['test_directory_alias']
               WHERE principal_id=:id
@@ -190,7 +196,7 @@ async def test_T2B_4_updates_version_and_historical_snapshot(compat_case, kind, 
     name = "cmh_update_" + kind
     payload = sample(case, name, ids)
     field = "task_id" if kind == "task" else "entity_id"
-    payload["params"][field] = old_id if legacy else ids[kind]
+    payload["params"][field] = ids["legacy_" + kind] if legacy else ids[kind]
     payload["params"]["status"] = "complete"
     async with case.mcp(case.agent_a["credential"]) as session:
         result = await session.call_tool(name, payload)
@@ -305,8 +311,10 @@ async def test_T2B_8_directory_excludes_humans_and_includes_sponsor(compat_case)
 
 @pytest.fixture
 def external_credential(identity):
+    unique = "external_" + uuid4().hex
     response = identity.request(identity.owner_client, "POST", "/admin/api/principals", json={
-        "kind": "human", "slug": "external_" + uuid4().hex, "display_name": "external",
+        "kind": "human", "slug": unique, "display_name": "external",
+        "email": unique + "@example.invalid",
         "role": "external", "tier": 1, "password": "External-test-password-123!",
     })
     assert response.status_code == 201
