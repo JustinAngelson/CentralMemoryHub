@@ -69,7 +69,12 @@ def build_mcp(settings, memory_service=None) -> FastMCP:
         return tool_result(service.record(context, decision, "principals.admin"))
 
     if memory_service:
+        from cmh.mcp.compat import register_compat_tools
         from cmh.mcp.memory import register_memory_tools
+        from cmh.services.compat import CompatService
+
+        server.remove_tool("cmh_register_agent")
 
         register_memory_tools(server, memory_service)
+        register_compat_tools(server, CompatService(memory_service))
     return server

@@ -150,6 +150,8 @@ class EntityService:
         try:
             with self.engine.begin() as conn:
                 result = evaluate(conn, context, op, path)
+                if (legacy_meta or {}).get("claimed_identity_mismatch"):
+                    result = {**result, "claimed_identity_mismatch": True}
                 if result["outcome"] == "ALLOW" and kind not in TYPED:
                     result = deny("VALIDATION_FAILED", 7)
                 if result["outcome"] == "ALLOW" and kind in MIRRORED:
@@ -223,19 +225,26 @@ class EntityService:
             self.embedding_failed()
             result = deny("READ_ONLY_MODE")
         # The state transaction ended before an independent DENY audit append.
+        if (legacy_meta or {}).get("claimed_identity_mismatch"):
+            result = {**result, "claimed_identity_mismatch": True}
         return self.identity.record(context, result, op, path)
 
-    def update(self, context, identity, data):
+    def update(self, context, identity, data, expected_kind=None, legacy_meta=None):
         result = deny("NOT_FOUND")
         path = None
+        op = operation(expected_kind, True) if expected_kind else "entities.update"
         try:
             with self.engine.begin() as conn:
                 readable = self.scope(conn, context)
-                row = self.find(conn, readable, str(identity), self.kinds(context, list(TYPED)))
+                row = self.find(conn, readable, str(identity), self.kinds(
+                    context, [expected_kind] if expected_kind else list(TYPED),
+                ))
                 if row:
                     path = conn.execute(text("SELECT path::text FROM namespaces WHERE id=:id"),
                                         {"id": row["namespace_id"]}).scalar_one()
                     result = evaluate(conn, context, operation(row["kind"], True), path)
+                    if (legacy_meta or {}).get("claimed_identity_mismatch"):
+                        result = {**result, "claimed_identity_mismatch": True}
                     if result["outcome"] == "ALLOW" and row["kind"] in MIRRORED:
                         result = deny("MIRRORED_KIND_FORBIDDEN", 6)
                     if result["outcome"] == "ALLOW" and not self.embedding_ready():
@@ -265,8 +274,10 @@ class EntityService:
                                           if columns[field] == "jsonb" else value})
                         row = dict(conn.execute(text("""
                           UPDATE entities SET current_version=current_version+1,
-                            search_text=:content,updated_at=:now WHERE id=:id RETURNING *
+                            search_text=:content,updated_at=:now,legacy_meta=CAST(:meta AS jsonb)
+                          WHERE id=:id AND namespace_id=ANY(CAST(:readable AS uuid[])) RETURNING *
                         """), {"id": row["id"], "content": content,
+                               "readable": readable, "meta": encode(legacy_meta or row["legacy_meta"]),
                                "now": self.now()}).mappings().one())
                         snapshot = {**row, **current}
                         self.version(conn, context, snapshot, "update", vector)
@@ -276,4 +287,6 @@ class EntityService:
         except EmbeddingUnavailable:
             self.embedding_failed()
             result = deny("READ_ONLY_MODE")
-        return self.identity.record(context, result, "entities.update", path)
+        if (legacy_meta or {}).get("claimed_identity_mismatch"):
+            result = {**result, "claimed_identity_mismatch": True}
+        return self.identity.record(context, result, op, path)

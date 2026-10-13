@@ -250,7 +250,9 @@ def test_5_3_keyword_semantic_fusion(identity):
     assert first.status_code == second.status_code == 201
     result = search(identity, "car", namespace=identity.namespace).json()["results"]
     assert [row["id"] for row in result][:2] == [first.json()["id"], second.json()["id"]]
-    assert result[0]["similarity_score"] > result[1]["similarity_score"] > 0
+    # R3 amends P8: synonym vectors are equal, but keyword evidence still orders RRF.
+    assert 0 < result[1]["similarity_score"] <= 1
+    assert result[0]["similarity_score"] == pytest.approx(result[1]["similarity_score"])
 
 
 def test_T2A_7_write_provider_failure_atomic_and_search_degraded(identity):
@@ -413,15 +415,18 @@ def test_T2A_11_kernel_migration_round_trip(test_database, monkeypatch):
     config = Config(str(ROOT / "v2/alembic.ini"))
     monkeypatch.setenv("CMH_MIGRATE_DATABASE_URL", test_database)
     command.downgrade(config, "0002_identity")
-    command.upgrade(config, "head")
-    with create_engine(normalize_database_url(test_database), hide_parameters=True).connect() as conn:
-        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == (
-            "0003_memory_kernel"
-        )
-        for permission in ("UPDATE", "DELETE", "TRUNCATE"):
-            assert not conn.execute(text(
-                "SELECT has_table_privilege('cmh_app','entity_versions',:p)"
-            ), {"p": permission}).scalar_one()
+    command.upgrade(config, "0003_memory_kernel")
+    try:
+        with create_engine(normalize_database_url(test_database), hide_parameters=True).connect() as conn:
+            assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == (
+                "0003_memory_kernel"
+            )
+            for permission in ("UPDATE", "DELETE", "TRUNCATE"):
+                assert not conn.execute(text(
+                    "SELECT has_table_privilege('cmh_app','entity_versions',:p)"
+                ), {"p": permission}).scalar_one()
+    finally:
+        command.upgrade(config, "head")
 
 
 @pytest.fixture

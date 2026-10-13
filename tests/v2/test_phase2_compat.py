@@ -117,7 +117,7 @@ async def test_T2B_1_v1_payload_and_response_format(compat_case, name):
     if name == "cmh_register_agent":
         denial(result, "PRINCIPAL_CREATION_FORBIDDEN")
         return
-        assert not result.isError, result.structuredContent
+    assert not result.isError, body(result)
     response = TOOLS[name]["response"]
     text_value = body(result)
     if response["format"] == "json_object":
@@ -305,6 +305,7 @@ async def test_T2B_8_directory_excludes_humans_and_includes_sponsor(compat_case)
     case, _ = compat_case
     async with case.mcp(case.agent_a["credential"]) as session:
         result = await session.call_tool("cmh_list_agents")
+    assert not result.isError, body(result)
     entries = json.loads(body(result).split("FULL ORG CHART (JSON):", 1)[1])
     agents = {row["agent_id"]: row for row in entries}
     assert case.owner["id"] not in agents
