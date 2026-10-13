@@ -71,7 +71,9 @@ async def check(url: str, environment: str, unix_socket: str | None = None):
         if result.isError:
             raise RuntimeError("MCP whoami failed")
         body = json.loads(result.content[0].text)
-        if body["principal"] != "agent-smoke" or body["ai_client"] is not True:
+        if (body["principal"] != "agent-smoke" or body["kind"] != "agent"
+                or body["tier"] != 2 or body["sponsor"] != "owner"
+                or body["ai_client"] is not False):
             raise RuntimeError("MCP caller identity mismatch")
         stored = await session.call_tool("cmh_store_memory", {"params": {
             "content": "isolated compose smoke memory",
