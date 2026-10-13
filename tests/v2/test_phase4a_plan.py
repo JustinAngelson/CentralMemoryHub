@@ -12,6 +12,24 @@ pytestmark = pytest.mark.no_app_operation(
 )
 
 
+def test_t4a_target_state_accepts_sqlalchemy_connection_scheme(monkeypatch):
+    from cmh.importing import source
+
+    seen = []
+
+    class BoundaryReached(Exception):
+        pass
+
+    def connect(url, **kwargs):
+        seen.append(url)
+        raise BoundaryReached
+
+    monkeypatch.setattr(source.psycopg, "connect", connect)
+    with pytest.raises(BoundaryReached):
+        source.target_state("postgresql+psycopg://cmh_app:fictional@localhost/cmh_v2_test")
+    assert seen == ["postgresql://cmh_app:fictional@localhost/cmh_v2_test"]
+
+
 def planner():
     return importlib.import_module("cmh.importing.plan")
 
