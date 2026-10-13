@@ -139,6 +139,7 @@ async def test_R9_update_replaces_resolved_owner_and_old_filter_no_longer_matche
         state_id = body(result).splitlines()[1].removeprefix("Entity ID: ")
         updated = await session.call_tool("cmh_update_org_state", {"params": {
             "entity_id": state_id, "owner_agent": display,
+            "last_updated_by": case.agent_a["principal"]["slug"],
         }})
         assert not updated.isError
         old = await session.call_tool("cmh_list_org_states", {"params": {
