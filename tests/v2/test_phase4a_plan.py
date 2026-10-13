@@ -398,3 +398,15 @@ def test_cli_accepts_private_review_output_directory(tmp_path):
     cli = runpy.run_path(str(Path(__file__).parents[2] / "v2" / "import_v1.py"))
     directory = tmp_path / ".local" / "cmh-v2-import"
     assert cli["private_output_directory"](directory) == directory.resolve()
+
+
+@pytest.mark.parametrize("alias", ["EXM", "TFG", "RH", "DPM"])
+def test_short_alias_case_sensitive_whole_words(alias):
+    module = importlib.import_module("cmh.importing.namespaces")
+    org = [{"namespace": "org.clients.example", "aliases": [alias]}]
+    rows = module.make_namespaces({"unstructured_data": [
+        {"id": "exact", "content": f"Work {alias} today"},
+        {"id": "lower", "content": f"Work {alias.lower()} today"},
+        {"id": "embedded", "content": f"prefix{alias}suffix"},
+    ]}, org, {})
+    assert [x["proposed_namespace"] for x in rows] == ["org.clients.example", "org", "org"]
