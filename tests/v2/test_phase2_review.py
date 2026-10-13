@@ -52,6 +52,13 @@ def test_R4_readable_set_matches_oracle_for_entire_fixture_world(identity):
           SELECT :principal,id,'read',:owner FROM namespaces WHERE path='org.finance'
         """), {"principal": case.agent_a["principal"]["id"], "owner": case.owner["id"]})
     entities = case.app.state.entity_service
+    # Bootstrapped Owner IDs can be UUIDs in later tests, while API responses
+    # return strings. psycopg cannot adapt an array of mixed Python types.
+    fixture_ids = [str(value) for value in (
+        case.owner["id"], case.partner_a["id"], case.partner_b["id"],
+        case.agent_a["principal"]["id"], case.agent_b["principal"]["id"],
+        external["principal"]["id"],
+    )]
     for explicit_sponsor_grant in (False, True):
         if explicit_sponsor_grant:
             with case.admin.begin() as conn:
@@ -60,7 +67,10 @@ def test_R4_readable_set_matches_oracle_for_entire_fixture_world(identity):
                   SELECT :principal,id,'read',:owner FROM namespaces WHERE path='org.finance'
                 """), {"principal": case.partner_a["id"], "owner": case.owner["id"]})
         with entities.engine.begin() as conn:
-            world = [dict(row) for row in conn.execute(text("SELECT * FROM principals")).mappings()]
+            world = [dict(row) for row in conn.execute(text(
+                "SELECT * FROM principals WHERE id=ANY(CAST(:ids AS uuid[]))"
+            ), {"ids": fixture_ids}).mappings()]
+            assert len(world) == len(fixture_ids)
             namespaces = list(conn.execute(text("SELECT id,path::text FROM namespaces")).mappings())
             for subject in world:
                 expected = {str(n["id"]) for n in namespaces if can_access(
