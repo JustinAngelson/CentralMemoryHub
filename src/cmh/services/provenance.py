@@ -46,8 +46,24 @@ def provenance(context, payload, now, compatibility=False):
             meta["claimed"].update({key: value for key, value in tags.items() if key == "agent"})
         default_source = "conversation" if context.principal["kind"] == "human" else "agent_inference"
         source, confidence = SOURCE_CONFIDENCE.get(tags.get("source"), (default_source, 0.70))
+        tag_date = now
+        unparsed = []
+        if "date" in tags:
+            try:
+                tag_date = timestamp(tags["date"])
+            except (ValueError, TypeError):
+                unparsed.append(f'[date: {tags["date"]}]')
+        if "source" in tags and tags["source"] not in SOURCE_CONFIDENCE:
+            unparsed.append(f'[source: {tags["source"]}]')
+        if unparsed:
+            keys = {"date" if value.startswith("[date:") else "source" for value in unparsed}
+            meta["unparsed_tags"] = [
+                match.group(0) for match in re.finditer(r"\[([a-z_-]+):[^\]]+\]", original)
+                if match.group(1) in keys
+            ]
+            meta["provenance_defaulted"] = True
         defaults = {"source_type": source, "confidence": confidence,
-                    "occurred_at": tags.get("date", now)}
+                    "occurred_at": tag_date}
         for key, value in defaults.items():
             if key not in payload:
                 values[key] = value

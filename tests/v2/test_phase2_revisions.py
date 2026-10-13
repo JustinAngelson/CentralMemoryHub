@@ -41,8 +41,11 @@ def test_R1_cooldown_and_recovery(identity, monkeypatch, failure):
     identity.clock.advance(seconds=61)
     result = service.store(context(identity), payload)
     assert "id" in result and result.get("outcome") != "DENY"
-    with TestClient(app) as client:
-        health = client.get("/healthz")
+    if failure == "boot":
+        with TestClient(app) as client:
+            health = client.get("/healthz")
+    else:
+        health = identity.request(identity.owner_client, "GET", "/healthz")
     assert health.status_code == 200
     assert health.json()["read_only"] is False and health.json()["status"] == "ok"
 

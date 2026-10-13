@@ -43,7 +43,7 @@ def graph(connection, readable, kinds, anchor, depth, at, historical=False):
 
 
 def hybrid(connection, readable, kinds, query, provider, vector_store, *,
-           namespace_id=None, candidate_ids=None, as_of=None, limit=10):
+           namespace_id=None, candidate_ids=None, as_of=None, limit=10, skip_embedding=False):
     from cmh.services.embedding import EmbeddingUnavailable
 
     params = {
@@ -82,8 +82,12 @@ def hybrid(connection, readable, kinds, query, provider, vector_store, *,
       ORDER BY ts_rank(tsv,plainto_tsquery('english',:query)) DESC,id LIMIT :top
     """), {**params, "top": top}).mappings().all()
     degraded = False
+    vector = None
     try:
-        vector_results = vector_store.top(connection, candidates, params, provider.embed(query), top)
+        if skip_embedding:
+            raise EmbeddingUnavailable()
+        vector = provider.embed(query)
+        vector_results = vector_store.top(connection, candidates, params, vector, top)
     except EmbeddingUnavailable:
         degraded = True
         vector_results = []
@@ -94,11 +98,19 @@ def hybrid(connection, readable, kinds, query, provider, vector_store, *,
             scores[identity] = scores.get(identity, 0) + 1 / (60 + rank)
             snapshots[identity] = row["snapshot"]
     ordered = sorted(scores, key=lambda identity: (-scores[identity], identity))[:limit]
+    similarities = {}
+    if vector is not None:
+        similarities = {str(row["id"]): max(0.0, min(1.0, float(row["score"] or 0)))
+                        for row in connection.execute(text(candidates + """
+                          SELECT id,1-(vector <=> CAST(:query_vector AS vector)) AS score
+                          FROM candidates WHERE id=ANY(CAST(:result_ids AS uuid[]))
+                        """), {**params, "query_vector": encode(vector),
+                               "result_ids": ordered}).mappings()}
     results = []
     for identity in ordered:
         snapshot = public_snapshot(snapshots[identity])
         snapshot.update(
-            id=identity, similarity_score=scores[identity],
+            id=identity, similarity_score=similarities.get(identity, 0.0),
             content=snapshot.get("content") or snapshot.get("body") or snapshot.get("search_text", ""),
             pinecone_id=snapshot.get("legacy_meta", {}).get("pinecone_id"),
         )

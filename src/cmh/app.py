@@ -33,7 +33,7 @@ def create_app() -> FastAPI:
     guard_runtime_role(engine, settings.env)
     service = IdentityService(engine, lambda: app.state.clock())
     provider = build_embedding_provider(settings)
-    entities = EntityService(service, provider)
+    entities = EntityService(service, provider, settings.embedding_retry_seconds)
     try:
         with engine.connect() as connection:
             dimensions = connection.execute(text("""
@@ -44,7 +44,7 @@ def create_app() -> FastAPI:
             raise RuntimeError("Embedding provider/column dimension mismatch")
         provider.embed("cmh embedding readiness")
     except (EmbeddingUnavailable, SQLAlchemyError):
-        entities.read_only = True
+        entities.embedding_failed(datetime.now(UTC))
     memory = MemoryService(entities)
     server = build_mcp(settings, memory)
     mcp_app = server.streamable_http_app()

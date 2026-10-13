@@ -1,6 +1,8 @@
 """Atomic entity/version/typed/vector/audit writes and explicitly scoped reads."""
 
 import json
+from datetime import timedelta
+from threading import RLock
 from uuid import UUID, uuid4
 
 from sqlalchemy import text
@@ -23,13 +25,37 @@ def public_snapshot(snapshot):
 
 
 class EntityService:
-    def __init__(self, identity, provider):
+    def __init__(self, identity, provider, retry_seconds=60):
         self.identity = identity
         self.engine = identity.engine
         self.now = identity.now
         self.provider = provider
         self.read_only = False
+        self.retry_seconds = retry_seconds
+        self.retry_at = None
+        self.provider_lock = RLock()
         self.after_version = None
+
+    def embedding_failed(self, at=None):
+        with self.provider_lock:
+            self.read_only = True
+            self.retry_at = (at or self.now()) + timedelta(seconds=self.retry_seconds)
+
+    def embedding_ready(self):
+        # One probe per process after the cooldown; denied/invalid callers never reach this.
+        with self.provider_lock:
+            if not self.read_only:
+                return True
+            if self.retry_at is not None and self.now() < self.retry_at:
+                return False
+            try:
+                self.provider.embed("cmh embedding readiness")
+            except EmbeddingUnavailable:
+                self.embedding_failed()
+                return False
+            self.read_only = False
+            self.retry_at = None
+            return True
 
     def scope(self, connection, context):
         subject = context.principal
@@ -128,7 +154,7 @@ class EntityService:
                     result = deny("VALIDATION_FAILED", 7)
                 if result["outcome"] == "ALLOW" and kind in MIRRORED:
                     result = deny("MIRRORED_KIND_FORBIDDEN", 6)
-                if result["outcome"] == "ALLOW" and self.read_only:
+                if result["outcome"] == "ALLOW" and not self.embedding_ready():
                     result = deny("READ_ONLY_MODE")
                 if result["outcome"] == "ALLOW":
                     values, _meta, invalid = validate_provenance(context, provenance, self.now())
@@ -194,7 +220,7 @@ class EntityService:
                             "pinecone_id": (legacy_meta or {}).get("pinecone_id"),
                         }
         except EmbeddingUnavailable:
-            self.read_only = True
+            self.embedding_failed()
             result = deny("READ_ONLY_MODE")
         # The state transaction ended before an independent DENY audit append.
         return self.identity.record(context, result, op, path)
@@ -212,7 +238,7 @@ class EntityService:
                     result = evaluate(conn, context, operation(row["kind"], True), path)
                     if result["outcome"] == "ALLOW" and row["kind"] in MIRRORED:
                         result = deny("MIRRORED_KIND_FORBIDDEN", 6)
-                    if result["outcome"] == "ALLOW" and self.read_only:
+                    if result["outcome"] == "ALLOW" and not self.embedding_ready():
                         result = deny("READ_ONLY_MODE")
                 if row and result["outcome"] == "ALLOW":
                     # Lock before loading current state; concurrent updates never reuse a version.
@@ -248,6 +274,6 @@ class EntityService:
                                      self.now(), path, resource_id=row["id"])
                         return public_snapshot(snapshot)
         except EmbeddingUnavailable:
-            self.read_only = True
+            self.embedding_failed()
             result = deny("READ_ONLY_MODE")
         return self.identity.record(context, result, "entities.update", path)
