@@ -7,9 +7,9 @@ from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 from mcp.types import CallToolResult, TextContent
 
-from cmh import __version__
+from cmh import __version__, audit
 from cmh.auth.context import current_context, current_service
-from cmh.policy.evaluator import deny
+from cmh.policy.evaluator import allow, deny
 
 
 def build_mcp(settings, memory_service=None) -> FastMCP:
@@ -50,6 +50,17 @@ def build_mcp(settings, memory_service=None) -> FastMCP:
     def cmh_whoami() -> CallToolResult:
         """Report caller claims without secrets; no caller-supplied identity."""
         return tool_result(current_service.get().whoami(current_context.get()))
+
+    @server.tool()
+    def cmh_verify_audit_chain() -> CallToolResult:
+        """Verify integrity only, under authenticated metadata access; never return events."""
+        return tool_result(current_service.get().perform(
+            current_context.get(), "identity.whoami",
+            change=lambda connection: audit.verify(connection),
+            # Like cmh_ping/whoami, this reveals authenticated metadata only.
+            # No event rows, namespaces or application records are returned.
+            decision=allow(), audit_operation="audit.verify",
+        ))
 
     @server.tool()
     def cmh_check_access(operation: str, namespace: str | None = None) -> CallToolResult:

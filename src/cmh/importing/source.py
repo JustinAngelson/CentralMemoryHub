@@ -105,7 +105,8 @@ def read_source(url, include_waitlist=False):
 
 
 def target_state(url):
-    with psycopg.connect(url, row_factory=dict_row, connect_timeout=15) as conn:
+    native_url = url.replace("postgresql+psycopg://", "postgresql://", 1)
+    with psycopg.connect(native_url, row_factory=dict_row, connect_timeout=15) as conn:
         conn.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
         names = [r["tablename"] for r in conn.execute(
             "SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY tablename")]
