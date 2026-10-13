@@ -7,6 +7,7 @@ from uuid import uuid4
 import pytest
 from contract_helpers import denied
 from sqlalchemy import text
+from sqlalchemy.exc import DBAPIError
 
 NATIVE = {
     "memory": ("memories", {"content": "kernel contract"}),
@@ -24,7 +25,7 @@ MIRRORED = {
     "org": ("orgs", {"name": "Example Mechanical"}),
     "engagement": ("engagements", {"name": "example engagement"}),
     "project": ("projects", {"name": "example project"}),
-    "note": ("notes", {"content": "kernel contract"}),
+    "note": ("notes", {"body": "kernel contract"}),
 }
 
 
@@ -267,8 +268,10 @@ def test_T2A_8_search_audit_filters_not_query_or_content(identity):
 def test_T2A_9_fault_rolls_back_all_allow_state_but_denial_survives(identity):
     service = identity.app.state.entity_service
     before = identity.audit()[-1]["seq"]
+    identities = []
 
     def fail(_connection, _identity):
+        identities.append(_identity)
         raise RuntimeError("Injected after version")
 
     service.after_version = fail
@@ -278,6 +281,9 @@ def test_T2A_9_fault_rolls_back_all_allow_state_but_denial_survives(identity):
     assert identity.audit()[-1]["seq"] == before
     assert not rows(identity, "SELECT id FROM entities WHERE search_text='atomic-allow'")
     assert not rows(identity, "SELECT id FROM memories WHERE content='atomic-allow'")
+    for table in ("entity_versions", "embeddings"):
+        assert not rows(identity, f"SELECT entity_id FROM {table} WHERE entity_id=:id",
+                        id=identities[0])
     denied(store(identity, confidence=1.3), "VALIDATION_FAILED")
     assert identity.audit()[-1]["seq"] > before
 
@@ -303,10 +309,9 @@ def test_5_1_typed_registry_bijection_and_memory_link_default_exclusion(identity
             assert not rows(identity, f"SELECT id FROM {other_table} WHERE id=:id", id=entity_id)
     if kind == "memory_link":
         assert all(row["kind"] != kind for row in search(identity).json()["results"])
-    with pytest.raises(Exception):
-        with identity.admin.begin() as conn:
-            conn.execute(text("INSERT INTO memories(id,content) VALUES(:id,'wrong kind')"),
-                         {"id": entity_id})
+    with pytest.raises(DBAPIError), identity.admin.begin() as conn:
+        conn.execute(text("INSERT INTO memories(id,content) VALUES(:id,'wrong kind')"),
+                     {"id": entity_id})
 
 
 def test_5_2_version_update_and_point_in_time(identity):
@@ -334,14 +339,18 @@ def test_5_4_5_graph_walk_each_hop_readable_default_depth_three(identity, hidden
     engagement = fixture_entity(identity, "engagement", MIRRORED["engagement"][1],
                                 private if hidden_middle else "org")
     project = fixture_entity(identity, "project", MIRRORED["project"][1])
-    note = fixture_entity(identity, "note", {"content": "graph reachable"})
+    note = fixture_entity(identity, "note", {"body": "graph reachable"})
     memory = store(identity, "graph reachable").json()["id"]
     unrelated = store(identity, "graph unreachable").json()["id"]
-    for src, dst in [(org, engagement), (engagement, project), (project, note), (project, memory)]:
+    for src, dst, edge_type in [
+        (org, engagement, "has_engagement"), (engagement, project, "delivered_by"),
+        (note, engagement, "note_on"), (memory, project, "about"),
+    ]:
         identity.tamper("""
-          INSERT INTO edges(src_entity_id,dst_entity_id,type,author_principal_id,actor,status)
-          VALUES(:src,:dst,'relates_to',:author,'fixture','active')
-        """, src=src, dst=dst, author=identity.owner["id"])
+          INSERT INTO edges(src_entity_id,dst_entity_id,type,author_principal_id,actor,status,
+            valid_from)
+          VALUES(:src,:dst,:type,:author,'fixture','active',:now)
+        """, src=src, dst=dst, type=edge_type, author=identity.owner["id"], now=identity.clock())
     result = search(identity, "graph", anchor_entity_id=org, kinds=["memory", "note"]).json()
     ids = {row["id"] for row in result["results"]}
     assert unrelated not in ids
@@ -373,13 +382,12 @@ def test_5_8_rls_backstop_without_explicit_filter_and_missing_setting(identity):
 @pytest.mark.parametrize("operation", ["UPDATE", "DELETE", "TRUNCATE"])
 def test_4_4b_versions_are_append_only(identity, operation):
     assert store(identity).status_code == 201
-    with pytest.raises(Exception, match="permission denied"):
-        with identity.engine.begin() as conn:
-            conn.execute(text({
-                "UPDATE": "UPDATE entity_versions SET actor='mutated'",
-                "DELETE": "DELETE FROM entity_versions",
-                "TRUNCATE": "TRUNCATE entity_versions",
-            }[operation]))
+    with pytest.raises(DBAPIError, match="permission denied"), identity.engine.begin() as conn:
+        conn.execute(text({
+            "UPDATE": "UPDATE entity_versions SET actor='mutated'",
+            "DELETE": "DELETE FROM entity_versions",
+            "TRUNCATE": "TRUNCATE entity_versions",
+        }[operation]))
 
 
 @pytest.mark.no_app_operation(reason="Kernel migration round trip and role grant inspection.")
@@ -505,3 +513,13 @@ async def test_P8_memory_get_exact_json_labels_and_search_text(identity):
     assert not found.isError
     assert found.content[0].text.startswith('Found 1 result(s) for "format":\n\n[1] (score: ')
     assert found.content[0].text.endswith(f") [id: {entity_id}]\nformat contract")
+
+
+def test_private_descendants_inherit_owner_exclusion_and_partner_access(identity):
+    path = "people." + identity.partner_a["slug"] + ".private.child"
+    created = identity.request(identity.owner_client, "POST", "/admin/api/namespaces",
+                               json={"path": path})
+    assert created.status_code == 201
+    denied(identity.check(identity.owner_token, "memory.read", path), "NAMESPACE_FORBIDDEN", step=5)
+    personal = identity.credential(identity.client_a, identity.partner_a, "personal-ai-client")
+    assert identity.check(personal, "memory.read", path).json()["outcome"] == "ALLOW"

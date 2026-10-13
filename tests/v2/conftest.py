@@ -122,8 +122,10 @@ def test_database():
         for name in sorted(allowed):
             conn.execute(text(f'DROP TABLE IF EXISTS "{name}" CASCADE'))
         # Table CASCADE removes triggers, not their standalone functions.
-        for name in ("immutable_principal_slug", "require_human_user"):
-            conn.execute(text(f"DROP FUNCTION IF EXISTS {name}()"))
+        for name in ("immutable_principal_slug", "require_human_user",
+                     "check_kernel_edge", "check_kernel_integrity", "kernel_integrity"):
+            argument = "uuid" if name == "kernel_integrity" else ""
+            conn.execute(text(f"DROP FUNCTION IF EXISTS {name}({argument})"))
         for extension in ("vector", "ltree", "pgcrypto"):
             conn.execute(text(f"DROP EXTENSION IF EXISTS {extension}"))
     config = Config(str(ROOT / "v2/alembic.ini"))
