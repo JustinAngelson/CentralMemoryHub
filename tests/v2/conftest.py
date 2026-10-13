@@ -18,6 +18,12 @@ sys.path.insert(0, str(Path(__file__).parent))
 pytest_plugins = ["identity_fixtures"]
 
 
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers", "no_app_operation(reason): audited meta-fixture exemption with required reason",
+    )
+
+
 def assert_v1_ports_only():
     """Run after every Unix-socket start, including the actual repl config."""
     paths = [ROOT / ".replit"]
@@ -58,7 +64,12 @@ def audit_admin(test_database):
 
 @pytest.hookimpl(wrapper=True)
 def pytest_runtest_call(item):
-    from audit_contract import BodyActivity, highest_seq, observe_body, validate_exemption
+    from audit_contract import (
+        BodyActivity,
+        highest_seq,
+        observe_body,
+        validate_exemption,
+    )
 
     engine = item.funcargs["audit_gate"]
     marker = item.get_closest_marker("no_app_operation")

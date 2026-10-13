@@ -2,6 +2,7 @@
 import csv
 import importlib
 import json
+import uuid
 from pathlib import Path
 
 import pytest
@@ -282,3 +283,118 @@ def test_plan_module_cannot_read_legacy_secret_variables(monkeypatch):
     monkeypatch.setattr(module.os, "environ", Guarded())
     with pytest.raises(ValueError):
         module.connection_from_env("DATABASE_URL", "cmh_v1_snapshot")
+
+
+@pytest.fixture(scope="module")
+def snapshot_fixture(test_database):
+    import psycopg
+    from conftest import SensitiveTestValue
+    from psycopg import sql
+    from psycopg.conninfo import conninfo_to_dict, make_conninfo
+
+    info = conninfo_to_dict(str(test_database).replace("postgresql+psycopg://", "postgresql://"))
+    name = "cmh_v1_fixture_" + uuid.uuid4().hex
+    created_role = False
+    with psycopg.connect(make_conninfo(**info), autocommit=True) as admin:
+        if not admin.execute(
+            "SELECT 1 FROM pg_roles WHERE rolname='cmh_v1_reader'",
+        ).fetchone():
+            admin.execute("CREATE ROLE cmh_v1_reader NOLOGIN")
+            admin.execute("ALTER ROLE cmh_v1_reader SET default_transaction_read_only=on")
+            created_role = True
+        admin.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(name)))
+    url = SensitiveTestValue(make_conninfo(**{**info, "dbname": name}))
+    try:
+        with psycopg.connect(url, autocommit=True) as admin:
+            admin.execute("DROP SCHEMA public")
+            schema = Path(__file__).parent / "fixtures" / "v1_schema.sql"
+            admin.execute(schema.read_text())
+            admin.execute("REVOKE CREATE ON SCHEMA public FROM PUBLIC")
+            admin.execute("GRANT USAGE ON SCHEMA public TO cmh_v1_reader")
+            admin.execute("GRANT SELECT ON ALL TABLES IN SCHEMA public TO cmh_v1_reader")
+            admin.execute("GRANT SELECT ON ALL SEQUENCES IN SCHEMA public TO cmh_v1_reader")
+            admin.execute("""INSERT INTO public.agent_directory(agent_id,name,role,status)
+                VALUES('00000000-0000-0000-0000-000000000001','Owner Test','AI Agent','active')""")
+            admin.execute("""INSERT INTO public.unstructured_data(id,content,pinecone_id)
+                VALUES('memory-one','Example Mechanical [agent: Owner Test]','fake-vector')""")
+        yield url
+    finally:
+        with psycopg.connect(make_conninfo(**info), autocommit=True) as admin:
+            admin.execute(sql.SQL("DROP DATABASE {}").format(sql.Identifier(name)))
+            if created_role:
+                admin.execute("DROP ROLE cmh_v1_reader")
+
+
+def test_t4a_6_source_uses_reader_and_read_only(snapshot_fixture):
+    module = importlib.import_module("cmh.importing.source")
+    with module.source_connection(snapshot_fixture) as conn:
+        values = conn.execute("SELECT current_user AS name,current_setting('transaction_read_only') AS mode").fetchone()
+        assert values == {"name": "cmh_v1_reader", "mode": "on"}
+
+
+def test_t4a_6_write_through_source_fails_25006(snapshot_fixture):
+    import psycopg
+
+    module = importlib.import_module("cmh.importing.source")
+    with pytest.raises(psycopg.errors.ReadOnlySqlTransaction), module.source_connection(snapshot_fixture) as conn:
+        conn.execute("INSERT INTO public.unstructured_data(id,content) VALUES('never-stored','fictional')")
+
+
+def test_t4a_6_unreachable_legacy_urls_not_read(snapshot_fixture, monkeypatch):
+    monkeypatch.setenv("DATABASE_URL", "postgresql://unreachable.invalid/never")
+    monkeypatch.setenv("MCP_BEARER_TOKEN", "fictional-canary")
+    module = importlib.import_module("cmh.importing.source")
+    snapshot = module.read_source(snapshot_fixture)
+    assert len(snapshot["counts"]) == 24
+    assert "api_keys" not in snapshot["tables"]
+    assert "waitlist" not in snapshot["tables"]
+    assert snapshot["counts"]["unstructured_data"] == 1
+
+
+def test_t4a_8_target_counts_and_audit_unchanged(snapshot_fixture, test_database, defaults, orgs, tmp_path):
+    module = importlib.import_module("cmh.importing.source")
+    before = module.target_state(test_database)
+    minimal = {**defaults, "rules": defaults["rules"][:1], "additions": [],
+               "attribution_aliases": {}, "attribution_prefixes": {}, "attribution_patterns": []}
+    result = planner().build_plan(module.read_source(snapshot_fixture), minimal, planner().load_orgs(orgs))
+    planner().write_plan(result, tmp_path)
+    assert module.target_state(test_database) == before
+
+
+def test_t4a_6_remote_snapshot_url_refused_before_connect(monkeypatch):
+    module = importlib.import_module("cmh.importing.source")
+    monkeypatch.setenv("CMH_V1_SNAPSHOT_URL", "postgresql://reader@unreachable.invalid/cmh_v1_snapshot")
+    with pytest.raises(ValueError, match="isolated local"):
+        module.connection_from_env("CMH_V1_SNAPSHOT_URL", "cmh_v1_snapshot")
+
+
+def test_t4a_8_whole_target_metadata_can_use_isolated_admin_env(monkeypatch):
+    from psycopg.conninfo import conninfo_to_dict
+
+    module = importlib.import_module("cmh.importing.source")
+    monkeypatch.setenv("CMH_TEST_DATABASE_URL", "postgresql://test_admin@localhost/cmh_v2_test")
+    info = conninfo_to_dict(module.connection_from_env("CMH_TEST_DATABASE_URL", "cmh_v2_import"))
+    assert info["dbname"] == "cmh_v2_import" and info["user"] == "test_admin"
+
+
+def test_t4a_8_snapshot_secret_cannot_be_used_as_target_env(monkeypatch):
+    module = importlib.import_module("cmh.importing.source")
+    monkeypatch.setenv("CMH_V1_SNAPSHOT_URL", "postgresql://reader@localhost/cmh_v1_snapshot")
+    with pytest.raises(ValueError):
+        module.connection_from_env("CMH_V1_SNAPSHOT_URL", "cmh_v2_import")
+
+
+def test_cli_refuses_public_review_output_directory(tmp_path):
+    import runpy
+
+    cli = runpy.run_path(str(Path(__file__).parents[2] / "v2" / "import_v1.py"))
+    with pytest.raises(ValueError, match="private"):
+        cli["private_output_directory"](tmp_path / "public")
+
+
+def test_cli_accepts_private_review_output_directory(tmp_path):
+    import runpy
+
+    cli = runpy.run_path(str(Path(__file__).parents[2] / "v2" / "import_v1.py"))
+    directory = tmp_path / ".local" / "cmh-v2-import"
+    assert cli["private_output_directory"](directory) == directory.resolve()
