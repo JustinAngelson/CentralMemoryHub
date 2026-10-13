@@ -148,6 +148,17 @@ def test_3_provenance_strict_validation_and_durable_denial(identity, extra, code
     assert identity.audit()[-1]["outcome"] == "DENY"
 
 
+def test_3_4_rest_ignores_spoofed_author_and_actor(identity):
+    response = store(identity, "strict REST authorship", author_principal_id=identity.partner_b["id"],
+                     actor="not-the-caller")
+    assert response.status_code == 201
+    row = rows(identity, "SELECT * FROM entities WHERE id=:id", id=response.json()["id"])[0]
+    assert str(row["author_principal_id"]) == identity.agent_a["principal"]["id"]
+    assert row["actor"] == identity.agent_a["credential"]["name"]
+    assert row["legacy_meta"]["claimed"]["author_principal_id"] == identity.partner_b["id"]
+    assert row["legacy_meta"]["claimed"]["actor"] == "not-the-caller"
+
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize("extra,code", [
     ({"confidence": 1.3}, "VALIDATION_FAILED"),
