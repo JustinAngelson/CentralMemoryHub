@@ -20,11 +20,13 @@ def test_R1_cooldown_and_recovery(identity, monkeypatch, failure):
 
     app = identity.app
     if failure == "boot":
+        # Boot must use this controlled clock, even if setup took much longer
+        # than one second. No real-time sleep or tolerance is involved.
+        identity.clock.advance(hours=-1)
         provider = FakeEmbeddingProvider()
         provider.fail = True
         monkeypatch.setattr(cmh.app, "build_embedding_provider", lambda _: provider)
-        app = cmh.app.create_app()
-        app.state.clock = identity.clock
+        app = cmh.app.create_app(clock=identity.clock)
     provider = app.state.embedding_provider
     service = app.state.memory_service
     payload = {"content": "recovery contract", "source_type": "agent_inference",
