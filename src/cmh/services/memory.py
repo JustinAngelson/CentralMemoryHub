@@ -93,11 +93,12 @@ class MemoryService:
                     result = deny("NOT_FOUND")
             if result["outcome"] == "ALLOW":
                 node = namespace(conn, path) if path else None
+                ready = self.entities.embedding_ready()
                 body = hybrid(conn, readable, kinds, query, self.entities.provider, self.vector_store,
                               namespace_id=node["id"] if node else None, candidate_ids=ids,
-                              as_of=at, limit=limit)
-                if body["degraded"]:
-                    self.entities.read_only = True
+                              as_of=at, limit=limit, skip_embedding=not ready)
+                if body["degraded"] and ready:
+                    self.entities.embedding_failed()
                 trace = {**result, "filters": {
                     "kinds": kinds, "namespace": path,
                     "anchor_entity_id": str(anchor) if anchor else None,

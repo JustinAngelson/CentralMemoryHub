@@ -10,6 +10,8 @@ class PrincipalContext:
     credential: dict | None = None
     session_hash: str | None = None
     request_meta: dict = field(default_factory=dict)
+    # Request-local performance cache, never shared across authenticated requests.
+    policy_cache: dict = field(default_factory=dict, compare=False, repr=False)
 
     @property
     def actor(self):

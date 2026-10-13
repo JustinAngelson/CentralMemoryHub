@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     embedding_provider: str = "openai"
     embedding_model: str = "text-embedding-3-small"
     embedding_dimensions: int = Field(default=1536, ge=1)
+    embedding_retry_seconds: int = Field(default=60, ge=0)
 
     @field_validator("embedding_provider")
     @classmethod

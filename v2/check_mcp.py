@@ -4,7 +4,9 @@ import argparse
 import asyncio
 import json
 import os
+import re
 import secrets
+from importlib.resources import files
 
 import httpx
 from mcp import ClientSession
@@ -39,7 +41,18 @@ async def check(url: str, environment: str, unix_socket: str | None = None):
         })
         if credential.status_code != 201:
             raise RuntimeError("Smoke credential issuance failed")
-        bearer = credential.json()["token"]
+        owner_bearer = credential.json()["token"]
+        agent = await http.post(base + "/admin/api/principals", headers={
+            "Cookie": "cmh_session=" + value, "Origin": os.environ.get("CMH_PUBLIC_URL", base),
+        }, json={
+            "kind": "agent", "slug": "agent-smoke", "display_name": "agent_smoke",
+            "tier": 2, "sponsor_id": boot.json()["principal"]["id"],
+            "template": "openclaw-agent-standard", "credential_name": "smoke-agent-runtime",
+        })
+        if agent.status_code != 201:
+            raise RuntimeError("Smoke template agent provisioning failed")
+        bearer = agent.json()["credential"]["token"]
+        agent_id = agent.json()["principal"]["id"]
     transport = httpx.AsyncHTTPTransport(uds=unix_socket) if unix_socket else None
     async with (
         httpx.AsyncClient(headers={"Authorization": "Bearer " + bearer}, transport=transport) as http,
@@ -48,15 +61,19 @@ async def check(url: str, environment: str, unix_socket: str | None = None):
     ):
         await session.initialize()
         tools = await session.list_tools()
-        required = {"cmh_ping", "cmh_whoami", "cmh_check_access", "cmh_register_agent",
-                    "cmh_store_memory", "cmh_get_memory", "cmh_search_memory"}
-        if not required <= {tool.name for tool in tools.tools}:
-            raise RuntimeError("Missing Phase 1 MCP tools")
+        inventory = json.loads(files("cmh.mcp").joinpath("v1_inventory.json").read_text())
+        required = {item["name"] for item in inventory["tools"]} | {
+            "cmh_ping", "cmh_whoami", "cmh_check_access",
+        }
+        if required != {tool.name for tool in tools.tools}:
+            raise RuntimeError("MCP compatibility must expose exactly 34 tools")
         result = await session.call_tool("cmh_whoami", {})
         if result.isError:
             raise RuntimeError("MCP whoami failed")
         body = json.loads(result.content[0].text)
-        if body["principal"] != "owner" or body["ai_client"] is not True:
+        if (body["principal"] != "agent-smoke" or body["kind"] != "agent"
+                or body["tier"] != 2 or body["sponsor"] != "owner"
+                or body["ai_client"] is not False):
             raise RuntimeError("MCP caller identity mismatch")
         stored = await session.call_tool("cmh_store_memory", {"params": {
             "content": "isolated compose smoke memory",
@@ -66,9 +83,40 @@ async def check(url: str, environment: str, unix_socket: str | None = None):
         searched = await session.call_tool("cmh_search_memory", {"params": {"query": "compose smoke"}})
         if searched.isError or "isolated compose smoke memory" not in searched.content[0].text:
             raise RuntimeError("MCP memory search failed")
+        memory_id = re.search(r"(?m)^ID: (.+)$", stored.content[0].text).group(1)
+        calls = [
+            ("cmh_get_memory", {"params": {"id": memory_id}}),
+            ("cmh_health_check", {}),
+            ("cmh_list_agents", {}),
+            ("cmh_list_contexts", {}),
+            ("cmh_store_knowledge", {"params": {"term": "compose smoke knowledge"}}),
+            ("cmh_search_knowledge", {"params": {"term": "compose smoke"}}),
+            ("cmh_log_decision", {"params": {
+                "made_by_agent": body["principal"], "context": "compose smoke",
+                "decision_text": "use native compatibility",
+            }}),
+            ("cmh_list_decisions", {"params": {}}),
+            ("cmh_create_session", {"params": {"agent_id": agent_id}}),
+            ("cmh_list_sessions", {"params": {}}),
+            ("cmh_create_memory_link", {"params": {"pinecone_vector_id": memory_id}}),
+            ("cmh_list_memory_links", {"params": {"pinecone_vector_id": memory_id}}),
+        ]
+        for name, payload in calls:
+            result = await session.call_tool(name, payload)
+            if result.isError:
+                raise RuntimeError(f"Compatibility smoke failed: {name}")
+        async with httpx.AsyncClient(
+            transport=httpx.AsyncHTTPTransport(uds=unix_socket) if unix_socket else None,
+        ) as verifier:
+            response = await verifier.get(base + "/api/audit/verify", headers={
+                "Authorization": "Bearer " + owner_bearer,
+            })
+        if response.status_code != 200 or not response.json().get("valid"):
+            raise RuntimeError("Compatibility smoke audit chain verification failed")
         print(json.dumps({"identity_verified": True, "env": environment,
                           "tools": sorted(required), "bootstrap_session_credential": "ok",
-                          "fake_memory_store_search": "ok"}))
+                          "fake_memory_store_search": "ok",
+                          "v1_compatibility_tools": 2 + len(calls), "audit_chain": "valid"}))
 
 
 if __name__ == "__main__":
