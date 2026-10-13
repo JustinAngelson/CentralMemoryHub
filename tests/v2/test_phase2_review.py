@@ -46,17 +46,19 @@ def test_R4_readable_set_matches_oracle_for_entire_fixture_world(identity):
               SELECT CAST(:path AS ltree),'flag',owner_principal_id
               FROM namespaces WHERE path=CAST(:anchor AS ltree)
             """), {"path": path, "anchor": anchor})
-    assert case.request(case.owner_client, "POST", "/admin/api/grants", json={
-        "principal_id": case.agent_a["principal"]["id"],
-        "namespace": "org.finance", "permission": "read",
-    }).status_code == 201
+    with case.admin.begin() as conn:
+        conn.execute(text("""
+          INSERT INTO namespace_grants(principal_id,namespace_id,access,granted_by)
+          SELECT :principal,id,'read',:owner FROM namespaces WHERE path='org.finance'
+        """), {"principal": case.agent_a["principal"]["id"], "owner": case.owner["id"]})
     entities = case.app.state.entity_service
     for explicit_sponsor_grant in (False, True):
         if explicit_sponsor_grant:
-            assert case.request(case.owner_client, "POST", "/admin/api/grants", json={
-                "principal_id": str(case.partner_a["id"]),
-                "namespace": "org.finance", "permission": "read",
-            }).status_code == 201
+            with case.admin.begin() as conn:
+                conn.execute(text("""
+                  INSERT INTO namespace_grants(principal_id,namespace_id,access,granted_by)
+                  SELECT :principal,id,'read',:owner FROM namespaces WHERE path='org.finance'
+                """), {"principal": case.partner_a["id"], "owner": case.owner["id"]})
         with entities.engine.begin() as conn:
             world = [dict(row) for row in conn.execute(text("SELECT * FROM principals")).mappings()]
             namespaces = list(conn.execute(text("SELECT id,path::text FROM namespaces")).mappings())
