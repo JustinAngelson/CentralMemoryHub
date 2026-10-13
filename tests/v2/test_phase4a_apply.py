@@ -194,6 +194,24 @@ def test_6_2_failed_embedding_revokes_and_resume_reuses_committed_records(review
     assert report["principals"]["created"] == 0
 
 
+@pytest.mark.asyncio
+async def test_t4a_gate_mcp_chain_verifier_returns_only_integrity_metadata(identity):
+    import json
+
+    with identity.admin.connect() as conn:
+        before = conn.execute(text("SELECT coalesce(max(seq),0) FROM audit_events")).scalar_one()
+    async with identity.mcp(identity.owner_token) as session:
+        result = await session.call_tool("cmh_verify_audit_chain", {})
+        assert not result.isError
+        body = json.loads(result.content[0].text)
+        assert body["valid"] is True
+        assert set(body) == {"valid", "head_hash"}
+    with identity.admin.connect() as conn:
+        assert conn.execute(text("""SELECT count(*) FROM audit_events
+          WHERE operation='audit.verify' AND seq>:before"""),
+          {"before": before}).scalar_one() == 1
+
+
 @pytest.mark.parametrize("path", ["/search", "/memory/unstructured"])
 def test_t4a_13_compat_rest_requires_bearer(identity, path):
     assert identity.owner_client.post(path, json={"content": "fictional", "query": "fictional"}).status_code == 401
