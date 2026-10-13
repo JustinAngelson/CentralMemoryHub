@@ -55,6 +55,10 @@ def sample(case, tool, ids):
 @pytest.fixture
 def compat_case(identity):
     case = identity
+    display = "partner_agent_" + uuid4().hex
+    case.tamper("UPDATE principals SET display_name=:name WHERE id=:id",
+                name=display, id=case.agent_b["principal"]["id"])
+    case.agent_b["principal"]["display_name"] = display
     legacy_ids = {kind: str(uuid4().int % (2**60))
                   for kind in ("structured", "task", "org_state", "session")}
     service = case.app.state.entity_service
@@ -85,6 +89,7 @@ def compat_case(identity):
         assert "id" in value
         ids[name] = str(value["id"])
     ids["session"] = str(uuid4())
+    ids["alias"] = "test_directory_alias_" + uuid4().hex
     ids.update({"legacy_" + kind: value for kind, value in legacy_ids.items()})
     with case.admin.begin() as conn:
         if conn.execute(text("SELECT to_regclass('public.sessions')")).scalar():
@@ -97,9 +102,9 @@ def compat_case(identity):
                        "v1_table": "agent_sessions", "v1_id": legacy_ids["session"],
                    })})
             conn.execute(text("""
-              UPDATE agent_directory SET aliases=ARRAY['test_directory_alias']
+              UPDATE agent_directory SET aliases=ARRAY[:alias]
               WHERE principal_id=:id
-            """), {"id": case.agent_b["principal"]["id"]})
+            """), {"id": case.agent_b["principal"]["id"], "alias": ids["alias"]})
     return case, ids
 
 
@@ -112,7 +117,7 @@ async def test_T2B_1_v1_payload_and_response_format(compat_case, name):
     if name == "cmh_register_agent":
         denial(result, "PRINCIPAL_CREATION_FORBIDDEN")
         return
-    assert not result.isError
+        assert not result.isError, result.structuredContent
     response = TOOLS[name]["response"]
     text_value = body(result)
     if response["format"] == "json_object":
@@ -151,11 +156,12 @@ async def test_T2B_2_self_claims_never_set_author_and_trace_mismatch(
     case, ids = compat_case
     payload = sample(case, name, ids)
     payload["params"][field] = case.agent_b["principal"]["slug"]
-    before = rows(case, "SELECT coalesce(max(seq),0) AS seq FROM audit_events")[0]["seq"]
     async with case.mcp(case.agent_a["credential"]) as session:
+        before = rows(case, "SELECT coalesce(max(seq),0) AS seq FROM audit_events")[0]["seq"]
         result = await session.call_tool(name, payload)
+        events = rows(case, "SELECT * FROM audit_events WHERE seq>:seq "
+                      "AND operation!='mcp.transport'", seq=before)
     assert not result.isError
-    events = rows(case, "SELECT * FROM audit_events WHERE seq>:seq", seq=before)
     assert len(events) == 1
     assert events[0]["decision_trace"]["claimed_identity_mismatch"] is True
     row = rows(case, f"SELECT * FROM {table} WHERE id=:id",
@@ -170,7 +176,7 @@ async def test_T2B_3_target_resolution_and_unknown_text(compat_case, target):
     case, ids = compat_case
     name = {"slug": case.agent_b["principal"]["slug"].upper(),
             "display_name": case.agent_b["principal"]["display_name"],
-            "alias": "TEST_DIRECTORY_ALIAS", "unknown": "unknown target"}[target]
+            "alias": ids["alias"].upper(), "unknown": "unknown target"}[target]
     payload = sample(case, "cmh_create_task", ids)
     payload["params"]["assigned_to_agent"] = name
     async with case.mcp(case.agent_a["credential"]) as session:
@@ -311,15 +317,13 @@ async def test_T2B_8_directory_excludes_humans_and_includes_sponsor(compat_case)
 
 @pytest.fixture
 def external_credential(identity):
-    unique = "external_" + uuid4().hex
-    response = identity.request(identity.owner_client, "POST", "/admin/api/principals", json={
-        "kind": "human", "slug": unique, "display_name": "external",
-        "email": unique + "@example.invalid",
-        "role": "external", "tier": 1, "password": "External-test-password-123!",
-    })
-    assert response.status_code == 201
-    principal = response.json()["principal"]
-    return identity.credential(identity.owner_client, principal, "personal-ai-client")
+    provisioned = identity.agent(identity.client_a, identity.partner_a, "external")
+    principal, credential = provisioned["principal"], provisioned["credential"]
+    # Deliberately retain an overbroad existing token after a role downgrade:
+    # step 3 must constrain it, rather than only exercising missing-scope step 2.
+    identity.tamper("UPDATE principals SET role='external',tier=1 WHERE id=:id",
+                    id=principal["id"])
+    return credential
 
 
 @pytest.mark.asyncio
@@ -360,12 +364,40 @@ async def test_T2B_10_exact_names_and_v1_required_types(compat_case):
 @pytest.mark.parametrize("name", sorted(TOOLS))
 async def test_T2B_11_each_call_has_one_sponsored_audit(compat_case, name):
     case, ids = compat_case
-    before = rows(case, "SELECT coalesce(max(seq),0) AS seq FROM audit_events")[0]["seq"]
     async with case.mcp(case.agent_a["credential"]) as session:
+        before = rows(case, "SELECT coalesce(max(seq),0) AS seq FROM audit_events")[0]["seq"]
         await session.call_tool(name, sample(case, name, ids))
-    events = rows(case, "SELECT * FROM audit_events WHERE seq>:seq", seq=before)
+        events = rows(case, "SELECT * FROM audit_events WHERE seq>:seq "
+                      "AND operation!='mcp.transport'", seq=before)
     assert len(events) == 1
     assert str(events[0]["sponsor_id"]) == case.partner_a["id"]
+
+
+@pytest.mark.asyncio
+async def test_T2B_structured_legacy_lookup_and_v1_runtime_defaults(compat_case):
+    case, ids = compat_case
+    async with case.mcp(case.agent_a["credential"]) as session:
+        old = await session.call_tool("cmh_get_structured", {
+            "params": {"id": ids["legacy_structured"]},
+        })
+        assert not old.isError and json.loads(old.content[0].text)["id"] == ids["structured"]
+        decision = await session.call_tool("cmh_log_decision", {"params": {
+            "context": "default reversal", "made_by_agent": case.agent_a["principal"]["slug"],
+            "decision_text": "keep the original reversible default",
+        }})
+        assert not decision.isError and decision.content[0].text.endswith("Reversible: True")
+        created = await session.call_tool("cmh_create_session", {"params": {
+            "agent_id": str(case.agent_a["principal"]["id"]),
+        }})
+        assert not created.isError
+        assert created.content[0].text.endswith("Agent ID: " + str(case.agent_a["principal"]["id"]))
+        listed = await session.call_tool("cmh_list_sessions", {"params": {
+            "agent_id": str(case.agent_a["principal"]["id"]),
+        }})
+        assert not listed.isError and all(
+            row["agent_id"] == str(case.agent_a["principal"]["id"])
+            for row in json.loads(listed.content[0].text)
+        )
 
 
 @pytest.mark.no_app_operation(reason="Compatibility migration round trip and RLS/grant inspection.")
