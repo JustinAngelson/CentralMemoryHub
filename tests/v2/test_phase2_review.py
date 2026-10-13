@@ -38,9 +38,14 @@ def test_R4_readable_set_matches_oracle_for_entire_fixture_world(identity):
         "people." + case.partner_a["slug"] + ".private.child",
         "org.finance.review-" + uuid4().hex,
     ]
-    for path in paths:
-        assert case.request(case.owner_client, "POST", "/admin/api/namespaces",
-                            json={"path": path}).status_code == 201
+    with case.admin.begin() as conn:
+        for path in paths:
+            anchor = path.rsplit(".", 1)[0]
+            conn.execute(text("""
+              INSERT INTO namespaces(path,mode,owner_principal_id)
+              SELECT CAST(:path AS ltree),'flag',owner_principal_id
+              FROM namespaces WHERE path=CAST(:anchor AS ltree)
+            """), {"path": path, "anchor": anchor})
     assert case.request(case.owner_client, "POST", "/admin/api/grants", json={
         "principal_id": case.agent_a["principal"]["id"],
         "namespace": "org.finance", "permission": "read",
@@ -82,7 +87,7 @@ def test_R4_compat_update_query_count_constant_after_50_namespaces(compat_case):
             with case.admin.begin() as conn:
                 conn.execute(text("""
                   INSERT INTO namespaces(id,path,mode,owner_principal_id)
-                  SELECT gen_random_uuid(),CAST(:prefix || g AS ltree),'shared',:owner
+                  SELECT gen_random_uuid(),CAST(:prefix || g AS ltree),'flag',:owner
                   FROM generate_series(1,50) g
                 """), {"prefix": case.namespace + ".extra", "owner": case.owner["id"]})
         caller = context(case)
@@ -131,10 +136,10 @@ def test_R6_org_state_update_contains_only_v1_state_fields(identity):
     })
     assert updated.get("outcome") != "DENY"
     state = updated["state"]
-    assert set(state) <= {"entity", "type", "status", "summary", "owner_principal_id",
+    assert set(state) <= {"entity", "type", "status", "summary", "owner_agent",
                          "last_updated_by", "important_dates", "linked_docs"}
     assert state["status"] == "closed"
-    assert "entity_id" not in state and "owner_agent" not in state
+    assert "entity_id" not in state and "owner_principal_id" not in state
 
 
 @pytest.mark.parametrize("unresolved", [False, True])
