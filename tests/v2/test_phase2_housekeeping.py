@@ -85,7 +85,7 @@ def test_F5_namespace_creation_scope_and_audit_operation(identity):
 def test_F6_unknown_email_verifies_fixed_dummy_hash(identity, monkeypatch):
     from argon2.exceptions import VerificationError
 
-    import cmh.services.accounts as accounts
+    from cmh.services import accounts
 
     calls = []
     previous = []

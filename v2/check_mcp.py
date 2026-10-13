@@ -48,7 +48,8 @@ async def check(url: str, environment: str, unix_socket: str | None = None):
     ):
         await session.initialize()
         tools = await session.list_tools()
-        required = {"cmh_ping", "cmh_whoami", "cmh_check_access", "cmh_register_agent"}
+        required = {"cmh_ping", "cmh_whoami", "cmh_check_access", "cmh_register_agent",
+                    "cmh_store_memory", "cmh_get_memory", "cmh_search_memory"}
         if not required <= {tool.name for tool in tools.tools}:
             raise RuntimeError("Missing Phase 1 MCP tools")
         result = await session.call_tool("cmh_whoami", {})
@@ -57,8 +58,17 @@ async def check(url: str, environment: str, unix_socket: str | None = None):
         body = json.loads(result.content[0].text)
         if body["principal"] != "owner" or body["ai_client"] is not True:
             raise RuntimeError("MCP caller identity mismatch")
+        stored = await session.call_tool("cmh_store_memory", {"params": {
+            "content": "isolated compose smoke memory",
+        }})
+        if stored.isError or not stored.content[0].text.startswith("Memory stored successfully."):
+            raise RuntimeError("MCP memory store failed")
+        searched = await session.call_tool("cmh_search_memory", {"params": {"query": "compose smoke"}})
+        if searched.isError or "isolated compose smoke memory" not in searched.content[0].text:
+            raise RuntimeError("MCP memory search failed")
         print(json.dumps({"identity_verified": True, "env": environment,
-                          "tools": sorted(required), "bootstrap_session_credential": "ok"}))
+                          "tools": sorted(required), "bootstrap_session_credential": "ok",
+                          "fake_memory_store_search": "ok"}))
 
 
 if __name__ == "__main__":

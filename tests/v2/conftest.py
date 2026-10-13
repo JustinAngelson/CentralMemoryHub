@@ -6,6 +6,7 @@ import socket
 import sys
 import threading
 import time
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -15,6 +16,18 @@ sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(Path(__file__).parent))
 
 pytest_plugins = ["identity_fixtures"]
+
+
+def assert_v1_ports_only():
+    """Run after every Unix-socket start, including the actual repl config."""
+    paths = [ROOT / ".replit"]
+    actual = Path("/home/runner/workspace/.replit")
+    if actual.exists() and actual not in paths:
+        paths.append(actual)
+    for path in paths:
+        assert tomllib.loads(path.read_text()).get("ports") == [
+            {"localPort": 5000, "externalPort": 80},
+        ], "Unexpected Replit port mapping"
 
 
 class PrivateAdminEngine:
@@ -172,6 +185,9 @@ def configured_env(monkeypatch, test_database):
             def app_role(connection, _record):
                 with connection.cursor() as cursor:
                     cursor.execute("SET ROLE cmh_app")
+                # SET ROLE is transactional. A startup read's rollback must not
+                # silently restore this administrative fixture login.
+                connection.commit()
         return engine
     monkeypatch.setattr(cmh.app, "build_engine", factory)
     return SensitiveTestValue(token)
@@ -240,6 +256,7 @@ def live_server(configured_env, tmp_path):
         time.sleep(0.02)
     try:
         assert server.started, "ASGI server did not start"
+        assert_v1_ports_only()
         yield ("http://localhost/mcp", path)
     finally:
         server.should_exit = True

@@ -21,6 +21,8 @@ services:
       CMH_PUBLIC_URL: http://localhost:8080
       CMH_ALLOWED_HOSTS: app
       CMH_ENV: dev
+      CMH_EMBEDDING_PROVIDER: ${CMH_EMBEDDING_PROVIDER:-openai}
+      CMH_EMBEDDING_API_KEY: ${CMH_EMBEDDING_API_KEY:-}
       CMH_BOOTSTRAP_TOKEN: ${CMH_BOOTSTRAP_TOKEN:?Set a 64+ character bootstrap token}
     command: >-
       sh -c "python v2/init_database.py &&

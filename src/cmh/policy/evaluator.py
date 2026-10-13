@@ -35,16 +35,19 @@ def can_access(connection, subject, path, write=False):
     node = namespace(connection, path)
     if not node:
         return False
-    if path.startswith("people.") and path.endswith(".private"):
-        if node["owner_principal_id"] == subject["id"]:
+    components = path.split(".")
+    private = len(components) >= 3 and components[2] == "private"
+    anchor = namespace(connection, ".".join(components[:3])) if private else node
+    if path.startswith("people.") and private:
+        if anchor and anchor["owner_principal_id"] == subject["id"]:
             return True
         # Owner status is not an implicit grant into someone else's private data.
         if subject["role"] == "owner":
             return False
     elif subject["role"] == "owner":
         return True
-    if path.startswith("agents.") and path.endswith(".private"):
-        owner = principal(connection, node["owner_principal_id"])
+    if path.startswith("agents.") and private:
+        owner = principal(connection, anchor["owner_principal_id"]) if anchor else None
         if owner and (owner["id"] == subject["id"] or owner["sponsor_id"] == subject["id"]):
             return True
     if subject["role"] == "external" and path == "inbox":

@@ -18,6 +18,17 @@ class Settings(BaseSettings):
     bootstrap_token: SecretStr = Field(min_length=64)
     allowed_hosts: str = ""
     trusted_proxy_hops: int = Field(default=0, ge=0, le=32)
+    embedding_api_key: SecretStr | None = None
+    embedding_provider: str = "openai"
+    embedding_model: str = "text-embedding-3-small"
+    embedding_dimensions: int = Field(default=1536, ge=1)
+
+    @field_validator("embedding_provider")
+    @classmethod
+    def validate_provider(cls, value):
+        if value not in ("openai", "fake"):
+            raise ValueError("must be openai or fake")
+        return value
 
     @field_validator("database_url")
     @classmethod

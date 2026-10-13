@@ -4,10 +4,13 @@ from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 
 from fastapi import FastAPI
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 from starlette.routing import Route
 
 from cmh.api.health import health_router
 from cmh.api.identity import identity_router
+from cmh.api.memory import memory_router
 from cmh.auth.limits import RateLimits
 from cmh.auth.middleware import IdentityMiddleware
 from cmh.config import load_settings
@@ -16,6 +19,9 @@ from cmh.db.roles import guard_runtime_role
 from cmh.logging import RequestIDMiddleware, configure_logging
 from cmh.mcp.server import build_mcp
 from cmh.services.core import IdentityService
+from cmh.services.embedding import EmbeddingUnavailable, build_embedding_provider
+from cmh.services.entities import EntityService
+from cmh.services.memory import MemoryService
 
 
 def create_app() -> FastAPI:
@@ -25,7 +31,22 @@ def create_app() -> FastAPI:
     configure_logging((database_url, token))
     engine = build_engine(database_url)
     guard_runtime_role(engine, settings.env)
-    server = build_mcp(settings)
+    service = IdentityService(engine, lambda: app.state.clock())
+    provider = build_embedding_provider(settings)
+    entities = EntityService(service, provider)
+    try:
+        with engine.connect() as connection:
+            dimensions = connection.execute(text("""
+              SELECT atttypmod FROM pg_attribute
+              WHERE attrelid=to_regclass('public.embeddings') AND attname='embedding'
+            """)).scalar()
+        if dimensions is not None and dimensions != provider.dimensions:
+            raise RuntimeError("Embedding provider/column dimension mismatch")
+        provider.embed("cmh embedding readiness")
+    except (EmbeddingUnavailable, SQLAlchemyError):
+        entities.read_only = True
+    memory = MemoryService(entities)
+    server = build_mcp(settings, memory)
     mcp_app = server.streamable_http_app()
 
     @asynccontextmanager
@@ -45,10 +66,13 @@ def create_app() -> FastAPI:
     app.state.mcp = server
     app.state.clock = lambda: datetime.now(UTC)
     app.state.limits = RateLimits()
-    service = IdentityService(engine, lambda: app.state.clock())
     app.state.identity_service = service
-    app.include_router(health_router(engine, settings.env))
+    app.state.entity_service = entities
+    app.state.memory_service = memory
+    app.state.embedding_provider = provider
+    app.include_router(health_router(engine, settings.env, entities))
     app.include_router(identity_router(settings))
+    app.include_router(memory_router(memory))
     # ASGI Route mounts the MCP sub-app at the exact path without Mount's
     # automatic slash redirect or duplicated /mcp prefix. Its internal route
     # is also /mcp; the original scope path is deliberately preserved.

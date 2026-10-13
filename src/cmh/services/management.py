@@ -153,13 +153,14 @@ def create_principal(service, context, payload, approved=False, approval_id=None
                 preliminary = deny("VALIDATION_FAILED")
             elif not human and not selected:
                 preliminary = deny("TEMPLATE_NOT_FOUND")
-            elif not human and not template_matches({
-                "kind": payload["kind"],
-                "role": payload.get("role", "delegated_agent"
-                                    if payload["kind"] == "agent" else None),
-            }, selected):
-                preliminary = deny("TIER_FORBIDDEN", 3)
-            elif not human and payload.get("tier") is not None and payload["tier"] > 3:
+            elif not human and (
+                not template_matches({
+                    "kind": payload["kind"],
+                    "role": payload.get("role", "delegated_agent"
+                                        if payload["kind"] == "agent" else None),
+                }, selected)
+                or (payload.get("tier") is not None and payload["tier"] > 3)
+            ):
                 preliminary = deny("TIER_FORBIDDEN", 3)
             elif human and (payload.get("role") != "partner" or len(payload.get("password", "")) < 14):
                 preliminary = deny("VALIDATION_FAILED")
