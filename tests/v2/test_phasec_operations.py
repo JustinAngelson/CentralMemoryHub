@@ -43,7 +43,7 @@ def test_C03_legacy_credentials_native_owner_scope_hash_only_idempotent(identity
     assert all(value not in output.out + output.err + caplog.text for value in secrets.values())
 
 
-def test_C04_native_export_is_readonly_excludes_imports_and_secret_values(identity, tmp_path):
+def test_C04_native_export_is_readonly_excludes_unchanged_imports_and_secret_values(identity, tmp_path):
     from cmh.cutover.exporting import export_records
 
     case = identity
@@ -55,7 +55,7 @@ def test_C04_native_export_is_readonly_excludes_imports_and_secret_values(identi
         # Fixture operation is audited above; export must perform only reads.
         rows, counts = export_records(conn, since, context(case))
     assert any(str(r["id"]) == str(made["id"]) for r in rows["entities"])
-    assert all(not r.get("legacy_meta", {}).get("v1_id") for r in rows["entities"])
+    assert not next(r for r in rows["entities"] if str(r["id"]) == str(made["id"]))["legacy_meta"].get("v1_id")
     serialized = json.dumps(rows, default=str)
     assert "token_hash" not in serialized and "password_hash" not in serialized
     assert "waitlist" in rows and counts["waitlist"] == len(rows["waitlist"])
@@ -78,11 +78,13 @@ def test_CR1_export_includes_changed_import_current_snapshot_with_v1_id(identity
     case = identity
     made = case.app.state.memory_service.store(context(case),
         {"content": "Original imported text", "namespace": case.namespace}, compatibility=True)
+    legacy_id = "fictional-source-" + str(made["id"])
 
     def imported(conn):
         case.app.state.entities.scope(conn, context(case))
-        conn.execute(text("""UPDATE entities SET legacy_meta='{"v1_table":"unstructured_data",
-          "v1_id":"fictional-source"}' WHERE id=:id"""), {"id": made["id"]})
+        conn.execute(text("""UPDATE entities SET legacy_meta=CAST(:meta AS jsonb) WHERE id=:id"""),
+                     {"id": made["id"], "meta": json.dumps(
+                         {"v1_table": "unstructured_data", "v1_id": legacy_id})})
 
     case.app.state.identity_service.perform(
         context(case), "memory.write", case.namespace, change=imported)
@@ -96,7 +98,7 @@ def test_CR1_export_includes_changed_import_current_snapshot_with_v1_id(identity
         records, counts = export_records(conn, since, context(case))
     selected = [r for r in records["entities"] if str(r["id"]) == str(made["id"])]
     assert len(selected) == 1
-    assert selected[0]["legacy_meta"]["v1_id"] == "fictional-source"
+    assert selected[0]["legacy_meta"]["v1_id"] == legacy_id
     assert selected[0]["current_version_snapshot"]["content"] == "Updated imported text"
     assert selected[0]["current_version"] == 2
     assert counts["entities"] >= 1

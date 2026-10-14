@@ -132,6 +132,8 @@ def test_CR3_partner_password_random_in_memory_only(tmp_path, capsys, monkeypatc
     calls = []
 
     class Response:
+        status_code = 201
+
         def raise_for_status(self):
             pass
 

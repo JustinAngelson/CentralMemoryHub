@@ -1,4 +1,4 @@
-"""Private rollback export; no writes to the database, emails or credential values."""
+"""Private rollback export; stdout is counts only, signup emails stay in 0600 JSON."""
 import json
 import os
 import sys
@@ -16,6 +16,17 @@ def validate_export(path, since):
     if timestamp.tzinfo is None:
         raise ValueError("A timezone-aware --since is required")
     return path, timestamp
+
+
+def write_export(path, since, records, counts):
+    """Create a new private artifact; never echo records or overwrite evidence."""
+    path, since = validate_export(path, since.isoformat())
+    path.parent.mkdir(parents=True, exist_ok=True)
+    descriptor = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+    with os.fdopen(descriptor, "w") as handle:
+        json.dump({"since": since.isoformat(), "records": records, "counts": counts}, handle,
+                  default=str)
+    print(json.dumps({"status": "exported", "counts": counts}))
 
 
 def main(argv=None):
@@ -36,12 +47,7 @@ def main(argv=None):
         engine, _, owner = helper.connect(args)
         with engine.connect() as connection:
             records, counts = export_records(connection, since, owner)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        descriptor = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
-        with os.fdopen(descriptor, "w") as handle:
-            json.dump({"since": since.isoformat(), "records": records, "counts": counts}, handle,
-                      default=str)
-        print(json.dumps({"status": "exported", "counts": counts}))
+        write_export(path, since, records, counts)
         return 0
     except Exception as error:  # noqa: BLE001 — never leak credential-bearing exceptions
         print(json.dumps({"status": "failed", "error_type": type(error).__name__}), file=sys.stderr)

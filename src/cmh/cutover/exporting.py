@@ -16,7 +16,8 @@ def export_records(connection, since, owner):
     output["entities"] = [dict(r) for r in connection.execute(text("""
       SELECT e.*,v.snapshot AS current_version_snapshot FROM entities e JOIN entity_versions v
         ON v.entity_id=e.id AND v.version=e.current_version
-      WHERE e.created_at>:since AND e.legacy_meta->>'v1_id' IS NULL
+      WHERE (e.created_at>:since AND e.legacy_meta->>'v1_id' IS NULL)
+         OR (e.legacy_meta->>'v1_id' IS NOT NULL AND v.version>1 AND v.changed_at>:since)
     """), {"since": since}).mappings()]
     # Embedding internals are not application content and must not bloat rollback files.
     for row in output["entities"]:
@@ -31,8 +32,9 @@ def export_records(connection, since, owner):
       SELECT id,principal_id,name,kind,scopes,created_at,expires_at,revoked_at,issued_by,template_id
       FROM credentials WHERE created_at>:since
     """), {"since": since}).mappings()]
-    counts["waitlist"] = connection.execute(text("""
-      SELECT count(*) FROM waitlist WHERE created_at>:since AND legacy_meta->>'v1_id' IS NULL
-    """), {"since": since}).scalar_one()
+    # Signup addresses belong only in the private 0600 artifact, never reports.
+    output["waitlist"] = [dict(r) for r in connection.execute(text("""
+      SELECT * FROM waitlist WHERE created_at>:since
+    """), {"since": since}).mappings()]
     counts.update({key: len(value) for key, value in output.items()})
     return output, counts
