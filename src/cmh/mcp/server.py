@@ -53,13 +53,13 @@ def build_mcp(settings, memory_service=None) -> FastMCP:
 
     @server.tool()
     def cmh_verify_audit_chain() -> CallToolResult:
-        """Verify integrity only, under authenticated metadata access; never return events."""
+        """Owner/Partner integrity verification; never return event rows."""
+        context = current_context.get()
+        decision = allow() if context.principal.get("role") in {"owner", "partner"} else deny("TIER_FORBIDDEN", 3)
         return tool_result(current_service.get().perform(
-            current_context.get(), "identity.whoami",
+            context, "audit.read",
             change=lambda connection: audit.verify(connection),
-            # Like cmh_ping/whoami, this reveals authenticated metadata only.
-            # No event rows, namespaces or application records are returned.
-            decision=allow(), audit_operation="audit.verify",
+            decision=decision, audit_operation="audit.verify",
         ))
 
     @server.tool()

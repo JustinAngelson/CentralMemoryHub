@@ -12,16 +12,24 @@ KINDS = {"unstructured_data": "memory", "project_decisions": "memory",
          "memory_links": "memory_link", "skills": "skill", "resources": "resource",
          "skill_files": "resource"}
 ACTOR_FIELDS = {"gpt_role", "made_by_agent", "created_by_agent", "owner_agent",
-                "created_by", "sender_agent", "agent_id", "last_updated_by"}
+                "created_by", "sender_agent", "sender", "agent_id", "last_updated_by"}
+TIME_FIELDS = {"created_at", "updated_at", "timestamp", "timestamp_added", "uploaded_at",
+               "last_verified", "due_date", "due_at"}
+CREATED_FIELDS = {"decision_log": "timestamp", "project_decisions": "timestamp",
+                  "shared_contexts": "timestamp", "user_insights": "timestamp",
+                  "memory_links": "timestamp_added", "skill_files": "uploaded_at",
+                  "org_profile": "updated_at"}
 UNSAFE_FIELDS = {"password", "password_hash", "email", "api_key", "token", "stored_filename",
                  "stored_path", "file_path", "path", "url", "file_bytes", "file_content"}
 RENAMES = {
     "decision": {"decision": "decision_text"},
     "knowledge": {"keyword": "term", "description": "definition"},
-    "task": {"task_name": "title", "task_description": "description", "status": "task_status"},
+    "task": {"task_name": "title", "task_description": "description", "status": "task_status",
+             "due_date": "due_at"},
     "experiment": {"experiment_name": "title", "status": "experiment_status"},
     "org_state": {"key": "state_key", "value": "state"},
     "resource": {"type": "resource_type"},
+    "memory_link": {"linked_agent_event": "linked_event_ref"},
     "skill": {"skill_name": "name", "skill_description": "description"},
 }
 REFERENCES = {"assigned_to_agent": "assignee_principal_id",
@@ -58,8 +66,15 @@ def shape(table, row, locator, aliases, attribution, now):
         data = {"content": str(row.get("content") or row.get("decision_text") or row.get("decision") or "")}
         consumed |= {"content", "decision_text", "decision"}
     if table == "org_profile":
-        data = {"state_key": "org_profile", "state": cleaned}
+        data = {"state_key": "org_profile", "state": {
+            key: value for key, value in cleaned.items() if key not in TIME_FIELDS}}
         consumed = set(cleaned)
+    if table == "org_state":
+        data = {"state_key": row["entity"], "state": {
+            key: row[key] for key in ("entity", "type", "status", "summary", "owner_agent",
+                                     "last_updated_by", "important_dates", "linked_docs")
+            if key in row}}
+        consumed |= set(data["state"])
     if table == "skill_files":
         data = {"name": cleaned.get("filename", "Skill file"), "resource_type": "skill_file",
                 "metadata": {"filename": cleaned.get("filename"), "skill_id": row.get("skill_id")}}
@@ -70,10 +85,9 @@ def shape(table, row, locator, aliases, attribution, now):
         data.setdefault("configuration", {})
     if kind == "knowledge" and isinstance(data.get("synonyms"), str):
         data["synonyms"] = [data["synonyms"]]
-    if kind == "task":
-        for key in ("due_at",):
-            if data.get(key):
-                data[key] = timestamp(data[key])
+    for key in ("due_at", "last_verified"):
+        if data.get(key):
+            data[key] = timestamp(data[key])
     for key in list(data):
         definition = columns[key]
         if definition.startswith("uuid") and data[key] is not None and key not in REFERENCES.values():
@@ -86,14 +100,32 @@ def shape(table, row, locator, aliases, attribution, now):
     if "agent" in tags:
         claimed["agent"] = tags["agent"]
     actor = tags.get("agent") or next((row.get(key) for key in (
-        "gpt_role", "made_by_agent", "created_by_agent", "created_by", "owner_agent",
+        "gpt_role", "made_by_agent", "created_by_agent", "sender", "created_by",
+        "last_updated_by", "owner_agent",
     ) if row.get(key)), None)
     author = attribution.get(str(actor).casefold()) if actor else None
-    created = timestamp(row["created_at"]) if row.get("created_at") else now
+    source_time = row.get(CREATED_FIELDS.get(table, "created_at"))
+    created = timestamp(source_time) if source_time else now
     updated = timestamp(row["updated_at"]) if row.get("updated_at") else created
     occurred = created
     meta = {"v1_table": table, "v1_id": locator, "imported_at": now.isoformat(),
             "claimed": claimed}
+    for field, column in {"recipients": "recipient_principal_ids",
+                          "used_by_agents": "used_by_principal_ids",
+                          "owner_agent": None, **REFERENCES}.items():
+        if field not in row:
+            continue
+        raw = row[field]
+        values = raw if isinstance(raw, list) else [raw]
+        resolved = [aliases.get(str(value).casefold()) for value in values]
+        meta.setdefault("resolved", {})[field] = resolved
+        missing = [value for value, found in zip(values, resolved) if not found]
+        if missing:
+            meta.setdefault("unresolved", {})[field] = missing if isinstance(raw, list) else raw
+        if column:
+            data[column] = ([value for value in resolved if value]
+                            if "[]" in columns[column] else resolved[0])
+        consumed.add(field)
     if "date" not in tags or "source" not in tags:
         meta["provenance_defaulted"] = True
     if not row.get("created_at") and table == "unstructured_data":
@@ -117,7 +149,7 @@ def shape(table, row, locator, aliases, attribution, now):
         meta["context_embedding"] = row["context_embedding"]
     if table == "project_decisions":
         meta["original_table"] = table
-    consumed |= ACTOR_FIELDS | {"id", "created_at", "updated_at", "pinecone_id", "context_embedding"}
+    consumed |= ACTOR_FIELDS | TIME_FIELDS | {"id", "pinecone_id", "context_embedding"}
     remaining = {key: value for key, value in cleaned.items() if key not in consumed}
     if remaining:
         meta["v1_fields"] = remaining

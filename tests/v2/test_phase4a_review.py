@@ -20,8 +20,8 @@ SCHEMA = Path(__file__).parent / "fixtures" / "v1_schema.sql"
 
 def real_columns(table):
     block = re.search(r"CREATE TABLE public\." + table + r" \((.*?)\n\);",
-                      SCHEMA.read_text(), re.S)[1]
-    return dict(re.findall(r'^\s+"?(\w+)"?\s+([^,\n]+)', block, re.M))
+                      SCHEMA.read_text(), re.DOTALL)[1]
+    return dict(re.findall(r'^\s+"?(\w+)"?\s+([^,\n]+)', block, re.MULTILINE))
 
 
 def real_row(table):
@@ -182,6 +182,9 @@ def test_R12_R13_R16_legacy_key_exact_shapes_default_ten_and_body_formats(identi
     legacy_id = "source-" + case.namespace
     case.tamper("UPDATE entities SET legacy_meta=jsonb_build_object('v1_id',CAST(:old AS text)) WHERE id=:id",
                 old=legacy_id, id=stored.json()["id"])
+    case.tamper("""UPDATE entity_versions SET snapshot=jsonb_set(
+        snapshot,'{legacy_meta}',jsonb_build_object('v1_id',CAST(:old AS text)))
+        WHERE entity_id=:id""", old=legacy_id, id=stored.json()["id"])
     found = send("/search", {"query": payload["content"]})
     assert found.status_code == 200 and set(found.json()) == {"query", "results"}
     assert len(found.json()["results"]) == 10
@@ -196,8 +199,10 @@ def test_R12_key_ignored_elsewhere_wrong_key_limited_and_namespace_scoped(identi
     client = identity.owner_client
     for path in ("/mcp", "/api/memory/search"):
         assert client.post(path, headers={"X-API-KEY": legacy_rest}, json={}).status_code == 401
-    for _ in range(5):
-        assert client.post("/search", headers={"X-API-KEY": "wrong"}, json={"query": "x"}).status_code == 401
+    client._transport.client = ("198.51.100.25", 50000)
+    for index in range(30):
+        header = {"Authorization": "Bearer wrong"} if index < 15 else {"X-API-KEY": "wrong"}
+        assert client.post("/search", headers=header, json={"query": "x"}).status_code == 401
     assert client.post("/search", headers={"X-API-KEY": "wrong"}, json={"query": "x"}).status_code == 429
     assert client.post("/memory/unstructured", headers={"X-API-KEY": legacy_rest},
                        json={"content": "fixture", "namespace": "org.finance"}).status_code == 403
@@ -215,9 +220,13 @@ def test_R13_search_failure_uses_v1_error_envelope(identity, monkeypatch):
 
 
 def test_R14_public_noise_adds_no_audit_and_attempts_are_bounded(identity):
+    import hashlib
+    import hmac
+
     case = identity
     client = case.owner_client
     client._transport.client = ("198.51.100.24", 50000)
+    ip_hash = hmac.new(case.bootstrap.encode(), b"198.51.100.24", hashlib.sha256).hexdigest()
     with case.admin.connect() as conn:
         before = conn.execute(text("SELECT max(seq) FROM audit_events")).scalar_one()
     for _ in range(50):
@@ -225,7 +234,8 @@ def test_R14_public_noise_adds_no_audit_and_attempts_are_bounded(identity):
         assert client.post("/api/waitlist", json={"email": "bad"}).status_code in (400, 429)
     with case.admin.connect() as conn:
         assert conn.execute(text("SELECT max(seq) FROM audit_events")).scalar_one() == before
-        assert conn.execute(text("SELECT count(*) FROM waitlist_attempts")).scalar_one() <= 5
+        assert conn.execute(text("SELECT count(*) FROM waitlist_attempts WHERE ip_hash=:ip"),
+                            {"ip": ip_hash}).scalar_one() == 5
     case.clock.advance(hours=2)
     accepted = client.post("/api/waitlist", json={
         "first_name": "Example", "email": case.namespace + "@example.invalid",
@@ -263,3 +273,18 @@ async def test_R15_R16_real_external_and_agent_denied_owner_partner_allowed(iden
     for path, allowed in ((case.namespace, True), ("org.finance", False)):
         checked = case.check(external["credential"], "memory.read", path)
         assert (checked.status_code == 200) is allowed
+    ids = {}
+    for path in (case.namespace, "org.finance"):
+        stored = case.app.state.memory_service.store(context(case), {
+            "content": "Fictional External visibility " + case.namespace, "namespace": path,
+        }, compatibility=True)
+        assert "id" in stored
+        ids[path] = str(stored["id"])
+    found = case.bearer(external["credential"], "POST", "/search", json={
+        "query": "Fictional External visibility " + case.namespace,
+    })
+    assert found.status_code == 200
+    assert {row["id"] for row in found.json()["results"]} == {ids[case.namespace]}
+    assert case.bearer(external["credential"], "POST", "/memory/unstructured", json={
+        "content": "External cannot write", "namespace": case.namespace,
+    }).status_code == 403

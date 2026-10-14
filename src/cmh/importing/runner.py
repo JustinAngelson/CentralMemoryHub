@@ -214,9 +214,21 @@ class ImportRunner:
         if existing:
             return "existing"
         item = shape(table, row, locator, self.aliases, attribution, self.identity.now())
+        if table == "shared_contexts":
+            from cmh.services.compat_common import old_identity
+
+            refs, unresolved = [], []
+            with self.engine.begin() as conn:
+                readable = self.entities.scope(conn, self.context)
+                for raw in row.get("memory_refs") or []:
+                    found = self.entities.find(conn, readable, old_identity(raw, "unstructured_data"), ["memory"])
+                    (refs if found else unresolved).append(str(found["id"]) if found else raw)
+            item["data"]["memory_ref_entity_ids"] = refs
+            if unresolved:
+                item["legacy_meta"].setdefault("unresolved", {})["memory_refs"] = unresolved
         about = None
         if table == "memory_links":
-            candidate = row.get("memory_id") or row.get("pinecone_id")
+            candidate = row.get("pinecone_vector_id") or row.get("memory_id") or row.get("pinecone_id")
             with self.engine.begin() as conn:
                 readable = self.entities.scope(conn, self.context)
                 about = conn.execute(text("""SELECT id FROM entities

@@ -24,7 +24,6 @@ def public_router(identity, settings):
 
     @router.get("/", response_class=HTMLResponse)
     def landing():
-        identity.protocol(current_context.get(), "public.landing.counter")
         return HTMLResponse((Path(__file__).parents[1] / "public" / "landing.html").read_text())
 
     @router.post("/api/waitlist")
@@ -61,10 +60,13 @@ def public_router(identity, settings):
             # share one bounded transaction. Append the content-free counter last.
             conn.execute(text("SET LOCAL lock_timeout='5s'"))
             conn.execute(text("SELECT pg_advisory_xact_lock(hashtext('cmh.waitlist'))"))
+            conn.execute(text("DELETE FROM waitlist_attempts WHERE attempted_at<=:start"),
+                         {"start": now - timedelta(hours=1)})
             attempts = conn.execute(text("""SELECT count(*) FROM waitlist_attempts
               WHERE ip_hash=:ip AND attempted_at>:start"""),
                                     {"ip": ip_hash, "start": now - timedelta(hours=1)}).scalar_one()
-            conn.execute(text("INSERT INTO waitlist_attempts VALUES(:ip,:now)"), {"ip": ip_hash, "now": now})
+            if attempts < 5:
+                conn.execute(text("INSERT INTO waitlist_attempts VALUES(:ip,:now)"), {"ip": ip_hash, "now": now})
             status, body = 200, {"ok": True, "message": "Thanks for joining the waitlist."}
             if attempts >= 5:
                 status, body = 429, {"ok": False, "error": "Please try again later"}
@@ -80,9 +82,9 @@ def public_router(identity, settings):
                 elif not duplicate:
                     conn.execute(text("""INSERT INTO waitlist(email,first_name,created_at,source)
                       VALUES(:email,:name,:now,'v2')"""), {"email": email, "name": name, "now": now})
-            # A counter only: no email, name, payload, resource identity or error text.
-            audit.append(conn, context, {**allow(), "counter": {"waitlist_requests": 1}},
-                         "public.waitlist.counter", now)
+                    # Only an accepted new signup is an application mutation.
+                    audit.append(conn, context, {**allow(), "counter": {"waitlist_requests": 1}},
+                                 "public.waitlist.counter", now)
         return JSONResponse(body, status_code=status)
 
     return router

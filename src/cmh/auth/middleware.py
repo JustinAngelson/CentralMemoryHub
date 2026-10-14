@@ -75,8 +75,12 @@ class IdentityMiddleware:
         elif (path.startswith(("/api/", "/mcp")) or path in {"/search", "/memory/unstructured"}) and not (
             path == "/api/waitlist" and scope["method"] == "POST"
         ):
+            authorization = headers.get("authorization")
+            if ("authorization" not in headers and scope["method"] == "POST"
+                and path in {"/search", "/memory/unstructured"} and headers.get("x-api-key")):
+                authorization = "Bearer " + headers["x-api-key"]
             context, rejection, status = bearer(
-                self.service.engine, headers.get("authorization"), self.service.now(),
+                self.service.engine, authorization, self.service.now(),
                 self.limits, meta, self.settings.bootstrap_token.get_secret_value(),
             )
         if rejection:

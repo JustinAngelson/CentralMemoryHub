@@ -237,6 +237,11 @@ def test_t4a_10_landing_headers_and_invalid_waitlist(identity):
     assert "frame-ancestors 'none'" in response.headers["content-security-policy"]
     assert identity.owner_client.post("/api/waitlist", json={"first_name": "Example", "email": "invalid"}).status_code == 400
     assert identity.owner_client.post("/api/waitlist", json={"first_name": "Example", "email": "x" * 121 + "@example.invalid"}).status_code == 400
+    # Public probes are intentionally unaudited under R14; exercise a real
+    # accepted signup as this test body's audited mutation.
+    assert identity.owner_client.post("/api/waitlist", json={
+        "first_name": "Example", "email": identity.namespace + "@example.invalid",
+    }).status_code == 200
 
 
 def test_t4a_10_waitlist_valid_duplicate_and_ip_limit(identity):

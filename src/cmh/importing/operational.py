@@ -102,8 +102,8 @@ def apply_operational(runner, table, row, locator, path, trace, roster):
                          {"id": uuid4(), "sender": sender, "receiver": receiver,
                           "receiver_text": None if receiver else row.get("receiver_agent"),
                           "session": session, "node": node, "type": row.get("message_type") or "message",
-                          "content": row.get("content") or "", "at": timestamp(row["created_at"])
-                          if row.get("created_at") else runner.identity.now(), "meta": encode(meta)})
+                          "content": row.get("content") or "", "at": timestamp(row["timestamp"])
+                          if row.get("timestamp") else runner.identity.now(), "meta": encode(meta)})
         elif table in {"agent_skills", "user_skills"}:
             skill = conn.execute(text("""SELECT id,namespace_id FROM entities WHERE kind='skill'
               AND legacy_meta->>'v1_id'=:id AND namespace_id=ANY(CAST(:readable AS uuid[]))"""),
