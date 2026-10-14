@@ -27,7 +27,7 @@ cmh-seed = "cmh.seed:main"
 dev = ["pytest>=8", "pytest-asyncio>=0.24", "ruff>=0.8"]
 
 [tool.setuptools]
-packages = ["cmh", "cmh.api", "cmh.auth", "cmh.db", "cmh.mcp", "cmh.policy", "cmh.services", "cmh.importing"]
+packages = ["cmh", "cmh.api", "cmh.auth", "cmh.db", "cmh.mcp", "cmh.policy", "cmh.services", "cmh.importing", "cmh.cutover"]
 package-dir = {cmh = "."}
 
 [tool.setuptools.package-data]

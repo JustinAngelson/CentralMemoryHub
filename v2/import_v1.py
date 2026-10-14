@@ -28,18 +28,29 @@ def main(argv=None):
     parser.add_argument("--source-env", default="CMH_TEST_DATABASE_URL")
     parser.add_argument("--source-database", default="cmh_v1_snapshot")
     parser.add_argument("--target-database", default="cmh_v2_import")
+    parser.add_argument("--production", action="store_true")
+    parser.add_argument("--confirm-database")
+    parser.add_argument("--delta", action="store_true")
     parser.add_argument("--defaults", type=Path, required=True)
     parser.add_argument("--orgs", type=Path, required=True)
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args(argv)
     try:
         args.out = private_output_directory(args.out)
+        if args.production and not args.apply:
+            raise ValueError("Production is available only for apply, never plan")
+        if args.delta and not args.plan:
+            raise ValueError("Delta is a planning mode")
         if args.apply:
             require_review_files(args.out)
             from cmh.importing.apply import apply_reviewed
 
             source = connection_from_env(args.source_env, args.source_database)
-            report = apply_reviewed(source, args.target_database, args.out)
+            confirmation = args.confirm_database
+            if args.production and confirmation is None:
+                confirmation = input("Type target database name: ")
+            report = apply_reviewed(source, args.target_database, args.out,
+                                    production=args.production, confirmation=confirmation)
             print(json.dumps({"mode": "apply", "complete": report["complete"],
                               "imported": report["imported"], "existing": report["existing"],
                               "skipped": report["skipped"], "resolved": report["resolved"]}))
@@ -54,7 +65,13 @@ def main(argv=None):
         after = target_state(target)
         if before != after:
             raise ValueError("Target changed while planning; do not rely on these proposals")
-        write_plan(plan, args.out)
+        if args.delta:
+            from cmh.importing.delta import delta_plan, write_delta
+
+            plan = delta_plan(plan, args.out)
+            write_delta(plan, args.out)
+        else:
+            write_plan(plan, args.out)
         # Metadata only. Never output values, credentials, content or checksums.
         proof = args.out / "plan-target-proof.json"
         proof.write_text(json.dumps({"before": before, "after": after,
