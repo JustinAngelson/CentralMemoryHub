@@ -98,6 +98,65 @@ def test_C04_export_requires_private_path_and_timezone():
         exporter.validate_export(Path(".local/export.json"), "2026-10-13T00:00:00")
 
 
+def test_CR1_private_export_file_mode_no_email_output_no_overwrite(tmp_path, capsys):
+    import stat
+    from datetime import UTC, datetime
+
+    exporter = script("export_native")
+    path = tmp_path / ".local" / "rollback.json"
+    records = {"waitlist": [{"email": "signup@example.invalid"}]}
+    counts = {"waitlist": 1}
+    exporter.write_export(path, datetime.now(UTC), records, counts)
+    assert stat.S_IMODE(path.stat().st_mode) == 0o600
+    assert json.loads(path.read_text())["records"] == records
+    output = capsys.readouterr()
+    assert "signup@example.invalid" not in output.out + output.err
+    assert json.loads(output.out) == {"status": "exported", "counts": counts}
+    original = path.read_bytes()
+    with pytest.raises(FileExistsError):
+        exporter.write_export(path, datetime.now(UTC), {}, {})
+    assert path.read_bytes() == original
+
+
+def test_CR3_partner_password_random_in_memory_only(tmp_path, capsys, monkeypatch):
+    helper = script("partner_accounts")
+    generated = []
+
+    def password(size):
+        assert size >= 32
+        value = "fictional-throwaway-" + str(len(generated))
+        generated.append(value)
+        return value
+
+    monkeypatch.setattr(helper.secrets, "token_urlsafe", password)
+    calls = []
+
+    class Response:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"principal": {"id": "fictional-id"}}
+
+    class Client:
+        def post(self, path, **kwargs):
+            calls.append((path, kwargs))
+            return Response()
+
+    profile = {"slug": "partner_a", "display_name": "Partner A", "email": "partner@example.invalid"}
+    for _ in range(2):
+        assert helper.create_partner(Client(), "https://example.invalid", profile) == "fictional-id"
+    assert len(set(generated)) == 2
+    assert profile == {"slug": "partner_a", "display_name": "Partner A", "email": "partner@example.invalid"}
+    for index, (path, kwargs) in enumerate(calls):
+        assert path == "/admin/api/principals"
+        assert kwargs["headers"] == {"Origin": "https://example.invalid"}
+        assert kwargs["json"] == {**profile, "kind": "human", "role": "partner", "tier": 3,
+                                  "password": generated[index]}
+    assert not capsys.readouterr().out
+    assert list(tmp_path.iterdir()) == []
+
+
 def test_C06_only_single_asgi_deployment_and_public_port():
     import tomllib
     config = tomllib.loads((ROOT / "v2/replit-cutover.toml").read_text())
