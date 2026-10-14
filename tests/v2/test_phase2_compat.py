@@ -344,7 +344,9 @@ async def test_T2B_10_exact_names_and_v1_required_types(compat_case):
     async with case.mcp(case.agent_a["credential"]) as session:
         listed = await session.list_tools()
     tools = {tool.name: tool for tool in listed.tools}
-    assert tools.keys() == TOOLS.keys() | {"cmh_ping", "cmh_whoami", "cmh_check_access"}
+    assert tools.keys() == TOOLS.keys() | {
+        "cmh_ping", "cmh_whoami", "cmh_check_access", "cmh_verify_audit_chain",
+    }
     for name, definition in TOOLS.items():
         schema = tools[name].inputSchema
         Draft202012Validator(schema).validate(sample(case, name, ids))

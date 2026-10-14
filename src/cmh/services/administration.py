@@ -54,6 +54,12 @@ def template_edit(service, context, name, payload):
 def import_legacy(service, context, payload):
     def change(connection):
         subject = principal(connection, payload["principal_id"])
+        scopes = sorted(envelope(subject))
+        if subject["slug"] == "legacy-rest":
+            sponsor = principal(connection, subject["sponsor_id"])
+            if subject["kind"] != "service" or not sponsor or sponsor["role"] != "owner":
+                raise ValueError("Legacy REST requires its Owner-sponsored service principal")
+            scopes = ["memory.read", "memory.write"]
         row = connection.execute(text("""
           INSERT INTO credentials(principal_id,token_hash,token_prefix,name,kind,
             ai_client,scopes,issued_by,created_at)
@@ -61,7 +67,7 @@ def import_legacy(service, context, payload):
           RETURNING id,name,token_prefix
         """), {"principal": subject["id"], "hash": digest(payload["token"]),
                "prefix": payload["token"][:4], "name": payload["name"],
-               "scopes": sorted(envelope(subject)), "issuer": context.id,
+               "scopes": scopes, "issuer": context.id,
                "now": service.now()}).mappings().one()
         return dict(row)
     return service.perform(context, "credentials.admin", change=change)

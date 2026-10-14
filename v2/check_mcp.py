@@ -63,10 +63,13 @@ async def check(url: str, environment: str, unix_socket: str | None = None):
         tools = await session.list_tools()
         inventory = json.loads(files("cmh.mcp").joinpath("v1_inventory.json").read_text())
         required = {item["name"] for item in inventory["tools"]} | {
-            "cmh_ping", "cmh_whoami", "cmh_check_access",
+            "cmh_ping", "cmh_whoami", "cmh_check_access", "cmh_verify_audit_chain",
         }
         if required != {tool.name for tool in tools.tools}:
-            raise RuntimeError("MCP compatibility must expose exactly 34 tools")
+            raise RuntimeError("MCP must expose exactly the legacy inventory plus declared metadata tools")
+        denied = await session.call_tool("cmh_verify_audit_chain", {})
+        if not denied.isError:
+            raise RuntimeError("Agent must not verify the audit chain")
         result = await session.call_tool("cmh_whoami", {})
         if result.isError:
             raise RuntimeError("MCP whoami failed")
@@ -113,6 +116,16 @@ async def check(url: str, environment: str, unix_socket: str | None = None):
             })
         if response.status_code != 200 or not response.json().get("valid"):
             raise RuntimeError("Compatibility smoke audit chain verification failed")
+        async with (
+            httpx.AsyncClient(headers={"Authorization": "Bearer " + owner_bearer},
+                              transport=httpx.AsyncHTTPTransport(uds=unix_socket) if unix_socket else None) as http,
+            streamable_http_client(url, http_client=http) as (read, write, _),
+            ClientSession(read, write) as owner_session,
+        ):
+            await owner_session.initialize()
+            verified = await owner_session.call_tool("cmh_verify_audit_chain", {})
+            if verified.isError or json.loads(verified.content[0].text).get("valid") is not True:
+                raise RuntimeError("Owner MCP chain integrity verification failed")
         print(json.dumps({"identity_verified": True, "env": environment,
                           "tools": sorted(required), "bootstrap_session_credential": "ok",
                           "fake_memory_store_search": "ok",

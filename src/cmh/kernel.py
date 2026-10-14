@@ -52,6 +52,11 @@ TYPED = {
     }),
     "note": ("notes", {"body": "text", "note_title": "text"}),
 }
+TYPED.update({
+    "skill": ("skills", {"name": "text", "description": "text", "configuration": "jsonb"}),
+    "resource": ("resources", {"name": "text", "resource_type": "text", "purpose": "text",
+                              "description": "text", "metadata": "jsonb"}),
+})
 MIRRORED = {"org", "engagement", "project", "note"}
 NATIVE = set(TYPED) - MIRRORED
 DEFAULT_KINDS = sorted(set(TYPED) - {"memory_link"})

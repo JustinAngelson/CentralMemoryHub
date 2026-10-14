@@ -138,7 +138,10 @@ def queue(service, context, operation, payload, selected):
     return {**decision, "approval_id": identity}
 
 
-def create_principal(service, context, payload, approved=False, approval_id=None, reviewer=None):
+def create_principal(service, context, payload, approved=False, approval_id=None, reviewer=None,
+                     _import_spec=None):
+    if _import_spec is not None:
+        _import_spec.validate(context)
     human = payload.get("kind") == "human"
     operation = "principals.admin" if human else "credentials.issue_sponsored"
     with service.engine.connect() as connection:
@@ -162,7 +165,9 @@ def create_principal(service, context, payload, approved=False, approval_id=None
                 or (payload.get("tier") is not None and payload["tier"] > 3)
             ):
                 preliminary = deny("TIER_FORBIDDEN", 3)
-            elif human and (payload.get("role") != "partner" or len(payload.get("password", "")) < 14):
+            elif human and (payload.get("role") != "partner" or (
+                _import_spec is None and len(payload.get("password", "")) < 14
+            ) or payload.get("tier", 3) != 3):
                 preliminary = deny("VALIDATION_FAILED")
             elif not human and not payload.get("sponsor_id"):
                 preliminary = deny("SPONSOR_REQUIRED", 4)
@@ -194,7 +199,7 @@ def create_principal(service, context, payload, approved=False, approval_id=None
     sync = payload.get("kind") == "service" and payload.get("scopes") == ["bundle:sync"]
     if selected and selected["requires_owner_approval"] and not approved and not sync:
         return queue(service, context, operation, payload, selected)
-    hashed = password_hasher().hash(payload["password"]) if human else None
+    hashed = password_hasher().hash(payload["password"]) if human and _import_spec is None else None
 
     def change(connection):
         if approval_id:
@@ -214,18 +219,23 @@ def create_principal(service, context, payload, approved=False, approval_id=None
                    selected["target_role"] if kind == "agent" else None
                ),
                "tier": payload.get("tier", 3) if human else (
-                   selected["target_tier"] if kind == "agent" else None
+                   (int(_import_spec.row["tier"]) if _import_spec else selected["target_tier"])
+                   if kind == "agent" else None
                ),
                "sponsor": None if human else payload["sponsor_id"],
                "creator": context.id}).mappings().one())
         path = private_namespace(connection, subject, context.id) if kind != "service" else None
         result = {"principal": subject}
-        if human:
+        if _import_spec:
+            connection.execute(text("UPDATE principals SET status=:status WHERE id=:id"),
+                               {"status": _import_spec.row["status"], "id": identity})
+            subject["status"] = _import_spec.row["status"]
+        if human and _import_spec is None:
             connection.execute(text("""
               INSERT INTO users(principal_id,email,password_hash)
               VALUES(:id,:email,:hash)
             """), {"id": identity, "email": payload["email"].lower(), "hash": hashed})
-        else:
+        elif not human:
             grants = selected["namespace_grants_template"]
             if selected["name"] == "external-readonly":
                 grants = external_grants(payload)
@@ -243,8 +253,9 @@ def create_principal(service, context, payload, approved=False, approval_id=None
                   VALUES(:principal,:namespace,:access,:issuer) ON CONFLICT DO NOTHING
                 """), {"principal": identity, "namespace": node["id"],
                        "access": grant.get("access", "read"), "issuer": context.id})
-            result["credential"] = mint(connection, context.principal, subject, selected,
-                                        payload, service.now())
+            if _import_spec is None:
+                result["credential"] = mint(connection, context.principal, subject, selected,
+                                            payload, service.now())
         if approval_id:
             connection.execute(text("""
               UPDATE approvals SET status='approved',reviewed_by=:reviewer,reviewed_at=:now

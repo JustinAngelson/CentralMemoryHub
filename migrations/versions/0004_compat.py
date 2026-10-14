@@ -9,6 +9,7 @@ depends_on = None
 
 
 def upgrade():
+    op.execute("SET LOCAL ROLE cmh_migrate")
     op.execute("""
       CREATE TABLE sessions (
         id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -64,7 +65,11 @@ def upgrade():
         """)
 
 
+    op.execute("RESET ROLE")
+
+
 def downgrade():
+    op.execute("SET LOCAL ROLE cmh_migrate")
     op.execute("""
       ALTER TABLE memory_links DROP CONSTRAINT link_session;
       ALTER TABLE memory_links DROP CONSTRAINT link_message;
@@ -72,3 +77,4 @@ def downgrade():
       DROP FUNCTION initialize_agent_directory();
       DROP TABLE agent_directory,messages,sessions;
     """)
+    op.execute("RESET ROLE")
