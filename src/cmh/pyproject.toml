@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cmh-v2"
+version = "2.0.0.dev0"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.30",
+  # Phase 0 pin approved by the user. Revisit before Phase 1b (OAuth).
+  "mcp==1.26.0",
+  "sqlalchemy>=2",
+  "psycopg[binary]>=3",
+  "alembic>=1.13",
+  "pydantic-settings>=2",
+  "pgvector>=0.3",
+  "argon2-cffi>=23.1",
+  "httpx>=0.27",
+]
+
+[project.scripts]
+cmh-seed = "cmh.seed:main"
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "pytest-asyncio>=0.24", "ruff>=0.8"]
+
+[tool.setuptools]
+packages = ["cmh", "cmh.api", "cmh.auth", "cmh.db", "cmh.mcp", "cmh.policy", "cmh.services", "cmh.importing", "cmh.cutover"]
+package-dir = {cmh = "."}
+
+[tool.setuptools.package-data]
+"cmh.mcp" = ["v1_inventory.json"]
+"cmh" = ["public/*.html", "public/*.css"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.pytest.ini_options]
+testpaths = ["../../tests/v2"]
+pythonpath = [".."]
+asyncio_mode = "strict"
+asyncio_default_fixture_loop_scope = "function"
+cache_dir = "../../.local/cmh-v2-evidence/pytest-cache"
+markers = [
+  "no_app_operation(reason): justified infrastructure-only test; HTTP and service calls forbidden",
+  "concurrent_audit: audit-only integration scenario using physical committed transactions",
+]

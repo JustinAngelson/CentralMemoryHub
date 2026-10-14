@@ -36,3 +36,8 @@ waitForPort = 5000
 [[ports]]
 localPort = 5000
 externalPort = 80
+
+[userenv.development]
+CMH_PUBLIC_URL = "http://localhost"
+CMH_ENV = "dev"
+CMH_ALLOWED_HOSTS = "127.0.0.1,localhost"

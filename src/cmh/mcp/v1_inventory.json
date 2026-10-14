@@ -1,0 +1,1780 @@
+{
+  "format_version": 1,
+  "source": {
+    "ref": "main",
+    "commit": "ddf0295e666a139eedfa19ea59c497f0d6551e75",
+    "extraction": "Static Python AST; no imports, database connections, or provider calls."
+  },
+  "tool_count": 31,
+  "tools": [
+    {
+      "name": "cmh_create_experiment",
+      "source_file": "mcp_tools/agent_tools.py",
+      "input_model": "CreateExperimentInput",
+      "arguments": [
+        {
+          "name": "params",
+          "type": "CreateExperimentInput",
+          "required": true
+        }
+      ],
+      "fields": [
+        {
+          "name": "title",
+          "type": "str",
+          "required": true,
+          "nullable": false,
+          "constraints": {
+            "min_length": 1
+          }
+        },
+        {
+          "name": "hypothesis",
+          "type": "str",
+          "required": true,
+          "nullable": false,
+          "constraints": {
+            "min_length": 1
+          }
+        },
+        {
+          "name": "executing_agent",
+          "type": "str",
+          "required": true,
+          "nullable": false,
+          "constraints": {
+            "min_length": 1
+          }
+        },
+        {
+          "name": "status",
+          "type": "str",
+          "required": true,
+          "nullable": false
+        },
+        {
+          "name": "description",
+          "type": "Optional[str]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "outcome",
+          "type": "Optional[str]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "notes",
+          "type": "Optional[str]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        }
+      ],
+      "extra_fields": "forbid",
+      "response": {
+        "python_return_type": "str",
+        "format": "text",
+        "top_level_fields": [],
+        "text_labels": [
+          "Experiment ID",
+          "Title",
+          "Status",
+          "Error creating experiment"
+        ]
+      }
+    },
+    {
+      "name": "cmh_create_memory_link",
+      "source_file": "mcp_tools/organization_tools.py",
+      "input_model": "CreateMemoryLinkInput",
+      "arguments": [
+        {
+          "name": "params",
+          "type": "CreateMemoryLinkInput",
+          "required": true
+        }
+      ],
+      "fields": [
+        {
+          "name": "pinecone_vector_id",
+          "type": "str",
+          "required": true,
+          "nullable": false,
+          "constraints": {
+            "min_length": 1
+          }
+        },
+        {
+          "name": "summary",
+          "type": "Optional[str]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "linked_agent_event",
+          "type": "Optional[str]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "origin_file_or_source",
+          "type": "Optional[str]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        }
+      ],
+      "extra_fields": "forbid",
+      "response": {
+        "python_return_type": "str",
+        "format": "text",
+        "top_level_fields": [],
+        "text_labels": [
+          "Link ID",
+          "Pinecone ID",
+          "Error creating memory link"
+        ]
+      }
+    },
+    {
+      "name": "cmh_create_org_state",
+      "source_file": "mcp_tools/organization_tools.py",
+      "input_model": "CreateOrgStateInput",
+      "arguments": [
+        {
+          "name": "params",
+          "type": "CreateOrgStateInput",
+          "required": true
+        }
+      ],
+      "fields": [
+        {
+          "name": "entity",
+          "type": "str",
+          "required": true,
+          "nullable": false,
+          "constraints": {
+            "min_length": 1
+          }
+        },
+        {
+          "name": "type",
+          "type": "str",
+          "required": true,
+          "nullable": false,
+          "constraints": {
+            "min_length": 1
+          }
+        },
+        {
+          "name": "status",
+          "type": "str",
+          "required": true,
+          "nullable": false,
+          "constraints": {
+            "min_length": 1
+          }
+        },
+        {
+          "name": "owner_agent",
+          "type": "str",
+          "required": true,
+          "nullable": false,
+          "constraints": {
+            "min_length": 1
+          }
+        },
+        {
+          "name": "last_updated_by",
+          "type": "str",
+          "required": true,
+          "nullable": false,
+          "constraints": {
+            "min_length": 1
+          }
+        },
+        {
+          "name": "summary",
+          "type": "Optional[str]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "important_dates",
+          "type": "Optional[Dict[str, str]]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "linked_docs",
+          "type": "Optional[List[str]]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        }
+      ],
+      "extra_fields": "forbid",
+      "response": {
+        "python_return_type": "str",
+        "format": "text",
+        "top_level_fields": [],
+        "text_labels": [
+          "Entity ID",
+          "Entity",
+          "Status",
+          "Error creating org state"
+        ]
+      }
+    },
+    {
+      "name": "cmh_create_session",
+      "source_file": "mcp_tools/agent_tools.py",
+      "input_model": "CreateSessionInput",
+      "arguments": [
+        {
+          "name": "params",
+          "type": "CreateSessionInput",
+          "required": true
+        }
+      ],
+      "fields": [
+        {
+          "name": "agent_id",
+          "type": "str",
+          "required": true,
+          "nullable": false,
+          "constraints": {
+            "min_length": 1
+          }
+        },
+        {
+          "name": "user_id",
+          "type": "Optional[str]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "current_focus",
+          "type": "Optional[str]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "summary_notes",
+          "type": "Optional[str]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "active_context_tags",
+          "type": "Optional[List[str]]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        }
+      ],
+      "extra_fields": "forbid",
+      "response": {
+        "python_return_type": "str",
+        "format": "text",
+        "top_level_fields": [],
+        "text_labels": [
+          "Session ID",
+          "Agent ID",
+          "Error creating session"
+        ]
+      }
+    },
+    {
+      "name": "cmh_create_task",
+      "source_file": "mcp_tools/agent_tools.py",
+      "input_model": "CreateTaskInput",
+      "arguments": [
+        {
+          "name": "params",
+          "type": "CreateTaskInput",
+          "required": true
+        }
+      ],
+      "fields": [
+        {
+          "name": "title",
+          "type": "str",
+          "required": true,
+          "nullable": false,
+          "constraints": {
+            "min_length": 1
+          }
+        },
+        {
+          "name": "assigned_to_agent",
+          "type": "str",
+          "required": true,
+          "nullable": false,
+          "constraints": {
+            "min_length": 1
+          }
+        },
+        {
+          "name": "created_by_agent",
+          "type": "str",
+          "required": true,
+          "nullable": false,
+          "constraints": {
+            "min_length": 1
+          }
+        },
+        {
+          "name": "status",
+          "type": "str",
+          "required": true,
+          "nullable": false
+        },
+        {
+          "name": "description",
+          "type": "Optional[str]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "priority",
+          "type": "Optional[str]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "linked_project",
+          "type": "Optional[str]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "summary_notes",
+          "type": "Optional[str]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "due_date",
+          "type": "Optional[str]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        }
+      ],
+      "extra_fields": "forbid",
+      "response": {
+        "python_return_type": "str",
+        "format": "text",
+        "top_level_fields": [],
+        "text_labels": [
+          "Task ID",
+          "Title",
+          "Assigned to",
+          "Status",
+          "Error creating task"
+        ]
+      }
+    },
+    {
+      "name": "cmh_end_session",
+      "source_file": "mcp_tools/agent_tools.py",
+      "input_model": "EndSessionInput",
+      "arguments": [
+        {
+          "name": "params",
+          "type": "EndSessionInput",
+          "required": true
+        }
+      ],
+      "fields": [
+        {
+          "name": "session_id",
+          "type": "str",
+          "required": true,
+          "nullable": false,
+          "constraints": {
+            "min_length": 1
+          }
+        }
+      ],
+      "extra_fields": "forbid",
+      "response": {
+        "python_return_type": "str",
+        "format": "text",
+        "top_level_fields": [],
+        "text_labels": [
+          "Session ID",
+          "Ended at",
+          "Session not found",
+          "Session already ended at",
+          "Error ending session"
+        ]
+      }
+    },
+    {
+      "name": "cmh_get_memory",
+      "source_file": "mcp_tools/memory_tools.py",
+      "input_model": "GetMemoryInput",
+      "arguments": [
+        {
+          "name": "params",
+          "type": "GetMemoryInput",
+          "required": true
+        }
+      ],
+      "fields": [
+        {
+          "name": "id",
+          "type": "str",
+          "required": true,
+          "nullable": false,
+          "constraints": {
+            "min_length": 1
+          }
+        }
+      ],
+      "extra_fields": "forbid",
+      "response": {
+        "python_return_type": "str",
+        "format": "json_object",
+        "top_level_fields": [
+          "id",
+          "content",
+          "pinecone_id"
+        ]
+      }
+    },
+    {
+      "name": "cmh_get_structured",
+      "source_file": "mcp_tools/memory_tools.py",
+      "input_model": "GetMemoryInput",
+      "arguments": [
+        {
+          "name": "params",
+          "type": "GetMemoryInput",
+          "required": true
+        }
+      ],
+      "fields": [
+        {
+          "name": "id",
+          "type": "str",
+          "required": true,
+          "nullable": false,
+          "constraints": {
+            "min_length": 1
+          }
+        }
+      ],
+      "extra_fields": "forbid",
+      "response": {
+        "python_return_type": "str",
+        "format": "json_object",
+        "top_level_fields": [
+          "id",
+          "gpt_role",
+          "decision_text",
+          "context_embedding",
+          "related_documents",
+          "timestamp"
+        ]
+      }
+    },
+    {
+      "name": "cmh_health_check",
+      "source_file": "mcp_tools/agent_tools.py",
+      "input_model": null,
+      "arguments": [],
+      "fields": [],
+      "extra_fields": null,
+      "response": {
+        "python_return_type": "str",
+        "format": "json_object",
+        "top_level_fields": [
+          "database",
+          "pinecone",
+          "agent_count",
+          "memory_count"
+        ],
+        "conditional_fields": [
+          "pinecone_stats"
+        ]
+      }
+    },
+    {
+      "name": "cmh_list_agents",
+      "source_file": "mcp_tools/agent_tools.py",
+      "input_model": null,
+      "arguments": [],
+      "fields": [],
+      "extra_fields": null,
+      "response": {
+        "python_return_type": "str",
+        "format": "text_with_embedded_json_array",
+        "top_level_fields": [],
+        "text_labels": [
+          "Error listing agents"
+        ],
+        "embedded_item_fields": [
+          "agent_id",
+          "name",
+          "role",
+          "description",
+          "capabilities",
+          "skills",
+          "skill_ids",
+          "usual_model",
+          "agent_type",
+          "reports_to",
+          "seniority_level",
+          "status",
+          "join_date",
+          "birth_date",
+          "created_at",
+          "updated_at",
+          "subordinate_count",
+          "subordinates"
+        ],
+        "note": "Roster followed by a JSON hierarchy; no top-level JSON fields."
+      }
+    },
+    {
+      "name": "cmh_list_contexts",
+      "source_file": "mcp_tools/organization_tools.py",
+      "input_model": null,
+      "arguments": [],
+      "fields": [],
+      "extra_fields": null,
+      "response": {
+        "python_return_type": "str",
+        "format": "json_array",
+        "top_level_fields": [],
+        "item_fields": [
+          "id",
+          "sender",
+          "recipients",
+          "context_tag",
+          "memory_refs",
+          "timestamp"
+        ]
+      }
+    },
+    {
+      "name": "cmh_list_decisions",
+      "source_file": "mcp_tools/organization_tools.py",
+      "input_model": "ListDecisionsInput",
+      "arguments": [
+        {
+          "name": "params",
+          "type": "ListDecisionsInput",
+          "required": true
+        }
+      ],
+      "fields": [
+        {
+          "name": "made_by_agent",
+          "type": "Optional[str]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "impact_area",
+          "type": "Optional[str]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "reversal_possible",
+          "type": "Optional[str]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "from_date",
+          "type": "Optional[str]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "to_date",
+          "type": "Optional[str]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        }
+      ],
+      "extra_fields": "forbid",
+      "response": {
+        "python_return_type": "str",
+        "format": "json_array",
+        "top_level_fields": [],
+        "item_fields": [
+          "decision_id",
+          "context",
+          "made_by_agent",
+          "timestamp",
+          "decision_text",
+          "impact_area",
+          "reversal_possible"
+        ]
+      }
+    },
+    {
+      "name": "cmh_list_experiments",
+      "source_file": "mcp_tools/agent_tools.py",
+      "input_model": "ListExperimentsInput",
+      "arguments": [
+        {
+          "name": "params",
+          "type": "ListExperimentsInput",
+          "required": true
+        }
+      ],
+      "fields": [
+        {
+          "name": "status",
+          "type": "Optional[str]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "executing_agent",
+          "type": "Optional[str]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        }
+      ],
+      "extra_fields": "forbid",
+      "response": {
+        "python_return_type": "str",
+        "format": "json_array",
+        "top_level_fields": [],
+        "item_fields": [
+          "experiment_id",
+          "title",
+          "description",
+          "hypothesis",
+          "executing_agent",
+          "outcome",
+          "notes",
+          "status",
+          "created_at",
+          "updated_at"
+        ]
+      }
+    },
+    {
+      "name": "cmh_list_memory_links",
+      "source_file": "mcp_tools/organization_tools.py",
+      "input_model": "ListMemoryLinksInput",
+      "arguments": [
+        {
+          "name": "params",
+          "type": "ListMemoryLinksInput",
+          "required": true
+        }
+      ],
+      "fields": [
+        {
+          "name": "pinecone_vector_id",
+          "type": "Optional[str]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "linked_agent_event",
+          "type": "Optional[str]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "origin_file_or_source",
+          "type": "Optional[str]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        }
+      ],
+      "extra_fields": "forbid",
+      "response": {
+        "python_return_type": "str",
+        "format": "json_array",
+        "top_level_fields": [],
+        "item_fields": [
+          "link_id",
+          "pinecone_vector_id",
+          "summary",
+          "linked_agent_event",
+          "origin_file_or_source",
+          "timestamp_added"
+        ]
+      }
+    },
+    {
+      "name": "cmh_list_messages",
+      "source_file": "mcp_tools/agent_tools.py",
+      "input_model": "ListMessagesInput",
+      "arguments": [
+        {
+          "name": "params",
+          "type": "ListMessagesInput",
+          "required": true
+        }
+      ],
+      "fields": [
+        {
+          "name": "sender_agent",
+          "type": "Optional[str]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "receiver_agent",
+          "type": "Optional[str]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "message_type",
+          "type": "Optional[str]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "session_id",
+          "type": "Optional[str]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        }
+      ],
+      "extra_fields": "forbid",
+      "response": {
+        "python_return_type": "str",
+        "format": "json_array",
+        "top_level_fields": [],
+        "item_fields": [
+          "message_id",
+          "sender_agent",
+          "receiver_agent",
+          "timestamp",
+          "message_type",
+          "content",
+          "session_id"
+        ]
+      }
+    },
+    {
+      "name": "cmh_list_org_states",
+      "source_file": "mcp_tools/organization_tools.py",
+      "input_model": "ListOrgStatesInput",
+      "arguments": [
+        {
+          "name": "params",
+          "type": "ListOrgStatesInput",
+          "required": true
+        }
+      ],
+      "fields": [
+        {
+          "name": "type",
+          "type": "Optional[str]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "status",
+          "type": "Optional[str]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "owner_agent",
+          "type": "Optional[str]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        }
+      ],
+      "extra_fields": "forbid",
+      "response": {
+        "python_return_type": "str",
+        "format": "json_array",
+        "top_level_fields": [],
+        "item_fields": [
+          "entity_id",
+          "entity",
+          "type",
+          "status",
+          "summary",
+          "owner_agent",
+          "last_updated_by",
+          "important_dates",
+          "linked_docs",
+          "created_at",
+          "updated_at"
+        ]
+      }
+    },
+    {
+      "name": "cmh_list_sessions",
+      "source_file": "mcp_tools/agent_tools.py",
+      "input_model": "ListSessionsInput",
+      "arguments": [
+        {
+          "name": "params",
+          "type": "ListSessionsInput",
+          "required": true
+        }
+      ],
+      "fields": [
+        {
+          "name": "agent_id",
+          "type": "Optional[str]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "user_id",
+          "type": "Optional[str]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "active_only",
+          "type": "Optional[bool]",
+          "required": false,
+          "nullable": true,
+          "default": false
+        }
+      ],
+      "extra_fields": "forbid",
+      "response": {
+        "python_return_type": "str",
+        "format": "json_array",
+        "top_level_fields": [],
+        "item_fields": [
+          "session_id",
+          "agent_id",
+          "started_at",
+          "ended_at",
+          "user_id",
+          "current_focus",
+          "summary_notes",
+          "active_context_tags"
+        ]
+      }
+    },
+    {
+      "name": "cmh_list_tasks",
+      "source_file": "mcp_tools/agent_tools.py",
+      "input_model": "ListTasksInput",
+      "arguments": [
+        {
+          "name": "params",
+          "type": "ListTasksInput",
+          "required": true
+        }
+      ],
+      "fields": [
+        {
+          "name": "assigned_to_agent",
+          "type": "Optional[str]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "created_by_agent",
+          "type": "Optional[str]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "status",
+          "type": "Optional[str]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "linked_project",
+          "type": "Optional[str]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        }
+      ],
+      "extra_fields": "forbid",
+      "response": {
+        "python_return_type": "str",
+        "format": "json_array",
+        "top_level_fields": [],
+        "item_fields": [
+          "task_id",
+          "title",
+          "description",
+          "assigned_to_agent",
+          "created_by_agent",
+          "status",
+          "priority",
+          "linked_project",
+          "summary_notes",
+          "due_date",
+          "created_at",
+          "updated_at"
+        ]
+      }
+    },
+    {
+      "name": "cmh_list_user_insights",
+      "source_file": "mcp_tools/agent_tools.py",
+      "input_model": "ListUserInsightsInput",
+      "arguments": [
+        {
+          "name": "params",
+          "type": "ListUserInsightsInput",
+          "required": true
+        }
+      ],
+      "fields": [
+        {
+          "name": "user_id",
+          "type": "Optional[str]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "interaction_type",
+          "type": "Optional[str]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "tone_tag",
+          "type": "Optional[str]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "from_date",
+          "type": "Optional[str]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "to_date",
+          "type": "Optional[str]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        }
+      ],
+      "extra_fields": "forbid",
+      "response": {
+        "python_return_type": "str",
+        "format": "json_array",
+        "top_level_fields": [],
+        "item_fields": [
+          "insight_id",
+          "user_id",
+          "interaction_type",
+          "summary",
+          "timestamp",
+          "related_agent_or_project",
+          "result",
+          "tone_tag"
+        ]
+      }
+    },
+    {
+      "name": "cmh_log_decision",
+      "source_file": "mcp_tools/organization_tools.py",
+      "input_model": "LogDecisionInput",
+      "arguments": [
+        {
+          "name": "params",
+          "type": "LogDecisionInput",
+          "required": true
+        }
+      ],
+      "fields": [
+        {
+          "name": "context",
+          "type": "str",
+          "required": true,
+          "nullable": false,
+          "constraints": {
+            "min_length": 1
+          }
+        },
+        {
+          "name": "made_by_agent",
+          "type": "str",
+          "required": true,
+          "nullable": false,
+          "constraints": {
+            "min_length": 1
+          }
+        },
+        {
+          "name": "decision_text",
+          "type": "str",
+          "required": true,
+          "nullable": false,
+          "constraints": {
+            "min_length": 1
+          }
+        },
+        {
+          "name": "impact_area",
+          "type": "Optional[str]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "reversal_possible",
+          "type": "Optional[bool]",
+          "required": false,
+          "nullable": true,
+          "default": true
+        }
+      ],
+      "extra_fields": "forbid",
+      "response": {
+        "python_return_type": "str",
+        "format": "text",
+        "top_level_fields": [],
+        "text_labels": [
+          "Decision ID",
+          "Made by",
+          "Reversible",
+          "Error logging decision"
+        ]
+      }
+    },
+    {
+      "name": "cmh_log_user_insight",
+      "source_file": "mcp_tools/agent_tools.py",
+      "input_model": "LogUserInsightInput",
+      "arguments": [
+        {
+          "name": "params",
+          "type": "LogUserInsightInput",
+          "required": true
+        }
+      ],
+      "fields": [
+        {
+          "name": "user_id",
+          "type": "str",
+          "required": true,
+          "nullable": false,
+          "constraints": {
+            "min_length": 1
+          }
+        },
+        {
+          "name": "interaction_type",
+          "type": "str",
+          "required": true,
+          "nullable": false,
+          "constraints": {
+            "min_length": 1
+          }
+        },
+        {
+          "name": "summary",
+          "type": "str",
+          "required": true,
+          "nullable": false,
+          "constraints": {
+            "min_length": 1
+          }
+        },
+        {
+          "name": "related_agent_or_project",
+          "type": "Optional[str]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "result",
+          "type": "Optional[str]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "tone_tag",
+          "type": "Optional[str]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        }
+      ],
+      "extra_fields": "forbid",
+      "response": {
+        "python_return_type": "str",
+        "format": "text",
+        "top_level_fields": [],
+        "text_labels": [
+          "Insight ID",
+          "User",
+          "Type",
+          "Error logging user insight"
+        ]
+      }
+    },
+    {
+      "name": "cmh_register_agent",
+      "source_file": "mcp_tools/agent_tools.py",
+      "input_model": "RegisterAgentInput",
+      "arguments": [
+        {
+          "name": "params",
+          "type": "RegisterAgentInput",
+          "required": true
+        }
+      ],
+      "fields": [
+        {
+          "name": "name",
+          "type": "str",
+          "required": true,
+          "nullable": false,
+          "constraints": {
+            "min_length": 1
+          }
+        },
+        {
+          "name": "role",
+          "type": "str",
+          "required": true,
+          "nullable": false,
+          "constraints": {
+            "min_length": 1
+          }
+        },
+        {
+          "name": "description",
+          "type": "Optional[str]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "capabilities",
+          "type": "Optional[List[str]]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "reports_to",
+          "type": "Optional[str]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "seniority_level",
+          "type": "Optional[int]",
+          "required": false,
+          "nullable": true,
+          "default": null,
+          "constraints": {
+            "ge": 1,
+            "le": 10
+          }
+        },
+        {
+          "name": "status",
+          "type": "Optional[str]",
+          "required": false,
+          "nullable": true,
+          "default": "active"
+        }
+      ],
+      "extra_fields": "forbid",
+      "response": {
+        "python_return_type": "str",
+        "format": "text",
+        "top_level_fields": [],
+        "text_labels": [
+          "Agent ID",
+          "Name",
+          "Role",
+          "Error registering agent"
+        ]
+      }
+    },
+    {
+      "name": "cmh_search_knowledge",
+      "source_file": "mcp_tools/organization_tools.py",
+      "input_model": "SearchKnowledgeInput",
+      "arguments": [
+        {
+          "name": "params",
+          "type": "SearchKnowledgeInput",
+          "required": true
+        }
+      ],
+      "fields": [
+        {
+          "name": "term",
+          "type": "Optional[str]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "agent",
+          "type": "Optional[str]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "min_relevance",
+          "type": "Optional[int]",
+          "required": false,
+          "nullable": true,
+          "default": null,
+          "constraints": {
+            "ge": 1,
+            "le": 10
+          }
+        }
+      ],
+      "extra_fields": "forbid",
+      "response": {
+        "python_return_type": "str",
+        "format": "json_array",
+        "top_level_fields": [],
+        "item_fields": [
+          "index_id",
+          "term",
+          "defined_by_file",
+          "used_by_agents",
+          "relevance_score",
+          "last_verified",
+          "synonyms",
+          "created_at",
+          "updated_at"
+        ]
+      }
+    },
+    {
+      "name": "cmh_search_memory",
+      "source_file": "mcp_tools/memory_tools.py",
+      "input_model": "SearchMemoryInput",
+      "arguments": [
+        {
+          "name": "params",
+          "type": "SearchMemoryInput",
+          "required": true
+        }
+      ],
+      "fields": [
+        {
+          "name": "query",
+          "type": "str",
+          "required": true,
+          "nullable": false,
+          "constraints": {
+            "min_length": 1,
+            "max_length": 1000
+          }
+        }
+      ],
+      "extra_fields": "forbid",
+      "response": {
+        "python_return_type": "str",
+        "format": "text",
+        "top_level_fields": [],
+        "text_labels": [
+          "No memories found matching",
+          "Error searching memory"
+        ],
+        "text_result_fields": [
+          "id",
+          "content",
+          "similarity_score"
+        ],
+        "note": "Formatted text, not a JSON envelope; Pinecone IDs are used internally."
+      }
+    },
+    {
+      "name": "cmh_send_message",
+      "source_file": "mcp_tools/agent_tools.py",
+      "input_model": "SendMessageInput",
+      "arguments": [
+        {
+          "name": "params",
+          "type": "SendMessageInput",
+          "required": true
+        }
+      ],
+      "fields": [
+        {
+          "name": "sender_agent",
+          "type": "str",
+          "required": true,
+          "nullable": false,
+          "constraints": {
+            "min_length": 1
+          }
+        },
+        {
+          "name": "session_id",
+          "type": "str",
+          "required": true,
+          "nullable": false,
+          "constraints": {
+            "min_length": 1
+          }
+        },
+        {
+          "name": "content",
+          "type": "str",
+          "required": true,
+          "nullable": false,
+          "constraints": {
+            "min_length": 1
+          }
+        },
+        {
+          "name": "message_type",
+          "type": "str",
+          "required": true,
+          "nullable": false
+        },
+        {
+          "name": "receiver_agent",
+          "type": "Optional[str]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        }
+      ],
+      "extra_fields": "forbid",
+      "response": {
+        "python_return_type": "str",
+        "format": "text",
+        "top_level_fields": [],
+        "text_labels": [
+          "Message ID",
+          "From",
+          "Error logging message"
+        ]
+      }
+    },
+    {
+      "name": "cmh_share_context",
+      "source_file": "mcp_tools/organization_tools.py",
+      "input_model": "ShareContextInput",
+      "arguments": [
+        {
+          "name": "params",
+          "type": "ShareContextInput",
+          "required": true
+        }
+      ],
+      "fields": [
+        {
+          "name": "sender",
+          "type": "str",
+          "required": true,
+          "nullable": false,
+          "constraints": {
+            "min_length": 1
+          }
+        },
+        {
+          "name": "recipients",
+          "type": "List[str]",
+          "required": true,
+          "nullable": false,
+          "constraints": {
+            "min_length": 1
+          }
+        },
+        {
+          "name": "context_tag",
+          "type": "str",
+          "required": true,
+          "nullable": false,
+          "constraints": {
+            "max_length": 100
+          }
+        },
+        {
+          "name": "memory_refs",
+          "type": "List[str]",
+          "required": true,
+          "nullable": false,
+          "constraints": {
+            "min_length": 1
+          }
+        }
+      ],
+      "extra_fields": "forbid",
+      "response": {
+        "python_return_type": "str",
+        "format": "text",
+        "top_level_fields": [],
+        "text_labels": [
+          "ID",
+          "Tag",
+          "Recipients",
+          "Error sharing context"
+        ]
+      }
+    },
+    {
+      "name": "cmh_store_knowledge",
+      "source_file": "mcp_tools/organization_tools.py",
+      "input_model": "StoreKnowledgeInput",
+      "arguments": [
+        {
+          "name": "params",
+          "type": "StoreKnowledgeInput",
+          "required": true
+        }
+      ],
+      "fields": [
+        {
+          "name": "term",
+          "type": "str",
+          "required": true,
+          "nullable": false,
+          "constraints": {
+            "min_length": 1
+          }
+        },
+        {
+          "name": "defined_by_file",
+          "type": "Optional[str]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "used_by_agents",
+          "type": "Optional[List[str]]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "relevance_score",
+          "type": "Optional[int]",
+          "required": false,
+          "nullable": true,
+          "default": null,
+          "constraints": {
+            "ge": 1,
+            "le": 10
+          }
+        },
+        {
+          "name": "synonyms",
+          "type": "Optional[List[str]]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        }
+      ],
+      "extra_fields": "forbid",
+      "response": {
+        "python_return_type": "str",
+        "format": "text",
+        "top_level_fields": [],
+        "text_labels": [
+          "Index ID",
+          "Term",
+          "Error storing knowledge term"
+        ]
+      }
+    },
+    {
+      "name": "cmh_store_memory",
+      "source_file": "mcp_tools/memory_tools.py",
+      "input_model": "StoreMemoryInput",
+      "arguments": [
+        {
+          "name": "params",
+          "type": "StoreMemoryInput",
+          "required": true
+        }
+      ],
+      "fields": [
+        {
+          "name": "content",
+          "type": "str",
+          "required": true,
+          "nullable": false,
+          "constraints": {
+            "min_length": 1,
+            "max_length": 10000
+          }
+        }
+      ],
+      "extra_fields": "forbid",
+      "response": {
+        "python_return_type": "str",
+        "format": "text",
+        "top_level_fields": [],
+        "text_labels": [
+          "ID",
+          "Pinecone ID",
+          "Error storing memory"
+        ]
+      }
+    },
+    {
+      "name": "cmh_store_structured",
+      "source_file": "mcp_tools/memory_tools.py",
+      "input_model": "StoreStructuredInput",
+      "arguments": [
+        {
+          "name": "params",
+          "type": "StoreStructuredInput",
+          "required": true
+        }
+      ],
+      "fields": [
+        {
+          "name": "gpt_role",
+          "type": "str",
+          "required": true,
+          "nullable": false,
+          "constraints": {
+            "min_length": 1
+          }
+        },
+        {
+          "name": "decision_text",
+          "type": "str",
+          "required": true,
+          "nullable": false,
+          "constraints": {
+            "min_length": 1
+          }
+        },
+        {
+          "name": "context_embedding",
+          "type": "List[float]",
+          "required": true,
+          "nullable": false
+        },
+        {
+          "name": "related_documents",
+          "type": "List[str]",
+          "required": true,
+          "nullable": false
+        }
+      ],
+      "extra_fields": "forbid",
+      "response": {
+        "python_return_type": "str",
+        "format": "text",
+        "top_level_fields": [],
+        "text_labels": [
+          "ID",
+          "Error storing structured memory"
+        ]
+      }
+    },
+    {
+      "name": "cmh_update_org_state",
+      "source_file": "mcp_tools/organization_tools.py",
+      "input_model": "UpdateOrgStateInput",
+      "arguments": [
+        {
+          "name": "params",
+          "type": "UpdateOrgStateInput",
+          "required": true
+        }
+      ],
+      "fields": [
+        {
+          "name": "entity_id",
+          "type": "str",
+          "required": true,
+          "nullable": false,
+          "constraints": {
+            "min_length": 1
+          }
+        },
+        {
+          "name": "last_updated_by",
+          "type": "str",
+          "required": true,
+          "nullable": false,
+          "constraints": {
+            "min_length": 1
+          }
+        },
+        {
+          "name": "status",
+          "type": "Optional[str]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "summary",
+          "type": "Optional[str]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "owner_agent",
+          "type": "Optional[str]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "important_dates",
+          "type": "Optional[Dict[str, str]]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "linked_docs",
+          "type": "Optional[List[str]]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        }
+      ],
+      "extra_fields": "forbid",
+      "response": {
+        "python_return_type": "str",
+        "format": "text",
+        "top_level_fields": [],
+        "text_labels": [
+          "Entity",
+          "Status",
+          "Org state not found",
+          "Error updating org state"
+        ]
+      }
+    },
+    {
+      "name": "cmh_update_task",
+      "source_file": "mcp_tools/agent_tools.py",
+      "input_model": "UpdateTaskInput",
+      "arguments": [
+        {
+          "name": "params",
+          "type": "UpdateTaskInput",
+          "required": true
+        }
+      ],
+      "fields": [
+        {
+          "name": "task_id",
+          "type": "str",
+          "required": true,
+          "nullable": false,
+          "constraints": {
+            "min_length": 1
+          }
+        },
+        {
+          "name": "status",
+          "type": "Optional[str]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "title",
+          "type": "Optional[str]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "assigned_to_agent",
+          "type": "Optional[str]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "priority",
+          "type": "Optional[str]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "summary_notes",
+          "type": "Optional[str]",
+          "required": false,
+          "nullable": true,
+          "default": null
+        }
+      ],
+      "extra_fields": "forbid",
+      "response": {
+        "python_return_type": "str",
+        "format": "text",
+        "top_level_fields": [],
+        "text_labels": [
+          "Task ID",
+          "Title",
+          "Status",
+          "Assigned to",
+          "Task not found",
+          "Error updating task"
+        ]
+      }
+    }
+  ]
+}
