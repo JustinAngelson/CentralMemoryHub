@@ -26,7 +26,7 @@ FORBIDDEN_COLUMNS = {
 
 
 def validate_snapshot_database(name):
-    if not re.fullmatch(r"cmh_v1_(snapshot|fixture_[0-9a-f]+)", name):
+    if not re.fullmatch(r"cmh_v1_(snapshot|rehearsal_snapshot|fixture_[0-9a-f]+)", name):
         raise ValueError("Source must be an explicitly named private snapshot database")
 
 
@@ -47,7 +47,7 @@ def connection_from_env(env_name, database):
     else:
         if env_name not in {"CMH_TEST_DATABASE_URL", "CMH_DATABASE_URL", "CMH_MIGRATE_DATABASE_URL"}:
             raise ValueError("Unapproved target metadata environment variable")
-        if database not in {"cmh_v2_import", "cmh_v2_test"}:
+        if database not in {"cmh_v2_import", "cmh_v2_test", "cmh_v2_rehearsal"}:
             raise ValueError("Plan target must be an isolated v2 database")
         if info.get("host") not in {"helium", "127.0.0.1", "localhost", "db", "postgres"}:
             raise ValueError("Dry-run target must be on the isolated local server")

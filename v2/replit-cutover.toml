@@ -1,0 +1,45 @@
+# Prepared in C0; activate through the configuration validator at C2 only.
+modules = ["python-3.11", "postgresql-16"]
+
+[nix]
+channel = "stable-24_05"
+packages = ["freetype", "lcms2", "libimagequant", "libjpeg", "libtiff", "libwebp", "libxcrypt", "openjpeg", "tcl", "tk", "zlib"]
+
+[deployment]
+deploymentTarget = "vm"
+build = ["sh", "-c", "python -m pip install ./src/cmh"]
+run = ["sh", "-c", "PYTHONPATH=src python -m uvicorn cmh.app:create_app --factory --host 0.0.0.0 --port 5000 --no-access-log"]
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Start application"
+
+[[workflows.workflow]]
+name = "Start application"
+author = "agent"
+
+[workflows.workflow.metadata]
+agentRequireRestartOnSave = false
+outputType = "webview"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "PYTHONPATH=src python -m uvicorn cmh.app:create_app --factory --host 0.0.0.0 --port 5000 --no-access-log"
+waitForPort = 5000
+
+[[ports]]
+localPort = 5000
+externalPort = 80
+
+[userenv.development]
+CMH_PUBLIC_URL = "http://localhost"
+CMH_ENV = "dev"
+CMH_ALLOWED_HOSTS = "127.0.0.1,localhost"

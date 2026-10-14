@@ -26,6 +26,10 @@ def public_router(identity, settings):
     def landing():
         return HTMLResponse((Path(__file__).parents[1] / "public" / "landing.html").read_text())
 
+    @router.get("/openapi.json", include_in_schema=False)
+    def openapi(request: Request):
+        return request.app.openapi()
+
     @router.post("/api/waitlist")
     async def waitlist(request: Request):
         context = current_context.get()

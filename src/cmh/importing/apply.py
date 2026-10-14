@@ -1,6 +1,6 @@
 """Local-only operator apply entry point. Bootstrap/native users must exist beforehand."""
-import hashlib
 import json
+import os
 
 from psycopg.conninfo import conninfo_to_dict
 from pydantic import SecretStr
@@ -18,8 +18,17 @@ from cmh.services.embedding import build_embedding_provider
 from cmh.services.entities import EntityService
 
 
-def target_settings(database):
-    values = conninfo_to_dict(connection_from_env("CMH_DATABASE_URL", database))
+def target_settings(database, *, production=False, confirmation=None, environ=None):
+    if production:
+        if database != "cmh_v2" or confirmation != database:
+            raise ValueError("Production requires typed confirmation of cmh_v2")
+        env = os.environ if environ is None else environ
+        values = conninfo_to_dict(env["CMH_PROD_DATABASE_URL"].replace(
+            "postgresql+psycopg://", "postgresql://"))
+        if values.get("dbname") != "cmh_v2" or values.get("user") != "cmh_app":
+            raise ValueError("Production requires cmh_app on cmh_v2")
+    else:
+        values = conninfo_to_dict(connection_from_env("CMH_DATABASE_URL", database))
     settings = load_settings()
     address = URL.create("postgresql+psycopg", username=values["user"], password=values.get("password"),
                          host=values.get("host"), port=int(values.get("port", 5432)), database=database,
@@ -27,12 +36,11 @@ def target_settings(database):
     return settings.model_copy(update={"database_url": SecretStr(address.render_as_string(hide_password=False))})
 
 
-def apply_reviewed(source_url, database, directory):
-    expected = json.loads((directory / "review-file-checksums.json").read_text())
-    for filename, digest in expected.items():
-        if hashlib.sha256((directory / filename).read_bytes()).hexdigest() != digest:
-            raise ValueError("Approved review-file checksum changed")
-    settings = target_settings(database)
+def apply_reviewed(source_url, database, directory, *, production=False, confirmation=None):
+    from cmh.importing.delta import approved_reviews
+
+    approved_reviews(directory)
+    settings = target_settings(database, production=production, confirmation=confirmation)
     engine = build_engine(settings.database_url.get_secret_value())
     try:
         from datetime import UTC, datetime

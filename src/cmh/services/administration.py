@@ -9,7 +9,7 @@ from sqlalchemy import text
 
 from cmh.auth.context import PrincipalContext
 from cmh.policy.evaluator import deny, evaluate, principal
-from cmh.policy.scopes import envelope
+from cmh.policy.scopes import envelope, expand
 from cmh.services.accounts import digest
 from cmh.services.management import create_principal, issue_credential
 
@@ -60,6 +60,12 @@ def import_legacy(service, context, payload):
             if subject["kind"] != "service" or not sponsor or sponsor["role"] != "owner":
                 raise ValueError("Legacy REST requires its Owner-sponsored service principal")
             scopes = ["memory.read", "memory.write"]
+        elif subject["slug"] == "legacy-mcp":
+            sponsor = principal(connection, subject["sponsor_id"])
+            if subject["kind"] != "service" or not sponsor or sponsor["role"] != "owner":
+                raise ValueError("Legacy MCP requires an Owner-sponsored service")
+            scopes = expand(connection.execute(text("""SELECT scopes FROM credential_templates
+              WHERE name='openclaw-agent-standard' AND active""")).scalar_one())
         row = connection.execute(text("""
           INSERT INTO credentials(principal_id,token_hash,token_prefix,name,kind,
             ai_client,scopes,issued_by,created_at)

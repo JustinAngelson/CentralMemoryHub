@@ -135,14 +135,26 @@ class ImportRunner:
 
     def apply(self, source, directory):
         self.identity.perform(self.owner, "principals.admin", audit_operation="import.apply_review")
-        checksums = require_review_files(directory)
-        roster = rows(directory / "roster_review.csv")
+        if (directory / "review-file-checksums.json").exists():
+            from cmh.importing.delta import approved_reviews
+
+            reviewed, checksums = approved_reviews(directory)
+        else:
+            checksums = require_review_files(directory)
+            reviewed = {name: rows(directory / name) for name in checksums}
+        roster = reviewed["roster_review.csv"]
+        mappings = reviewed["namespace_mapping.csv"]
+        paths = {(row["v1_table"], row["v1_id"]): row["proposed_namespace"] for row in mappings}
+        for table, records in source["tables"].items():
+            if table in EXCLUDED or table == "waitlist":
+                continue
+            for row in records:
+                if not paths.get((table, row_id(table, row, source.get("primary_keys", {})))):
+                    raise ValueError("An apply row is missing a reviewed namespace")
         principals = self.ensure_roster(roster)
         attribution = {row["value"].casefold(): self.aliases.get(row["proposed_principal"].casefold())
                        if row["proposed_principal"] else None
-                       for row in rows(directory / "attribution_review.csv")}
-        mappings = rows(directory / "namespace_mapping.csv")
-        paths = {(row["v1_table"], row["v1_id"]): row["proposed_namespace"] for row in mappings}
+                       for row in reviewed["attribution_review.csv"]}
         for path in sorted(set(paths.values()), key=lambda p: (p.count("."), p)):
             # Create intermediates so the effective namespace tree stays complete.
             for index in range(1, len(path.split(".")) + 1):
