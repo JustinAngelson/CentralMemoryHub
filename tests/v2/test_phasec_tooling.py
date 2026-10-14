@@ -29,7 +29,9 @@ def test_C01_production_requires_flag_and_exact_confirmation():
             target_settings(name, production=flag, confirmation=confirmation, environ={})
 
 
-def test_C01_production_configuration_never_reads_legacy_or_workspace_prod_secrets(monkeypatch):
+def test_C01_production_configuration_never_reads_legacy_or_workspace_prod_secrets(
+    configured_env, monkeypatch,
+):
     # Deliberately synthetic mapping, never a workspace production secret.
     class Config(dict):
         def __getitem__(self, key):
