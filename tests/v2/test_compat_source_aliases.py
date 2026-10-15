@@ -1,10 +1,11 @@
 """Explicit v1 source aliases share inline-tag normalization on compatibility paths."""
 import json
+from decimal import Decimal
 
 import pytest
 from test_phase2_kernel import context, rows
 
-from cmh.services.provenance import REF_REQUIRED, SOURCE_TYPES
+from cmh.services.provenance import REF_REQUIRED, SOURCE_TYPES, provenance
 
 ALIASES = [
     ("direct", "conversation"),
@@ -40,7 +41,9 @@ async def test_explicit_source_aliases_on_compatibility_surfaces(identity, alias
         assert response.status_code == 201
     else:
         tool = "cmh_store_memory" if surface == "mcp-memory" else "cmh_log_decision"
-        payload = {"content": "Fictional alias write"} if surface == "mcp-memory" else {
+        payload = {"content": "Fictional alias write", "title": "Fictional title"} if (
+            surface == "mcp-memory"
+        ) else {
             "context": "Fictional alias decision", "decision_text": "Use shared normalization",
             "made_by_agent": identity.owner["slug"],
         }
@@ -49,7 +52,11 @@ async def test_explicit_source_aliases_on_compatibility_surfaces(identity, alias
         assert not result.isError
     stored = last_source(identity)
     assert stored["source_type"] == canonical
-    assert stored["confidence"] == 0.42  # Explicit confidence must not be remapped.
+    assert stored["confidence"] == Decimal("0.42")  # Preserve explicit confidence exactly.
+    tagged, _, error = provenance(context(identity, identity.owner_token), {
+        "content": f"[source: {alias}] Fictional inline equivalent",
+    }, identity.clock(), compatibility=True)
+    assert error is None and tagged["source_type"] == stored["source_type"]
 
 
 @pytest.mark.asyncio
@@ -117,4 +124,4 @@ def test_explicit_alias_takes_precedence_over_inline_tag_without_changing_confid
         "namespace": identity.namespace, **provenance_fields(identity, "direct"),
     }, compatibility=True)
     assert "id" in made
-    assert last_source(identity) == {"source_type": "conversation", "confidence": 0.42}
+    assert last_source(identity) == {"source_type": "conversation", "confidence": Decimal("0.42")}
