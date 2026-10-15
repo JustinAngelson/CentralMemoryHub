@@ -84,6 +84,8 @@ def register_memory_tools(server, service):
         message = f'Found {len(rows)} result(s) for "{params.query}":\n\n{formatted}' if rows else (
             f'No memories found matching: "{params.query}"'
         )
-        # Preserve v1 text. New callers can inspect degraded status without parsing text.
-        return CallToolResult(content=[TextContent(type="text", text=message)],
-                              structuredContent={"degraded": body["degraded"]})
+        # Claude displays structuredContent instead of text when both are present.
+        # Successful searches must preserve the v1 text-only response contract.
+        if body["degraded"]:
+            message += "\n(Note: semantic search unavailable; keyword results only.)"
+        return CallToolResult(content=[TextContent(type="text", text=message)])
