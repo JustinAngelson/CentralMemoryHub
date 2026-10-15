@@ -9,7 +9,9 @@ from sqlalchemy import text
 from test_phase2_kernel import context, rows, store
 
 from cmh.kernel import DEFAULT_KINDS, MIRRORED, TYPED
+from cmh.policy.scopes import BUNDLES, envelope
 from cmh.services.entities import encode
+from cmh.services.retrieval_text import display_text
 
 
 def typed_record(case, kind):
@@ -80,7 +82,7 @@ def typed_record(case, kind):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("kind", DEFAULT_KINDS)
+@pytest.mark.parametrize("kind", [kind for kind in DEFAULT_KINDS if kind != "inbox_item"])
 async def test_default_kind_search_displays_typed_fields_mcp_and_json(identity, kind):
     entity_id, marker, _, expected = typed_record(identity, kind)
     versions_before = rows(identity, "SELECT snapshot FROM entity_versions WHERE entity_id=:id",
@@ -106,6 +108,42 @@ async def test_default_kind_search_displays_typed_fields_mcp_and_json(identity, 
     assert native.json()["results"][0]["content"] == expected
     assert rows(identity, "SELECT snapshot FROM entity_versions WHERE entity_id=:id",
                 id=entity_id) == versions_before
+
+
+@pytest.mark.asyncio
+async def test_inbox_search_is_filtered_without_adding_permissions(identity):
+    _, marker, _, _ = typed_record(identity, "inbox_item")
+    assert_inbox_display_text_uses_registry_text_fields_only()
+    owner = context(identity, identity.owner_token)
+    assert "inbox.read" not in envelope(owner.principal)
+    assert all("inbox.read" not in scopes for scopes in BUNDLES.values())
+    scopes_before = rows(identity, "SELECT id,scopes FROM credentials ORDER BY id")
+    grants_before = rows(identity, "SELECT * FROM namespace_grants ORDER BY id")
+    async with identity.mcp(identity.owner_token) as session:
+        result = await session.call_tool("cmh_search_memory", {"params": {
+            "query": marker, "namespace": identity.namespace, "kinds": ["inbox_item"],
+        }})
+    assert not result.isError and result.structuredContent is None
+    assert result.content[0].text == f'No memories found matching: "{marker}"'
+    assert rows(identity, "SELECT id,scopes FROM credentials ORDER BY id") == scopes_before
+    assert rows(identity, "SELECT * FROM namespace_grants ORDER BY id") == grants_before
+
+
+def assert_inbox_display_text_uses_registry_text_fields_only():
+    snapshot = {"kind": "inbox_item", "title": "Inbox heading"}
+    expected = ["Inbox heading"]
+    for field, datatype in TYPED["inbox_item"][1].items():
+        if field == "title":
+            continue
+        if datatype == "text":
+            snapshot[field] = f"distinctive {field}"
+            expected.append(snapshot[field])
+        elif datatype == "text[]":
+            snapshot[field] = [f"{field} first", f"{field} second"]
+            expected.extend(snapshot[field])
+        else:
+            snapshot[field] = {"hidden": "must-not-display"}
+    assert display_text(snapshot) == "\n".join(expected)
 
 
 @pytest.mark.asyncio

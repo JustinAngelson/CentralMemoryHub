@@ -1,5 +1,7 @@
 # Post-cutover backlog
 
+- inbox_item is in DEFAULT_KINDS but no role holds inbox.read; assign it when
+  the inbox phase lands.
 - After the search compatibility hotfix merges, merge `main` back into `v2`
   if that development branch is retained, or formally retire it. Do not recreate
   a retired branch merely to synchronize it.
