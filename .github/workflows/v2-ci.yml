@@ -36,8 +36,8 @@ jobs:
           python-version: "3.11"
       - run: pip install './src/cmh[dev]'
       - run: python v2/init_database.py
-      - run: ruff check --config src/cmh/pyproject.toml src/cmh migrations tests/v2 v2
-      - run: pytest -c src/cmh/pyproject.toml tests/v2 -v
+      - run: ruff check --config src/cmh/pyproject.toml src/cmh migrations tests/v2 tests/operators v2
+      - run: pytest -c src/cmh/pyproject.toml tests/v2 tests/operators -v
   compose-smoke:
     runs-on: ubuntu-latest
     env:
