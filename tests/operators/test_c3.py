@@ -279,6 +279,7 @@ def test_usage_preserves_nonzero_counts_and_all_time_last_seen():
 
         def fetchone(self):
             assert "max(occurred_at)" in self.sql
+            assert "mcp.transport" not in self.sql
             return {"last_seen": seen}
 
     result = reports.legacy_usage(Connection(), [{"id": SUBJECT["id"], "slug": "legacy-rest"}],

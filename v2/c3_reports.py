@@ -45,7 +45,7 @@ def legacy_usage(conn, subjects, now):
             hour += timedelta(hours=1)
         seen = conn.execute("""
             SELECT max(occurred_at) AS last_seen FROM audit_events
-            WHERE principal_id=%s AND operation <> 'mcp.transport'
+            WHERE principal_id=%s
         """, (subject["id"],)).fetchone()
         last_seen.append({"principal": subject["slug"], "last_seen": seen["last_seen"]})
     return {"window_start": since, "window_end": now, "hours": hours, "last_seen": last_seen}
