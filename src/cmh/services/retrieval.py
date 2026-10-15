@@ -5,6 +5,7 @@ from typing import Protocol
 from sqlalchemy import text
 
 from cmh.services.entities import encode, public_snapshot
+from cmh.services.retrieval_text import display_text, historical_text_sql
 
 
 class VectorStore(Protocol):
@@ -54,8 +55,8 @@ def hybrid(connection, readable, kinds, query, provider, vector_store, *,
     historical = as_of is not None
     # Current retrieval uses the indexed TSV and vector. Historical queries use
     # immutable snapshot text and its v2 vector, never the mutable current vector.
-    tsv = ("to_tsvector('english',coalesce(v.snapshot->>'title','')||' '||"
-           "coalesce(v.snapshot->>'search_text',''))") if historical else "e.search_tsv"
+    tsv = (f"to_tsvector('english',{historical_text_sql()})"
+           if historical else "e.search_tsv")
     vector = ("CASE WHEN v.snapshot->>'__embedding_model'=:model THEN "
               "CAST(v.snapshot->>'__embedding' AS vector) END") if historical else "b.embedding"
     candidates = f"""
@@ -111,7 +112,7 @@ def hybrid(connection, readable, kinds, query, provider, vector_store, *,
         snapshot = public_snapshot(snapshots[identity])
         snapshot.update(
             id=identity, similarity_score=similarities.get(identity, 0.0),
-            content=snapshot.get("content") or snapshot.get("body") or snapshot.get("search_text", ""),
+            content=display_text(snapshot),
             pinecone_id=snapshot.get("legacy_meta", {}).get("pinecone_id"),
         )
         results.append(snapshot)
