@@ -68,6 +68,12 @@ def provenance(context, payload, now, compatibility=False):
             if key not in payload:
                 values[key] = value
                 meta["provenance_defaulted"] = True
+        # Explicit v1 aliases use the same mapping as inline source tags.
+        # Normalize only the source; explicit confidence and native validation
+        # remain unchanged, and unknown explicit values still fail below.
+        supplied_source = values["source_type"]
+        if isinstance(supplied_source, str) and supplied_source in SOURCE_CONFIDENCE:
+            values["source_type"] = SOURCE_CONFIDENCE[supplied_source][0]
     if any(values[key] is None for key in ("source_type", "confidence", "occurred_at")):
         return None, meta, deny("PROVENANCE_INCOMPLETE", 7)
     confidence = values["confidence"]
