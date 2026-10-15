@@ -24,7 +24,7 @@ OLD = str(uuid4())
 NEW = str(uuid4())
 
 
-def client_for(existing=(), fail=None, bad_mint=False):
+def client_for(existing=(), fail=None, bad_mint=False, personal=False):
     calls = []
     revoked = set()
 
@@ -52,10 +52,12 @@ def client_for(existing=(), fail=None, bad_mint=False):
         if path == "/admin/api/credentials":
             payload = json.loads(request.content)
             assert payload == {"principal_id": SUBJECT["id"],
-                               "template": "openclaw-agent-standard",
+                               "template": "personal-ai-client"
+                               if personal else "openclaw-agent-standard",
                                "name": "c3-agent-nix-test"}
             return httpx.Response(201, json={
-                "id": NEW, "principal_id": SUBJECT["id"], "token": TOKEN,
+                "id": NEW, "principal_id": SUBJECT["id"],
+                "token": TOKEN.replace("cmh_ak_", "cmh_pk_") if personal else TOKEN,
                 "scopes": ["memory.read", "memory.write"] if not bad_mint else None,
             })
         if path.endswith("/revoke"):
@@ -87,6 +89,14 @@ def test_rotate_mints_exactly_one_then_revokes_old_and_verifies():
     assert revoked == {OLD}
     assert calls.index(("POST", "/admin/api/credentials")) < calls.index(
         ("POST", f"/admin/api/credentials/{OLD}/revoke"))
+    assert calls.count(("POST", "/admin/api/credentials")) == 1
+
+
+def test_owner_uses_personal_template_without_scope_overrides():
+    client, calls, _ = client_for(personal=True)
+    with client:
+        made = minting.mint(client, SUBJECT, "personal-ai-client")
+    assert made["token"].startswith("cmh_pk_")
     assert calls.count(("POST", "/admin/api/credentials")) == 1
 
 
@@ -139,6 +149,19 @@ def test_owner_session_hidden_prompts_logout_and_no_output(monkeypatch, capsys, 
     assert "fake-cookie" not in output.out + output.err + caplog.text
 
 
+def test_failed_logout_revokes_new_before_cookie_cleanup(monkeypatch):
+    monkeypatch.setattr(common, "OWNER_SLUG", "owner")
+    client, calls, revoked = client_for(fail="/admin/api/logout")
+    with (client, pytest.raises(common.OperatorError),
+          common.owner_session(client, lambda label: PASSWORD,
+                               on_logout_failure=lambda: minting.revoke(client, NEW))):
+        assert client.cookies
+    assert NEW in revoked
+    assert not client.cookies
+    assert calls.index(("POST", "/admin/api/logout")) < calls.index(
+        ("POST", f"/admin/api/credentials/{NEW}/revoke"))
+
+
 def test_http_error_is_sanitized():
     client, _, _ = client_for(fail="/admin/api/login")
     with client, pytest.raises(common.OperatorError) as error:
@@ -189,15 +212,29 @@ def test_readonly_connection_guards_role_database_and_sql(monkeypatch):
     assert statements == [("SET TRANSACTION READ ONLY", None)]
     monkeypatch.setenv("CMH_PROD_DATABASE_URL",
                        "postgresql://cmh_migrate:fictional@db.example.invalid/cmh_v2")
-    with pytest.raises(common.OperatorError):
-        with common.readonly_connection():
-            pytest.fail("Wrong role accepted")
+    with pytest.raises(common.OperatorError), common.readonly_connection():
+        pytest.fail("Wrong role accepted")
 
 
 def test_since_requires_timezone():
     assert reports.parse_since("2026-10-15T12:00:00Z").tzinfo is not None
     with pytest.raises(common.OperatorError):
         reports.parse_since("2026-10-15")
+
+
+def test_slug_lookup_is_parameterized_and_reads_only_approved_fields():
+    class Connection:
+        def execute(self, sql, params):
+            assert "SELECT id,slug,kind,sponsor_id,status FROM principals WHERE slug=%s" in sql
+            assert params == (SUBJECT["slug"],)
+            return self
+
+        def fetchone(self):
+            return SUBJECT
+
+    assert common.lookup(Connection(), SUBJECT["slug"]) == SUBJECT
+    with pytest.raises(common.OperatorError):
+        common.lookup(Connection(), "invalid';DROP TABLE principals")
 
 
 def test_reports_select_only_metadata_and_never_write():
@@ -226,3 +263,25 @@ def test_reports_select_only_metadata_and_never_write():
     for forbidden in ("token_hash", "snapshot", "email", "decision_trace", "request_meta", "content"):
         assert forbidden not in joined
     assert "limit 10" in joined and "mcp.transport" in joined
+
+
+def test_usage_preserves_nonzero_counts_and_all_time_last_seen():
+    seen = datetime(2026, 10, 13, 1, tzinfo=UTC)
+
+    class Connection:
+        def execute(self, sql, params):
+            self.sql = sql
+            assert params[0] == SUBJECT["id"]
+            return self
+
+        def fetchall(self):
+            return [{"hour": datetime(2026, 10, 15, 14), "count": 7}]
+
+        def fetchone(self):
+            assert "max(occurred_at)" in self.sql
+            return {"last_seen": seen}
+
+    result = reports.legacy_usage(Connection(), [{"id": SUBJECT["id"], "slug": "legacy-rest"}],
+                                  datetime(2026, 10, 15, 15, 20, tzinfo=UTC))
+    assert sum(row["count"] for row in result["hours"]) == 7
+    assert result["last_seen"] == [{"principal": "legacy-rest", "last_seen": seen}]

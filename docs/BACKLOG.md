@@ -1,5 +1,7 @@
 # Post-cutover backlog
 
+- No slug lookup endpoint for credential issuance.
+- The audit endpoint returns only the oldest 1,000 events, with no pagination.
 - inbox_item is in DEFAULT_KINDS but no role holds inbox.read; assign it when
   the inbox phase lands.
 - After the search compatibility hotfix merges, merge `main` back into `v2`
