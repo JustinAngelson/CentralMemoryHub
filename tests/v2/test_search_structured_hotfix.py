@@ -1,5 +1,6 @@
 """Real MCP transport regression: Claude must receive the legacy search text."""
 
+import json
 import re
 
 import pytest
@@ -14,7 +15,10 @@ async def test_search_success_is_text_only_with_legacy_format(identity, degraded
     created = store(identity, content, namespace=identity.namespace)
     assert created.status_code == 201
     entity_id = created.json()["id"]
-    identity.app.state.embedding_provider.fail = degraded
+    # The SDK harness creates a separate application; fail its provider, not
+    # the REST fixture's provider, so the fault reaches the actual MCP request.
+    identity.start_mcp()
+    identity.server.config.app.state.embedding_provider.fail = degraded
     query = "structured"
     params = {"query": query, "namespace": identity.namespace,
               "kinds": ["decision"] if empty else ["memory"]}
@@ -37,3 +41,16 @@ async def test_search_success_is_text_only_with_legacy_format(identity, degraded
             + re.escape(f") [id: {entity_id}]\n{content}" + note)
         )
         assert re.fullmatch(expected, message)
+
+
+@pytest.mark.asyncio
+async def test_search_denial_keeps_structured_error_envelope(identity):
+    async with identity.mcp(identity.owner_token) as session:
+        result = await session.call_tool("cmh_search_memory", {"params": {
+            "query": "structured", "namespace": "invalid/namespace",
+        }})
+    assert result.isError
+    body = json.loads(result.content[0].text)
+    assert body["outcome"] == "DENY"
+    assert body["code"] == "NAMESPACE_FORBIDDEN"
+    assert result.structuredContent == body
