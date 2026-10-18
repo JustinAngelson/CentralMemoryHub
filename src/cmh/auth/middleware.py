@@ -31,6 +31,11 @@ class IdentityMiddleware:
     async def __call__(self, scope, receive, send):
         if scope["type"] != "http":
             return await self.app(scope, receive, send)
+        route_alias = None
+        if scope["path"] == "/mcp/":
+            route_alias = "/mcp/"
+            scope["path"] = "/mcp"
+            scope["raw_path"] = b"/mcp"
         path = scope["path"]
         if path == "/healthz" and scope["method"] == "GET":
             return await self.app(scope, receive, send)
@@ -42,6 +47,8 @@ class IdentityMiddleware:
             "client_ip": selected_ip(scope, headers, self.settings.trusted_proxy_hops),
             "request_id": request_id.get(),
         }
+        if route_alias is not None:
+            meta["route_alias"] = route_alias
         context = PrincipalContext({}, request_meta=meta)
         if path.startswith("/mcp") and path != "/mcp":
             # Unknown MCP paths cannot be used to bypass the shared IP audit
