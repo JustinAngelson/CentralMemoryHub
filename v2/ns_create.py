@@ -14,6 +14,12 @@ import c3_common as common
 VERIFICATION_ERROR = "Namespace creation could not be verified."
 
 
+class Parser(argparse.ArgumentParser):
+    def error(self, message):
+        print(json.dumps({"error": "Invalid namespace arguments."}), file=sys.stderr)
+        self.exit(2)
+
+
 def validate(path, description):
     if (not re.fullmatch(r"org\.(?:clients\.)?[a-z0-9][a-z0-9_-]{0,62}", path)
             or path == "org.finance" or path.startswith("org.finance.")):
@@ -71,7 +77,7 @@ def create_namespace(path, description):
 
 def main(argv=None):
     common.quiet()
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = Parser(description=__doc__)
     parser.add_argument("path")
     parser.add_argument("--description", required=True)
     args = parser.parse_args(argv)
