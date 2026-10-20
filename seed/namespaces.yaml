@@ -4,6 +4,7 @@
  {"path":"org.content","mode":"flag","governed":false},
  {"path":"org.content.book","mode":"flag","governed":false},
  {"path":"org.ops","mode":"flag","governed":false},
+ {"path":"org.rollups","mode":"flag","governed":false},
  {"path":"org.eos","mode":"flag","governed":true},
  {"path":"org.eos.l10","mode":"flag","governed":true},
  {"path":"org.eos.rocks","mode":"flag","governed":true},
