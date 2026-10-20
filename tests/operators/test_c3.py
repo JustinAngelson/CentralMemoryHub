@@ -74,6 +74,24 @@ def credential(**updates):
             "revoked_at": None, "expires_at": None, **updates}
 
 
+@pytest.mark.parametrize("slug", ["christine", "scott"])
+def test_partner_roster_uses_personal_template(slug):
+    assert common.TEMPLATES[slug] == "personal-ai-client"
+
+
+def test_unlisted_mint_refused_before_connection(monkeypatch, capsys):
+    terminal = io.StringIO()
+    monkeypatch.setattr(terminal, "isatty", lambda: True)
+    monkeypatch.setattr(sys, "stdin", terminal)
+    monkeypatch.setattr(sys, "stdout", terminal)
+    monkeypatch.setattr(common, "readonly_connection",
+                        lambda: pytest.fail("Must refuse before database connection"))
+    monkeypatch.setattr(common, "https_client",
+                        lambda: pytest.fail("Must refuse before HTTPS connection"))
+    assert minting.main(["unlisted-test"]) == 1
+    assert "Principal is outside the approved C3 roster." in capsys.readouterr().err
+
+
 def test_mint_refuses_active_nonlegacy_before_creating():
     client, calls, _ = client_for([credential()])
     with client, pytest.raises(common.OperatorError):
