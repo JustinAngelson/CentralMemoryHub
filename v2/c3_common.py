@@ -16,6 +16,8 @@ OWNER_SLUG = "justin"
 # Reviewed C3 roster, not examples or test fixtures. Never infer elevated scopes.
 TEMPLATES = {
     "justin": "personal-ai-client",
+    "christine": "personal-ai-client",
+    "scott": "personal-ai-client",
     "claude-routine": "openclaw-agent-standard",
     "nix-angelson": "openclaw-agent-standard",
     "jr": "openclaw-agent-standard",
