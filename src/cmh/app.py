@@ -16,6 +16,7 @@ from cmh.auth.middleware import IdentityMiddleware
 from cmh.config import load_settings
 from cmh.db.engine import build_engine, build_session_factory
 from cmh.db.roles import guard_runtime_role
+from cmh.db.startup import guard_database_target
 from cmh.logging import RequestIDMiddleware, configure_logging
 from cmh.mcp.server import build_mcp
 from cmh.services.core import IdentityService
@@ -29,6 +30,7 @@ def create_app(clock=None) -> FastAPI:
     initial_clock = clock or (lambda: datetime.now(UTC))
     settings = load_settings()
     database_url = settings.database_url.get_secret_value()
+    guard_database_target(database_url, settings.env)
     token = settings.bootstrap_token.get_secret_value()
     configure_logging((database_url, token))
     engine = build_engine(database_url)
