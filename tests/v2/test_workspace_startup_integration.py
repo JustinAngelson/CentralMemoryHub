@@ -4,22 +4,28 @@ import pytest
 from fastapi.testclient import TestClient
 
 
-@pytest.mark.no_app_operation(reason="Only GET /healthz: unaudited startup guard probe.")
-@pytest.mark.parametrize("production", [False, True])
-def test_isolated_database_starts_with_known_environment(configured_env, monkeypatch, production):
+@pytest.fixture(params=[False, True], ids=["development", "deployment"])
+def isolated_startup_client(configured_env, monkeypatch, request):
     from cmh.app import create_app
 
     monkeypatch.delenv("CMH_PROD_DATABASE_URL", raising=False)
-    if production:
+    if request.param:
         monkeypatch.setenv("REPLIT_DEPLOYMENT", "1")
         monkeypatch.setenv("CMH_ENV", "prod")
     else:
         monkeypatch.delenv("REPLIT_DEPLOYMENT", raising=False)
         monkeypatch.setenv("CMH_ENV", "dev")
     with TestClient(create_app()) as client:
-        response = client.get("/healthz")
-        assert response.status_code == 200
-        assert response.json()["status"] == "ok"
+        yield client, "prod" if request.param else "dev"
+
+
+@pytest.mark.no_app_operation(reason="Only GET /healthz: unaudited startup guard probe.")
+def test_isolated_database_starts_with_known_environment(isolated_startup_client):
+    client, expected_environment = isolated_startup_client
+    response = client.get("/healthz")
+    assert response.status_code == 200
+    assert response.json()["status"] == "ok"
+    assert response.json()["env"] == expected_environment
 
 
 @pytest.mark.no_app_operation(reason="Startup target guard rejects before any database operation.")
