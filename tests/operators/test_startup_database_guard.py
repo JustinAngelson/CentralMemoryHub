@@ -112,7 +112,7 @@ def test_workspace_command_requires_dev_secret_and_venv_only():
     assert "CMH_ENV=dev" in command
     assert ".local/cmh-v2-venv/bin/python -m uvicorn" in command
     # Missing dev configuration must stop the shell before any app invocation.
-    result = subprocess.run(["sh", "-c", command], env={"PATH": "/usr/bin:/bin"},
+    result = subprocess.run(["sh", "-c", command], check=False, env={"PATH": "/usr/bin:/bin"},
                             capture_output=True, text=True, timeout=5)
     assert result.returncode != 0
     assert "CMH_DEV_DATABASE_URL" in result.stderr
@@ -122,8 +122,8 @@ def test_deployment_commands_and_ports_unchanged():
     config = tomllib.loads((ROOT / ".replit").read_text())
     assert config["deployment"]["run"] == [
         "sh", "-c",
-        "PYTHONPATH=src python -m uvicorn cmh.app:create_app --factory "
-        "--host 0.0.0.0 --port 5000 --no-access-log",
+        ("PYTHONPATH=src python -m uvicorn cmh.app:create_app --factory "
+         "--host 0.0.0.0 --port 5000 --no-access-log"),
     ]
     assert config["deployment"]["build"] == ["sh", "-c", "python -m pip install ./src/cmh"]
     assert config["ports"] == [{"localPort": 5000, "externalPort": 80}]

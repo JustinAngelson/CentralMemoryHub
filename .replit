@@ -6,7 +6,8 @@ packages = ["freetype", "lcms2", "libimagequant", "libjpeg", "libtiff", "libwebp
 
 [deployment]
 deploymentTarget = "vm"
-run = ["bash", "start_all.sh"]
+run = ["sh", "-c", "PYTHONPATH=src python -m uvicorn cmh.app:create_app --factory --host 0.0.0.0 --port 5000 --no-access-log"]
+build = ["sh", "-c", "python -m pip install ./src/cmh"]
 
 [workflows]
 runButton = "Project"
@@ -30,7 +31,7 @@ outputType = "webview"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "bash start_all.sh"
+args = "CMH_DATABASE_URL=\"${CMH_DEV_DATABASE_URL:?CMH_DEV_DATABASE_URL is required}\" CMH_ENV=dev PYTHONPATH=src .local/cmh-v2-venv/bin/python -m uvicorn cmh.app:create_app --factory --host 0.0.0.0 --port 5000 --no-access-log"
 waitForPort = 5000
 
 [[ports]]
@@ -41,3 +42,8 @@ externalPort = 80
 CMH_PUBLIC_URL = "http://localhost"
 CMH_ENV = "dev"
 CMH_ALLOWED_HOSTS = "127.0.0.1,localhost"
+
+[userenv.production]
+CMH_ENV = "prod"
+CMH_PUBLIC_URL = "https://centralmemoryhub.com"
+CMH_TRUSTED_PROXY_HOPS = "3"
