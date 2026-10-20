@@ -198,12 +198,26 @@ def test_nonowner_login_refused_and_logged_out(command, monkeypatch):
     assert not client.cookies
 
 
-def test_no_mode_override(command, monkeypatch):
+def test_no_mode_override(command, monkeypatch, capsys):
     monkeypatch.setattr(common, "readonly_connection", lambda: pytest.fail("Unexpected SQL"))
     monkeypatch.setattr(common, "https_client", lambda: pytest.fail("Unexpected HTTPS"))
     with pytest.raises(SystemExit) as error:
         command.main(["org.rollups", "--description", "Rollup summaries", "--mode", "queue"])
     assert error.value.code == 2
+    output = capsys.readouterr()
+    assert not output.out
+    assert json.loads(output.err) == {"error": "Invalid namespace arguments."}
+
+
+def test_missing_description_is_json_error_before_connection(command, monkeypatch, capsys):
+    monkeypatch.setattr(common, "readonly_connection", lambda: pytest.fail("Unexpected SQL"))
+    monkeypatch.setattr(common, "https_client", lambda: pytest.fail("Unexpected HTTPS"))
+    with pytest.raises(SystemExit) as error:
+        command.main(["org.rollups"])
+    assert error.value.code == 2
+    output = capsys.readouterr()
+    assert not output.out
+    assert json.loads(output.err) == {"error": "Invalid namespace arguments."}
 
 
 def test_rollups_seed_entry_after_ops():
